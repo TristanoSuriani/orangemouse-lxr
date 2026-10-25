@@ -47,6 +47,7 @@ lxr_configure(lxr)
 add_executable(studio
     ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources} ${lxr_engine_sources}
     ${LXR_ROOT}/studio/studio.c
+    ${LXR_ROOT}/studio/tracker.c
     ${LXR_ROOT}/engines/orangemouse-va/VaEngine.c
     ${LXR_ROOT}/engines/orangemouse-va/VaPresets.c
     ${LXR_ROOT}/engines/orangemouse-va/va_engine.c

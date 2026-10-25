@@ -73,6 +73,7 @@ target_compile_definitions(lxr_firmware PRIVATE ${musl_math_definition})
 # The studio (router, mixer) and Orange Mouse VA.
 add_library(om_core OBJECT
     ${LXR_ROOT}/studio/studio.c
+    ${LXR_ROOT}/studio/tracker.c
     ${LXR_ROOT}/engines/orangemouse-va/VaEngine.c
     ${LXR_ROOT}/engines/orangemouse-va/VaPresets.c
     ${LXR_ROOT}/engines/orangemouse-va/va_engine.c
@@ -93,7 +94,8 @@ foreach(tool ${lxr_tools})
 endforeach()
 add_executable(studio_render studio_render.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${musl_objects})
 add_executable(studio_test studio_test.c $<TARGET_OBJECTS:om_core> ${musl_objects})
-foreach(tool studio_render studio_test)
+add_executable(tracker_test tracker_test.c $<TARGET_OBJECTS:om_core> ${musl_objects})
+foreach(tool studio_render studio_test tracker_test)
     target_include_directories(${tool} PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines)
     target_link_libraries(${tool} PRIVATE m)
 endforeach()
@@ -102,7 +104,7 @@ endforeach()
 # show the browser computes what the native tests checked.
 #   emcmake cmake -S tests/host -B tests/host/build-wasm -G Ninja
 if(EMSCRIPTEN)
-    foreach(tool ${lxr_tools} studio_render studio_test)
+    foreach(tool ${lxr_tools} studio_render studio_test tracker_test)
         target_link_options(${tool} PRIVATE -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1MB -sEXIT_RUNTIME=1)
     endforeach()
 endif()

@@ -48,8 +48,9 @@ echo "== parameter registry"
 { python3 -I tools/lxr_registry.py --check && python3 -I tools/registry.py --check && node tests/registry_test.mjs; } \
   | sed 's/^/   /' || fail=1
 
-echo "== studio unit tests"
+echo "== studio and tracker unit tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1
+$BIN/tracker_test | sed 's/^/   /' || fail=1
 
 echo "== LXR demo groove"
 $BIN/lxr_render --raw "$OUT/demo.f32" --wav "$OUT/demo.wav" | grep '^hash' > "$OUT/lxr_demo.txt"
@@ -79,6 +80,7 @@ if command -v emcmake >/dev/null && command -v node >/dev/null; then
   emcmake cmake -S tests/host -B tests/host/build-wasm -G Ninja >/dev/null 2>&1
   cmake --build tests/host/build-wasm >/dev/null
   node tests/host/build-wasm/studio_test.js | sed 's/^/   wasm: /' || fail=1
+  node tests/host/build-wasm/tracker_test.js | sed 's/^/   wasm: /' || fail=1
   for tool in lxr_render studio_render; do
     native=$($BIN/$tool | grep '^hash')
     wasm=$(node tests/host/build-wasm/$tool.js | grep '^hash')
