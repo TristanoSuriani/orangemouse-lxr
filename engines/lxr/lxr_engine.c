@@ -24,7 +24,7 @@
 #include "Soundengine/Sequencer/sequencer.h"
 #include "om_registry_lxr.h"
 
-// web/port/web_main.c and web_sdcard.c
+// web/port/web_main.c and web_sdcard.c (web_port.h has web_sdSectors)
 uint8_t *web_sd_alloc(uint32_t sectors);
 void web_boot(float rate, uint32_t seed);
 float *web_render(void);
@@ -34,14 +34,23 @@ float *web_render(void);
 #define LXR_SD_SECTORS 32768   // a 16 MB card
 
 static uint8_t lxr_created;
+static uint32_t lxr_seed = 1;
+
+// The browser loads its saved SD card (web_sd_alloc, then fills it) and seeds
+// the random generator before the studio creates the LXR.
+void om_lxr_set_seed(uint32_t seed)
+{
+	lxr_seed = seed;
+}
 
 static void *lxrCreate(float sampleRate)
 {
 	if (lxr_created)
 		return NULL;
 	lxr_created = 1;
-	web_sd_alloc(LXR_SD_SECTORS);   // empty: formatted on boot, as on first use in the browser
-	web_boot(sampleRate, 1);
+	if (!web_sdSectors)
+		web_sd_alloc(LXR_SD_SECTORS);   // empty: formatted on boot, as on first use in the browser
+	web_boot(sampleRate, lxr_seed);
 	return &lxr_created;
 }
 
@@ -115,6 +124,13 @@ static void lxrSetParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 	midiParser_ccHandler(msg, 1, 0, 0.f);
 }
 
+static uint8_t lxrGetParam(void *self, uint8_t part, uint16_t param)
+{
+	(void)self;
+	(void)part;
+	return param < OM_LXR_NUM_PARAMS ? activeParameters[param] : 0;
+}
+
 static void lxrSetTempo(void *self, float bpm)
 {
 	(void)self;
@@ -142,6 +158,7 @@ const OmEngineClass om_lxr_engine = {
 	.note_on = lxrNoteOn,
 	.note_off = lxrNoteOff,
 	.set_param = lxrSetParam,
+	.get_param = lxrGetParam,
 	.set_tempo = lxrSetTempo,
 	.render = lxrRender,
 };

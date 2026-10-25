@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LXR Web</title>
-  <meta name="description" content="The LXR V2 drum machine firmware running in the browser">
+  <title>Orange Mouse</title>
+  <meta name="description" content="A browser studio: the LXR drum machine and Orange Mouse VA">
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="machine" id="machine">
+  <div class="studio" id="devices">
+  <main class="machine" id="machine" aria-label="LXR drum machine">
     <section class="top">
       <div class="display-block">
         <canvas id="lcd" class="lcd" width="400" height="92" aria-label="Display"></canvas>
@@ -35,6 +36,7 @@
 
     <section class="row steps" id="steps"></section>
   </main>
+  </div>
 
   <aside class="dock">
     <label class="dock-item">Volume <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8"></label>
@@ -50,6 +52,7 @@
     Hold a button: click and hold, or <kbd>Alt</kbd>-click to latch it (click again to release).
     Keyboard: <kbd>Shift</kbd> = Shift, <kbd>Space</kbd> = Start/Stop, <kbd>←</kbd>/<kbd>→</kbd> turn the encoder,
     <kbd>Enter</kbd> pushes it. Pots and the encoder turn by dragging up/down or scrolling.
+    <kbd>Z</kbd>–<kbd>M</kbd> and <kbd>Q</kbd>–<kbd>I</kbd> play the selected VA slot; <kbd>[</kbd> <kbd>]</kbd> change its octave.
   </p>
 
   <details class="guide" id="guide">

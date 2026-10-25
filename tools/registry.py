@@ -31,6 +31,7 @@ OUT_JS = ROOT / "web" / "app" / "registry"
 SHORT_MAX = 3       # the LXR LCD's parameter labels
 NAME_MAX = 16       # one LCD row
 HELP_MAX = 90       # the help strip under a display
+SHORT_VALUE_MAX = 5 # a value in a display column
 KINDS = {"raw", "percent", "bipolar", "exp", "off_exp", "enum", "offset", "affine",
          "curve", "steps", "preset", "note"}
 
@@ -70,6 +71,11 @@ def check(reg):
             errors.append(f"{where}: unknown display kind {d.get('kind')!r}")
         if d.get("kind") == "enum" and len(d.get("values", [])) != p["max"] - p["min"] + 1:
             errors.append(f"{where}: {len(d.get('values', []))} names for {p['max'] - p['min'] + 1} values")
+        if d.get("kind") == "enum":
+            shorts = d.get("short", d.get("values", []))
+            if len(shorts) != len(d.get("values", [])) or any(len(x) > SHORT_VALUE_MAX for x in shorts):
+                errors.append(f"{where}: needs a short name of at most {SHORT_VALUE_MAX} characters for every value"
+                              " (display.short)")
         h = p.get("help", "")
         if len(h) > HELP_MAX:
             errors.append(f"{where}: help is {len(h)} characters, more than {HELP_MAX}")

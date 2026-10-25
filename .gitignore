@@ -12,3 +12,5 @@ __pycache__/
 /tests/host/out/
 .cache/
 /tests/host/build*/
+/web/app/studio.wasm
+/tests/browser/out/

@@ -8,7 +8,7 @@
 
 import lxr from '../web/app/registry/lxr.js';
 import va from '../web/app/registry/va.js';
-import { formatValue, helpLine } from '../web/app/registry/format.js';
+import { formatValue, formatShort, helpLine } from '../web/app/registry/format.js';
 
 const VALUE_MAX = 12;   // the value field of a display row
 let failures = 0, checked = 0;
@@ -23,6 +23,9 @@ for (const reg of [lxr, va]) {
         fail(`${reg.engine} ${p.id} = ${v}: "${text}"`);
       else if (text.length > VALUE_MAX)
         fail(`${reg.engine} ${p.id} = ${v}: "${text}" is longer than ${VALUE_MAX} characters`);
+      const short = formatShort(p, v);
+      if (!short || short.length > 5 || /NaN|Infinity|undefined/.test(short))
+        fail(`${reg.engine} ${p.id} = ${v}: short form "${short}"`);
     }
     if (!helpLine(p, p.default).startsWith(p.short.toUpperCase()))
       fail(`${reg.engine} ${p.id}: help line "${helpLine(p, p.default)}"`);

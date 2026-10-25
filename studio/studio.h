@@ -39,6 +39,11 @@ int om_studio_note_on(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part
 int om_studio_note_off(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t note);
 int om_studio_set_param(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint16_t param, uint8_t value);
 
+// A parameter's current value (events still queued are not applied yet), and
+// an engine's class (NULL past the last engine).
+uint8_t om_studio_get_param(OmStudio *st, uint8_t engine, uint8_t part, uint16_t param);
+const OmEngineClass *om_studio_engine(const OmStudio *st, uint8_t engine);
+
 // The mixer: a stem's level (linear) and balance (-1 left .. 1 right).
 void om_studio_set_stem(OmStudio *st, uint8_t engine, uint8_t stem, float level, float balance);
 

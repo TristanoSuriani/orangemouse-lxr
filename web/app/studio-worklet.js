@@ -1,10 +1,11 @@
 // Copyright (C) 2026 Erica Synths
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// AudioWorklet that runs the LXR firmware (lxr.wasm). The firmware renders
-// blocks of 64 frames; process() pulls as many as each render quantum needs.
-// The worklet forwards front panel input to the firmware and sends display,
-// LED, MIDI and SD card changes back to the page.
+// AudioWorklet that runs the studio (studio.wasm, web/port/web_studio.c): the
+// LXR firmware and Orange Mouse VA, mixed. The studio renders blocks of 64
+// frames; process() pulls as many as each render quantum needs. The worklet
+// forwards the LXR's front panel input, and the panels' notes and parameter
+// changes, and sends display, LED, MIDI, SD card and VA changes back to the page.
 
 const SECTOR_SIZE = 512;
 const UI_INTERVAL_S = 1 / 60;
@@ -13,8 +14,10 @@ const UI_INTERVAL_S = 1 / 60;
 // arrive within one render quantum.
 const MIN_BUTTON_BLOCKS = 4;
 const SD_FLUSH_INTERVAL_S = 0.5;
+const VA = 1;              // the studio's engine numbers (web_studio.c)
+const VA_P_PRESET = 44;    // registry/va.json
 
-class LxrProcessor extends AudioWorkletProcessor {
+class StudioProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super();
     const { wasm, sdImage, blankCard, seed } = options.processorOptions;
@@ -39,11 +42,12 @@ class LxrProcessor extends AudioWorkletProcessor {
     const sectors = sdImage.byteLength / SECTOR_SIZE;
     const sdPtr = this.wasm.web_sd_alloc(sectors);
     this.bytes().set(new Uint8Array(sdImage), sdPtr);
-    this.wasm.web_boot(sampleRate, seed);
+    if (this.wasm.om_web_init(sampleRate, seed) !== 0) throw new Error('the studio did not start');
     this.dirtySectors.clear();
 
-    this.blockSize = this.wasm.web_block_size();
+    this.blockSize = this.wasm.om_web_block_size();
     this.pending = new Float32Array(this.blockSize * 2);  // interleaved stereo left over from the last block
+    this.vaSlotsChanged = new Set();  // VA slots whose parameters the page should read again
     this.pendingFrames = 0;
     this.pendingRead = 0;
 
@@ -57,6 +61,8 @@ class LxrProcessor extends AudioWorkletProcessor {
     this.sdTimer = 0;
 
     this.port.onmessage = (e) => this.onMessage(e.data);
+    this.sendVaPresets();
+    for (let slot = 0; slot < 4; slot++) this.vaSlotsChanged.add(slot);
     // a blank card has just been formatted by the firmware: store all of it
     if (blankCard) this.flushSd(true);
     this.sendUi(true);
@@ -83,7 +89,43 @@ class LxrProcessor extends AudioWorkletProcessor {
       case 'fader': w.web_set_fader(msg.fader, msg.value); break;
       case 'midi': for (const b of msg.bytes) w.web_midi_in(b); break;
       case 'flushSd': this.flushSd(false); break;
+      case 'note':
+        if (msg.on) w.om_web_note_on(msg.engine, msg.part, msg.note, msg.velocity);
+        else w.om_web_note_off(msg.engine, msg.part, msg.note);
+        break;
+      case 'param':
+        w.om_web_set_param(msg.engine, msg.part, msg.param, msg.value);
+        if (msg.engine === VA && msg.param === VA_P_PRESET) this.vaSlotsChanged.add(msg.part);
+        break;
     }
+  }
+
+  // VA's preset banks: names and sound parameters, once.
+  sendVaPresets() {
+    const w = this.wasm;
+    const count = w.om_web_va_preset_param_count();
+    const slots = [];
+    for (let slot = 0; slot < 4; slot++) {
+      const presets = [];
+      for (let i = 0; i < w.om_web_va_presets(slot); i++) {
+        presets.push({
+          name: this.readCString(w.om_web_va_preset_name(slot, i)).trim(),
+          params: Array.from(this.bytes().subarray(w.om_web_va_preset_params(slot, i), w.om_web_va_preset_params(slot, i) + count)),
+        });
+      }
+      slots.push(presets);
+    }
+    this.port.postMessage({ type: 'vaPresets', slots });
+  }
+
+  // A VA slot's parameters, after a preset load changed them all.
+  sendVaParams() {
+    for (const slot of this.vaSlotsChanged) {
+      const params = [];
+      for (let p = 0; p < 49; p++) params.push(this.wasm.om_web_get_param(VA, slot, p));
+      this.port.postMessage({ type: 'vaParams', slot, params });
+    }
+    this.vaSlotsChanged.clear();
   }
 
   // Sends the sectors written since the last flush (or the whole card).
@@ -149,14 +191,14 @@ class LxrProcessor extends AudioWorkletProcessor {
     const w = this.wasm;
     if (this.buttonQueue.length) this.applyButtons();
     this.blockCount++;
-    const ptr = w.web_render();
+    const ptr = w.om_web_render();
     const n = this.blockSize;
-    const out = new Float32Array(w.memory.buffer, ptr, n * 4);  // out1 L, out1 R, out2 L, out2 R
+    const out = new Float32Array(w.memory.buffer, ptr, n * 2);  // left block, right block
     for (let i = 0; i < n; i++) {
-      // both stereo outputs mixed down
-      this.pending[i * 2] = out[i] + out[2 * n + i];
-      this.pending[i * 2 + 1] = out[n + i] + out[3 * n + i];
+      this.pending[i * 2] = out[i];
+      this.pending[i * 2 + 1] = out[n + i];
     }
+    if (this.vaSlotsChanged.size) this.sendVaParams();
     this.pendingFrames = n;
     this.pendingRead = 0;
   }
@@ -194,4 +236,4 @@ class LxrProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor('lxr', LxrProcessor);
+registerProcessor('studio', StudioProcessor);

@@ -54,6 +54,12 @@ static void vaSetParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 	va_setParam(part, (uint8_t)param, value < info->min ? info->min : value > info->max ? info->max : value);
 }
 
+static uint8_t vaGetParam(void *self, uint8_t part, uint16_t param)
+{
+	(void)self;
+	return param < OM_VA_NUM_PARAMS ? va_getParam(part, (uint8_t)param) : 0;
+}
+
 static void vaSetTempo(void *self, float bpm)
 {
 	(void)self;
@@ -83,6 +89,7 @@ const OmEngineClass om_va_engine = {
 	.note_on = vaNoteOn,
 	.note_off = vaNoteOff,
 	.set_param = vaSetParam,
+	.get_param = vaGetParam,
 	.set_tempo = vaSetTempo,
 	.render = vaRender,
 };

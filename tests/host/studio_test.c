@@ -28,6 +28,7 @@ static void mockDestroy(void *self) { free(self); }
 static void mockNoteOn(void *self, uint8_t part, uint8_t note, uint8_t vel) { (void)part; (void)note; (void)vel; ((Mock *)self)->held = 1; ((Mock *)self)->notesOn++; }
 static void mockNoteOff(void *self, uint8_t part, uint8_t note) { (void)part; (void)note; ((Mock *)self)->held = 0; }
 static void mockParam(void *self, uint8_t part, uint16_t param, uint8_t value) { (void)self; (void)part; (void)param; (void)value; }
+static uint8_t mockGetParam(void *self, uint8_t part, uint16_t param) { (void)self; (void)part; (void)param; return 0; }
 static void mockTempo(void *self, float bpm) { ((Mock *)self)->tempo = bpm; }
 static void mockRender(void *self, float *const *stems, uint32_t frames)
 {
@@ -39,7 +40,7 @@ static OmEngineClass mockClass(uint16_t block)
 {
 	return (OmEngineClass){.name = "mock", .parts = 1, .stems = 1, .block = block,
 		.create = mockCreate, .destroy = mockDestroy, .note_on = mockNoteOn, .note_off = mockNoteOff,
-		.set_param = mockParam, .set_tempo = mockTempo, .render = mockRender};
+		.set_param = mockParam, .get_param = mockGetParam, .set_tempo = mockTempo, .render = mockRender};
 }
 
 // the first frame at or after `from` where the left channel is (or isn't) 1.0

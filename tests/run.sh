@@ -85,8 +85,17 @@ if command -v emcmake >/dev/null && command -v node >/dev/null; then
     if [ "$native" = "$wasm" ]; then echo "   ok: $tool, native and wasm $native"
     else echo "   FAIL: $tool native $native, wasm $wasm"; fail=1; fi
   done
+  node tests/studio_wasm_smoke.mjs | sed 's/^/   /' || fail=1
 else
   echo "== WebAssembly parity skipped: Emscripten or node not found"
+fi
+
+CHROME=${CHROME:-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
+if [ -x "$CHROME" ] && [ -f web/app/studio.wasm ]; then
+  echo "== the studio in headless Chrome"
+  CHROME="$CHROME" node tests/browser/smoke.mjs || fail=1
+else
+  echo "== browser test skipped: no Chrome (set CHROME) or no web/app/studio.wasm"
 fi
 
 [ $fail -eq 0 ] && echo "ALL PASSED" || { echo "FAILED"; exit 1; }

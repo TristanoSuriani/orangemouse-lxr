@@ -129,6 +129,18 @@ int om_studio_set_param(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t pa
 	return push(st, engine, (Event){.frame = frame, .type = EV_PARAM, .part = part, .param = param, .value = value});
 }
 
+uint8_t om_studio_get_param(OmStudio *st, uint8_t engine, uint8_t part, uint16_t param)
+{
+	if (engine >= st->engines || part >= st->engine[engine].cls->parts)
+		return 0;
+	return st->engine[engine].cls->get_param(st->engine[engine].self, part, param);
+}
+
+const OmEngineClass *om_studio_engine(const OmStudio *st, uint8_t engine)
+{
+	return engine < st->engines ? st->engine[engine].cls : NULL;
+}
+
 void om_studio_set_stem(OmStudio *st, uint8_t engine, uint8_t stem, float level, float balance)
 {
 	if (engine >= st->engines || stem >= OM_MAX_STEMS)

@@ -1,12 +1,16 @@
 // Copyright (C) 2026 Erica Synths
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// The front panel: builds the controls, starts the firmware in an
-// AudioWorklet (lxr-worklet.js) and connects it to the display, LEDs, the
-// SD card store (IndexedDB) and Web MIDI.
+// The studio page: builds the LXR's front panel and the Orange Mouse VA panel
+// (devices/va.js), starts the studio in an AudioWorklet (studio-worklet.js)
+// and connects it to the displays, LEDs, the SD card store (IndexedDB) and
+// Web MIDI.
 
 import { Lcd } from './lcd.js';
 import { SdCardStore, SD_SECTORS, SECTOR_SIZE, flushOnHide } from './sdcard.js';
+import { makePad, makeRotary } from './kit/controls.js';
+import { KEY_SEMITONES } from './kit/keybed.js';
+import { createVaDevice } from './devices/va.js';
 
 // Button numbers as in enum ButtonNumbers (Core/Inc/buttonHandler.h); each
 // button's LED has the same number in enum LedNumbers (ledHandler.h).
@@ -46,87 +50,11 @@ function setStatus(text) {
 
 // ---- controls -------------------------------------------------------------------
 
-function makeButton(id, label, { alt = '', kind = '' } = {}) {
-  const el = document.createElement('button');
-  el.type = 'button';
-  el.className = `pad ${kind}`.trim();
-  el.innerHTML = `<span class="led"></span><span class="label">${label}</span>${alt ? `<span class="alt">${alt}</span>` : ''}`;
-  el.setAttribute('aria-label', alt ? `${label} (shift: ${alt})` : label);
-  el.setAttribute('aria-pressed', 'false');
-
-  let held = false;     // pressed by pointer
-  let latched = false;  // held down with Alt-click
-  const update = () => {
-    const down = held || latched;
-    el.classList.toggle('down', down);
-    el.classList.toggle('latched', latched);
-    el.setAttribute('aria-pressed', String(down));
-    send({ type: 'button', id, down });
-  };
-  el.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    if (e.altKey) {
-      latched = !latched;
-      update();
-      return;
-    }
-    if (latched) {
-      latched = false;
-      update();
-      return;
-    }
-    el.setPointerCapture(e.pointerId);
-    held = true;
-    update();
-  });
-  const release = () => {
-    if (!held) return;
-    held = false;
-    update();
-  };
-  el.addEventListener('pointerup', release);
-  el.addEventListener('pointercancel', release);
-  el.addEventListener('keydown', (e) => {
-    if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
-      e.preventDefault();
-      e.stopPropagation();
-      held = true;
-      update();
-    }
-  });
-  el.addEventListener('keyup', (e) => {
-    if (e.key === ' ' || e.key === 'Enter') {
-      e.preventDefault();
-      e.stopPropagation();
-      release();
-    }
-  });
+// An LXR panel button: number from enum ButtonNumbers (buttonHandler.h).
+function makeButton(id, label, options = {}) {
+  const el = makePad(label, { ...options, onChange: (down) => send({ type: 'button', id, down }) });
   buttons.set(id, el);
   return el;
-}
-
-// Drag up/right or scroll up to turn clockwise. Calls onTurn(amount in pixels).
-function makeRotary(el, onTurn) {
-  let last = null;
-  el.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    el.setPointerCapture(e.pointerId);
-    last = { x: e.clientX, y: e.clientY };
-  });
-  el.addEventListener('pointermove', (e) => {
-    if (!last) return;
-    const delta = (e.clientX - last.x) - (e.clientY - last.y);
-    last = { x: e.clientX, y: e.clientY };
-    if (delta) onTurn(delta);
-  });
-  const end = () => { last = null; };
-  el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', end);
-  el.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    onTurn(-Math.sign(e.deltaY) * 8);
-  }, { passive: false });
 }
 
 function buildPanel() {
@@ -245,6 +173,14 @@ function pressFromKeyboard(id, down) {
 
 window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+  if (e.code in KEY_SEMITONES && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (!e.repeat) va.noteFromKey(KEY_SEMITONES[e.code], true);
+    return;
+  }
+  if (e.key === '[' || e.key === ']') {
+    va.octave(e.key === ']' ? 1 : -1);
+    return;
+  }
   if (e.key === 'Shift' && !shiftKeyDown) {
     shiftKeyDown = true;
     pressFromKeyboard(BUT.SHIFT, true);
@@ -261,6 +197,10 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  if (e.code in KEY_SEMITONES) {
+    va.noteFromKey(KEY_SEMITONES[e.code], false);
+    return;
+  }
   if (e.key === 'Shift') {
     shiftKeyDown = false;
     pressFromKeyboard(BUT.SHIFT, false);
@@ -346,12 +286,12 @@ async function switchOn() {
 
   const context = new AudioContext({ sampleRate: 44100, latencyHint: 'interactive' });
   const [wasm, card] = await Promise.all([
-    fetch('lxr.wasm').then((r) => {
-      if (!r.ok) throw new Error(`lxr.wasm: ${r.status} ${r.statusText} (build it first, see README.md)`);
+    fetch('studio.wasm').then((r) => {
+      if (!r.ok) throw new Error(`studio.wasm: ${r.status} ${r.statusText} (build it first, see README.md)`);
       return r.arrayBuffer();
     }),
     store.load(),
-    context.audioWorklet.addModule('lxr-worklet.js'),
+    context.audioWorklet.addModule('studio-worklet.js'),
   ]);
 
   const gain = context.createGain();
@@ -359,7 +299,7 @@ async function switchOn() {
   gain.gain.value = Number(volume.value);
   volume.addEventListener('input', () => gain.gain.setTargetAtTime(Number(volume.value), context.currentTime, 0.02));
 
-  node = new AudioWorkletNode(context, 'lxr', {
+  node = new AudioWorkletNode(context, 'studio', {
     numberOfInputs: 0,
     outputChannelCount: [2],
     processorOptions: {
@@ -371,13 +311,14 @@ async function switchOn() {
   });
   node.connect(gain).connect(context.destination);
   node.port.onmessage = (e) => onWorkletMessage(e.data);
-  node.onprocessorerror = () => setStatus('The firmware stopped with an error, reload the page.');
+  node.onprocessorerror = () => setStatus('The studio stopped with an error, reload the page.');
 
   for (const [i, input] of document.querySelectorAll('.fader').entries()) {
     send({ type: 'fader', fader: i, value: Number(input.value) });
   }
   await context.resume();
   power.hidden = true;
+  window.orangeMouse = { context, node, va };   // for the browser tests (tests/browser/)
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
@@ -397,6 +338,10 @@ function onWorkletMessage(msg) {
       break;
     case 'sdAll':
       store.writeAll(msg.data);
+      break;
+    case 'vaPresets':
+    case 'vaParams':
+      va.onMessage(msg);
       break;
   }
 }
@@ -434,7 +379,12 @@ document.getElementById('resetCard').addEventListener('click', async () => {
 });
 
 buildPanel();
+const va = createVaDevice({ send });
+document.getElementById('devices').append(va.el);
 setUpMidi();
+// #preview: the panels without the switch-on overlay and without audio, for
+// screenshots (tests) and for looking around
+if (location.hash === '#preview') document.getElementById('power').hidden = true;
 document.getElementById('powerButton').addEventListener('click', () => {
   switchOn().catch((err) => {
     console.error(err);

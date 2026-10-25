@@ -24,6 +24,12 @@ export default {
      "square",
      "triangle",
      "sine"
+    ],
+    "short": [
+     "saw",
+     "sqr",
+     "tri",
+     "sine"
     ]
    },
    "help": "Oscillator 1's waveform."
@@ -42,6 +48,12 @@ export default {
      "saw",
      "square",
      "triangle",
+     "sine"
+    ],
+    "short": [
+     "saw",
+     "sqr",
+     "tri",
      "sine"
     ]
    },
@@ -182,6 +194,12 @@ export default {
      "square",
      "triangle",
      "sine"
+    ],
+    "short": [
+     "saw",
+     "sqr",
+     "tri",
+     "sine"
     ]
    },
    "help": "The sub-oscillator's waveform. Sine is clean, square is punchier."
@@ -199,6 +217,10 @@ export default {
     "values": [
      "-1 oct",
      "-2 oct"
+    ],
+    "short": [
+     "-1oct",
+     "-2oct"
     ]
    },
    "help": "How far below the note the sub-oscillator plays."
@@ -301,6 +323,12 @@ export default {
     "kind": "enum",
     "values": [
      "LP24 ladder",
+     "LP12",
+     "BP12",
+     "HP12"
+    ],
+    "short": [
+     "LP24",
      "LP12",
      "BP12",
      "HP12"
@@ -538,6 +566,13 @@ export default {
      "saw",
      "square",
      "S&H"
+    ],
+    "short": [
+     "sine",
+     "tri",
+     "saw",
+     "sqr",
+     "S&H"
     ]
    },
    "help": "The LFO's shape. S&H jumps to a random value each cycle."
@@ -618,6 +653,11 @@ export default {
     "values": [
      "mono",
      "legato",
+     "poly"
+    ],
+    "short": [
+     "mono",
+     "leg",
      "poly"
     ]
    },

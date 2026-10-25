@@ -62,6 +62,34 @@ export function formatValue(param, v) {
   }
 }
 
+// The value in at most 5 characters, for a display column: "1.2k", "850ms",
+// "+7st", "saw", "1/4".
+export function formatShort(param, v) {
+  const d = param.display;
+  const cut = (s) => s.slice(0, 5);
+  const hz = (x) => (x >= 1000 ? `${fixed(x / 1000, x >= 9950 ? 0 : 1)}k`
+    : x >= 100 ? String(Math.round(x)) : x >= 10 ? `${Math.round(x)}Hz` : x >= 1 ? `${fixed(x, 1)}Hz` : fixed(x, 2));
+  const sec = (x) => (x < 1 ? `${Math.round(x * 1000)}ms` : `${fixed(x, x >= 9.95 ? 0 : 1)}s`);
+  const physical = (x) => (d.unit === 'Hz' ? hz(x) : d.unit === 's' ? sec(x) : fixed(x, 1));
+  const unit = { st: 'st', ct: 'c', '%': '%' }[d.unit] ?? '';
+  switch (d.kind) {
+    case 'percent': return `${Math.round(((v - param.min) / (param.max - param.min)) * 100)}%`;
+    case 'bipolar': return cut(signed((v - d.center) * d.scale, d.digits ?? 0) + unit);
+    case 'exp': return cut(physical(d.base * 2 ** ((v * d.octaves) / 127)));
+    case 'off_exp': return v === 0 ? 'off' : cut(physical(d.base * 2 ** ((v * d.octaves) / 127)));
+    case 'enum': return cut((d.short ?? d.values)[v - param.min]);
+    case 'offset': return cut(d.signed === false ? String(v + d.offset) : signed(v + d.offset, 0));
+    case 'affine': return cut(fixed(d.a + d.b * v, d.digits ?? 0) + unit);
+    case 'curve': return cut(fixed(d.scale * (v / 127) ** d.power, 1));
+    case 'steps': {
+      const steps = (v + 1) / 16;
+      if (steps < 1 && Number.isInteger(16 / (v + 1))) return `1/${16 / (v + 1)}`;
+      return cut(Number.isInteger(steps) ? String(steps) : fixed(steps, 2));
+    }
+    default: return cut(formatValue(param, v));
+  }
+}
+
 export function helpLine(param, v) {
   const head = `${param.short.toUpperCase()} ${param.name} ${formatValue(param, v)}`;
   return param.help ? `${head}: ${param.help}` : head;

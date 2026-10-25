@@ -35,25 +35,25 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 include(${CMAKE_CURRENT_LIST_DIR}/lxr_sources.cmake)
 
+# Two modules, both standalone without Emscripten's JavaScript runtime: the
+# AudioWorklet instantiates them directly.
+#   studio.wasm  the studio (studio/): the LXR and Orange Mouse VA, mixed;
+#                the app runs it (app/studio-worklet.js)
+#   lxr.wasm     the LXR firmware alone, as before; tests/host/parity.mjs
+#                compares it with the native build
 add_executable(lxr ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources})
 lxr_configure(lxr)
 
-# A standalone module without Emscripten's JavaScript runtime: the
-# AudioWorklet instantiates it directly (see app/lxr-worklet.js).
-set_target_properties(lxr PROPERTIES
-    SUFFIX ".wasm"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/app"
+add_executable(studio
+    ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources} ${lxr_engine_sources}
+    ${LXR_ROOT}/studio/studio.c
+    ${LXR_ROOT}/engines/orangemouse-va/VaEngine.c
+    ${LXR_ROOT}/engines/orangemouse-va/VaPresets.c
+    ${LXR_ROOT}/engines/orangemouse-va/va_engine.c
+    port/web_studio.c
 )
-target_link_options(lxr PRIVATE
-    --no-entry
-    -sSTANDALONE_WASM=1
-    -sFILESYSTEM=0
-    -sINITIAL_MEMORY=32MB
-    -sALLOW_MEMORY_GROWTH=1
-    -sSTACK_SIZE=1MB
-    -sERROR_ON_UNDEFINED_SYMBOLS=1
-    -sEXPORTED_FUNCTIONS=_malloc,_free
-)
+lxr_configure(studio)
+target_include_directories(studio PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines/orangemouse-va)
 
 # Cortex-M7 semantics for integer division by zero, see port/web_arm_division.c.
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
@@ -63,10 +63,27 @@ find_program(LXR_WASM_OPT wasm-opt
     REQUIRED
 )
 get_filename_component(LXR_BINARYEN_DIR "${LXR_WASM_OPT}" DIRECTORY)
-add_custom_command(TARGET lxr POST_BUILD
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/tools/arm_division.py
-            --binaryen ${LXR_BINARYEN_DIR}
-            $<$<NOT:$<CONFIG:Debug>>:--strip>
-            $<TARGET_FILE:lxr>
-    VERBATIM
-)
+
+foreach(module lxr studio)
+    set_target_properties(${module} PROPERTIES
+        SUFFIX ".wasm"
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}/app"
+    )
+    target_link_options(${module} PRIVATE
+        --no-entry
+        -sSTANDALONE_WASM=1
+        -sFILESYSTEM=0
+        -sINITIAL_MEMORY=32MB
+        -sALLOW_MEMORY_GROWTH=1
+        -sSTACK_SIZE=1MB
+        -sERROR_ON_UNDEFINED_SYMBOLS=1
+        -sEXPORTED_FUNCTIONS=_malloc,_free
+    )
+    add_custom_command(TARGET ${module} POST_BUILD
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/tools/arm_division.py
+                --binaryen ${LXR_BINARYEN_DIR}
+                $<$<NOT:$<CONFIG:Debug>>:--strip>
+                $<TARGET_FILE:${module}>
+        VERBATIM
+    )
+endforeach()

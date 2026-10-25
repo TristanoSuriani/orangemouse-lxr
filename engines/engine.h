@@ -44,6 +44,7 @@ typedef struct OmEngineClass
 	void (*note_on)(void *self, uint8_t part, uint8_t note, uint8_t velocity);
 	void (*note_off)(void *self, uint8_t part, uint8_t note);
 	void (*set_param)(void *self, uint8_t part, uint16_t param, uint8_t value);
+	uint8_t (*get_param)(void *self, uint8_t part, uint16_t param);
 	void (*set_tempo)(void *self, float bpm);
 
 	// renders `frames` frames of every stem: stems[2 * s] left, stems[2 * s + 1]
