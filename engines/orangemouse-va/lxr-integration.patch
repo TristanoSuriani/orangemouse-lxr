@@ -1,0 +1,1524 @@
+diff --git a/Core/CMakeLists.txt b/Core/CMakeLists.txt
+index 0214530..a8f0499 100644
+--- a/Core/CMakeLists.txt
++++ b/Core/CMakeLists.txt
+@@ -85,6 +85,8 @@ add_library(lxr_dsp OBJECT
+     Src/Soundengine/DSPAudio/Snare.c
+     Src/Soundengine/DSPAudio/squareRootLut.c
+     Src/Soundengine/DSPAudio/TiltEq.c
++    Src/Soundengine/DSPAudio/VaEngine.c
++    Src/Soundengine/DSPAudio/VaPresets.c
+     Src/Soundengine/DSPAudio/transientGenerator.c
+     Src/Soundengine/DSPAudio/transientTables.c
+     Src/Soundengine/DSPAudio/wavetable.c
+diff --git a/Core/Inc/IO/DIO.h b/Core/Inc/IO/DIO.h
+index 4fa5ce7..cf9cb67 100644
+--- a/Core/Inc/IO/DIO.h
++++ b/Core/Inc/IO/DIO.h
+@@ -18,8 +18,8 @@
+ #include "main.h"
+ 
+ //number of connected outputs
+-#define NUM_OUTS 40
+-#define NUM_INPUTS 40
++#define NUM_OUTS 48	// 40 on the panel; 41..44 the VA voice LEDs
++#define NUM_INPUTS 48	// 40 on the panel; 41..44 the VA voice buttons
+ 
+ 
+ extern INDTCMZ uint8_t din_inputData[NUM_INPUTS/8];
+diff --git a/Core/Inc/Parameters.h b/Core/Inc/Parameters.h
+index bf41061..105627c 100644
+--- a/Core/Inc/Parameters.h
++++ b/Core/Inc/Parameters.h
+@@ -22,6 +22,7 @@
+ #define NUM_KIT_SLOTS 64
+ 
+ #include "stm32f7xx_hal.h"
++#include "Soundengine/DSPAudio/VaEngine.h"
+ 
+ enum ParamEnums
+ {
+@@ -426,9 +427,22 @@ enum ParamEnums
+ 
+ 		PAR_PATTERN_MODE,
+ 
+-	NUM_PARAMS	
++	END_OF_GLOBAL_PARAMETERS,	// globals are PAR_BEGINNING_OF_GLOBALS .. here (glo.cfg, projects)
++
++	//#########################################
++	//######## VA slots (tracks 8..11) ########
++	//#########################################
++	// VA_NUM_PARAMS parameters per slot (enum VaParam, VaEngine.h); saved with the kit
++	PAR_VA1_FIRST = END_OF_GLOBAL_PARAMETERS,
++	PAR_VA_END = PAR_VA1_FIRST + VA_NUM_SLOTS * VA_NUM_PARAMS,
++
++	NUM_PARAMS = PAR_VA_END
+ };
+ 
++// a VA slot's parameter (slot 0..3, p: enum VaParam)
++#define VA_PAR(slot, p) ((uint16_t)(PAR_VA1_FIRST + (slot) * VA_NUM_PARAMS + (p)))
++#define IS_VA_PAR(p) ((p) >= PAR_VA1_FIRST && (p) < PAR_VA_END)
++
+ extern uint8_t parameterOrder[END_OF_SOUND_PARAMETERS];
+ 
+ 
+diff --git a/Core/Inc/Soundengine/MIDI/MidiParser.h b/Core/Inc/Soundengine/MIDI/MidiParser.h
+index 9c3f481..5881ef6 100644
+--- a/Core/Inc/Soundengine/MIDI/MidiParser.h
++++ b/Core/Inc/Soundengine/MIDI/MidiParser.h
+@@ -53,7 +53,12 @@ void midiParser_setFilter(uint8_t is_tx, uint8_t value);
+ extern uint8_t midiParser_originalCcValues[0xff];
+ 
+ 
+-extern uint8_t midi_MidiChannels[8]; // last element is global channel
++// MIDI channel of each track, and the global channel at MIDI_CHAN_GLOBAL; the
++// VA tracks (7..10) come after the global channel (see midi_voiceChanIdx)
++#define MIDI_CHAN_GLOBAL 7
++#define MIDI_NUM_CHAN_SLOTS 12
++extern uint8_t midi_MidiChannels[MIDI_NUM_CHAN_SLOTS];
++static inline uint8_t midi_voiceChanIdx(uint8_t voice) { return voice < MIDI_CHAN_GLOBAL ? voice : (uint8_t)(voice + 1); }
+ //extern uint8_t midi_NoteOverride[7];
+ //extern uint8_t midi_mode; not used anymore
+ 
+diff --git a/Core/Inc/Soundengine/Sequencer/sequencer.h b/Core/Inc/Soundengine/Sequencer/sequencer.h
+index a11c79b..36ab922 100644
+--- a/Core/Inc/Soundengine/Sequencer/sequencer.h
++++ b/Core/Inc/Soundengine/Sequencer/sequencer.h
+@@ -28,8 +28,10 @@
+   * 1 snare/claps
+   * 1 cymbal/snare
+   * 1 hiHat
+-  * track 7 is the open hh... it triggers the hihat voice but with longer decay. it chokes the closed hihat*/
+-#define NUM_TRACKS 7
++  * track 7 is the open hh... it triggers the hihat voice but with longer decay. it chokes the closed hihat
++  * tracks 8..11 are the VA synth slots (VaEngine.h) */
++#define NUM_DRUM_TRACKS 7
++#define NUM_TRACKS (NUM_DRUM_TRACKS + 4)
+ #define NUM_PATTERN 16*4 //8
+ #define NUM_STEPS 64
+ #define NUM_BARS 4	//since we access main steps as 64 bit union, other values than 4 will break the union approach
+diff --git a/Core/Inc/buttonHandler.h b/Core/Inc/buttonHandler.h
+index 9084ba4..fadcb37 100644
+--- a/Core/Inc/buttonHandler.h
++++ b/Core/Inc/buttonHandler.h
+@@ -147,7 +147,13 @@ enum ButtonNumbers
+ 	BUT_SEQ2,
+ 	BUT_SEQ1,
+ 
+-	BUT_PAGE_DOWN	//not in shift register!
++	BUT_PAGE_DOWN,	//not in shift register!
++
++	// the VA voices (tracks 8..11), in a sixth shift register byte
++	BUT_VOICE_8,
++	BUT_VOICE_9,
++	BUT_VOICE_10,
++	BUT_VOICE_11,
+ 
+ };
+ 
+diff --git a/Core/Inc/ledHandler.h b/Core/Inc/ledHandler.h
+index c861b30..a423cdc 100644
+--- a/Core/Inc/ledHandler.h
++++ b/Core/Inc/ledHandler.h
+@@ -26,7 +26,9 @@ void led_init();
+ // input = [0:7]
+ void led_setActivePage(uint8_t pageNr);
+ 
+-void led_setActiveVoiceLeds(uint8_t pattern);
++void led_setActiveVoiceLeds(uint16_t pattern);
++// the LED of voice/track 0..10
++uint8_t led_voiceLed(uint8_t voiceNr);
+ void led_setActiveVoice(uint8_t voiceNr);
+ 
+ void led_setActiveSelectButton(uint8_t butNr);
+@@ -145,7 +147,13 @@ enum LedNumbers
+ 	LED_STEP2,
+ 	LED_STEP1,
+ 
+-	LED_PAGE_DOWN
++	LED_PAGE_DOWN,
++
++	// the VA voices (tracks 8..11)
++	LED_VOICE8,
++	LED_VOICE9,
++	LED_VOICE10,
++	LED_VOICE11,
+ 
+ };
+ 
+diff --git a/Core/Inc/menu/MenuText.h b/Core/Inc/menu/MenuText.h
+index 424a179..fe14e2a 100644
+--- a/Core/Inc/menu/MenuText.h
++++ b/Core/Inc/menu/MenuText.h
+@@ -43,6 +43,27 @@
+ #define MENU_STEP_FLAM	 	24
+ #define MENU_STEP_SHIFT	 	25
+ #define MENU_AUDIO_OUT_FX	26
++// the VA slots' value lists
++#define MENU_VA_WAVE		27
++#define MENU_VA_OCT			28
++#define MENU_VA_SUB_OCT		29
++#define MENU_VA_NOISE		30
++#define MENU_VA_FILTER		31
++#define MENU_VA_LFO			32
++#define MENU_VA_MODE		33
++#define MENU_VA_UNISON		34
++#define MENU_VA_PRESET1		35	// .. MENU_VA_PRESET1 + 3: one preset list per slot
++
++//-----------------------------------------------------------------
++// the VA slots' value lists (enums in VaEngine.h)
++const char vaWaveNames[][4] = { {4}, {"saw"}, {"sqr"}, {"tri"}, {"sin"} };
++const char vaOctNames[][4] = { {7}, {"-3 "}, {"-2 "}, {"-1 "}, {" 0 "}, {"+1 "}, {"+2 "}, {"+3 "} };
++const char vaSubOctNames[][4] = { {2}, {"-1 "}, {"-2 "} };
++const char vaNoiseNames[][4] = { {3}, {"wht"}, {"pnk"}, {"brn"} };
++const char vaFilterNames[][4] = { {4}, {"L24"}, {"L12"}, {"B12"}, {"H12"} };
++const char vaLfoNames[][4] = { {5}, {"sin"}, {"tri"}, {"saw"}, {"sqr"}, {"S&H"} };
++const char vaModeNames[][4] = { {3}, {"mno"}, {"leg"}, {"ply"} };
++const char vaUnisonNames[][4] = { {7}, {"1  "}, {"2  "}, {"3  "}, {"4  "}, {"5  "}, {"6  "}, {"7  "} };
+ 
+ //-----------------------------------------------------------------
+ // Shared texts. Reduce mem usage by pooling common text
+@@ -480,6 +501,50 @@ const char shortNames[][4]  =
+ 	{"kcm"},
+ 	{"flm"},
+ 	{"shf"},
++	// the VA slots' parameters
++	{"wv1"},
++	{"wv2"},
++	{"sem"},
++	{"fin"},
++	{"pw "},
++	{"mix"},
++	{"syn"},
++	{"oct"},
++	{"osc"},
++	{"sub"},
++	{"sbw"},
++	{"sbo"},
++	{"noi"},
++	{"nty"},
++	{"drv"},
++	{"slp"},
++	{"cut"},
++	{"res"},
++	{"typ"},
++	{"env"},
++	{"key"},
++	{"vel"},
++	{"hpf"},
++	{"atk"},
++	{"dec"},
++	{"sus"},
++	{"rel"},
++	{"rat"},
++	{"wav"},
++	{"pit"},
++	{"pwm"},
++	{"dly"},
++	{"mod"},
++	{"gat"},
++	{"gld"},
++	{"uni"},
++	{"spr"},
++	{"wid"},
++	{"pre"},
++	{"vol"},
++	{"pan"},
++	{"out"},
++	{"chn"},
+ 
+ };
+ //-----------------------------------------------------------------
+@@ -516,6 +581,15 @@ const char catNames[][16] =
+ 	{"MIDI"},
+ 	{"Clock"},
+ 	{"Fx"},
++	{"VA Osc"},
++	{"VA Mixer"},
++	{"VA Filtr"},
++	{"VA FltEG"},
++	{"VA AmpEG"},
++	{"VA LFO"},
++	{"VA Voice"},
++	{"VA Mix"},
++
+ };
+ //-----------------------------------------------------------------
+ // these must correspond to longNamesEnum
+@@ -610,6 +684,50 @@ const char longNames[][16] =
+ 	{"KitChMde"},
+ 	{"Flam"},
+ 	{"Shift"},
++	// the VA slots' parameters
++	{"Wave 1"},
++	{"Wave 2"},
++	{"Semi 2"},
++	{"Fine 2"},
++	{"PulsWdth"},
++	{"Osc Mix"},
++	{"HardSync"},
++	{"Octave"},
++	{"OscLevel"},
++	{"SubLevel"},
++	{"Sub Wave"},
++	{"Sub Oct"},
++	{"Noise"},
++	{"NoisType"},
++	{"Drive"},
++	{"Slop"},
++	{"Cutoff"},
++	{"Resnance"},
++	{"Type"},
++	{"Env Amnt"},
++	{"KeyTrack"},
++	{"Velocity"},
++	{"HighPass"},
++	{"Attack"},
++	{"Decay"},
++	{"Sustain"},
++	{"Release"},
++	{"Rate"},
++	{"Waveform"},
++	{"Pitch"},
++	{"Delay"},
++	{"Mode"},
++	{"Gate"},
++	{"Glide"},
++	{"Unison"},
++	{"Detune"},
++	{"Width"},
++	{"Preset"},
++	{"Volume"},
++	{"Panning"},
++	{"AudioOut"},
++	{"Channel"},
++
+ };
+ 
+ 
+diff --git a/Core/Inc/menu/menu.h b/Core/Inc/menu/menu.h
+index e686bd7..6c59597 100644
+--- a/Core/Inc/menu/menu.h
++++ b/Core/Inc/menu/menu.h
+@@ -79,6 +79,10 @@ enum PageNames
+ 	VOICE5_PAGE,
+ 	VOICE6_PAGE,
+ 	VOICE7_PAGE,
++	VA1_PAGE,		// the VA slots: tracks 8..11
++	VA2_PAGE,
++	VA3_PAGE,
++	VA4_PAGE,
+ 	MENU_MIDI_PAGE, // this is the global settings page
+ 	LOAD_PAGE,
+ 	SAVE_PAGE,
+@@ -271,6 +275,57 @@ enum NamesEnum
+ 	TEXT_FX_P4,
+ 	TEXT_PATTERN_MODE,
+ 
++	// the VA slots' parameters (enum VaParam order)
++	TEXT_VA_WAVE1,
++	TEXT_VA_WAVE2,
++	TEXT_VA_SEMI2,
++	TEXT_VA_FINE2,
++	TEXT_VA_PW,
++	TEXT_VA_MIX,
++	TEXT_VA_SYNC,
++	TEXT_VA_OCT,
++	TEXT_VA_OSC_LEVEL,
++	TEXT_VA_SUB,
++	TEXT_VA_SUB_WAVE,
++	TEXT_VA_SUB_OCT,
++	TEXT_VA_NOISE,
++	TEXT_VA_NOISE_TYPE,
++	TEXT_VA_DRIVE,
++	TEXT_VA_SLOP,
++	TEXT_VA_CUTOFF,
++	TEXT_VA_RESO,
++	TEXT_VA_FTYPE,
++	TEXT_VA_FENV_AMT,
++	TEXT_VA_KEYTRACK,
++	TEXT_VA_FVEL,
++	TEXT_VA_HPF,
++	TEXT_VA_FATK,
++	TEXT_VA_FDEC,
++	TEXT_VA_FSUS,
++	TEXT_VA_FREL,
++	TEXT_VA_AATK,
++	TEXT_VA_ADEC,
++	TEXT_VA_ASUS,
++	TEXT_VA_AREL,
++	TEXT_VA_AVEL,
++	TEXT_VA_LRATE,
++	TEXT_VA_LWAVE,
++	TEXT_VA_LPITCH,
++	TEXT_VA_LCUT,
++	TEXT_VA_LPWM,
++	TEXT_VA_LDELAY,
++	TEXT_VA_MODE,
++	TEXT_VA_GATE,
++	TEXT_VA_GLIDE,
++	TEXT_VA_UNISON,
++	TEXT_VA_SPREAD,
++	TEXT_VA_WIDTH,
++	TEXT_VA_PRESET,
++	TEXT_VA_VOLUME,
++	TEXT_VA_PAN,
++	TEXT_VA_OUT,
++	TEXT_VA_MIDI_CHAN,
++
+ 
+ 	NUM_NAMES
+ };
+@@ -379,9 +434,52 @@ enum shortNamesEnum
+ 	SHORT_P4,
+ 	SHORT_KCM,
+ 	SHORT_FLAM,
+-	SHORT_SHIFT
++	SHORT_SHIFT,
++	// the VA slots' parameters
++	SHORT_VA_WV1,
++	SHORT_VA_WV2,
++	SHORT_VA_SEM,
++	SHORT_VA_FIN,
++	SHORT_VA_PW,
++	SHORT_VA_MIX,
++	SHORT_VA_SYN,
++	SHORT_VA_OCT,
++	SHORT_VA_OSC,
++	SHORT_VA_SUB,
++	SHORT_VA_SBW,
++	SHORT_VA_SBO,
++	SHORT_VA_NOI,
++	SHORT_VA_NTY,
++	SHORT_VA_DRV,
++	SHORT_VA_SLP,
++	SHORT_VA_CUT,
++	SHORT_VA_RES,
++	SHORT_VA_TYP,
++	SHORT_VA_ENV,
++	SHORT_VA_KEY,
++	SHORT_VA_VEL,
++	SHORT_VA_HPF,
++	SHORT_VA_ATK,
++	SHORT_VA_DEC,
++	SHORT_VA_SUS,
++	SHORT_VA_REL,
++	SHORT_VA_RAT,
++	SHORT_VA_WAV,
++	SHORT_VA_PIT,
++	SHORT_VA_PWM,
++	SHORT_VA_DLY,
++	SHORT_VA_MOD,
++	SHORT_VA_GAT,
++	SHORT_VA_GLD,
++	SHORT_VA_UNI,
++	SHORT_VA_SPR,
++	SHORT_VA_WID,
++	SHORT_VA_PRE,
++	SHORT_VA_VOL,
++	SHORT_VA_PAN,
++	SHORT_VA_OUT,
++	SHORT_VA_CHN,
+ 
+-	
+ };
+ //-----------------------------------------------------------------
+ // These correspond with catNames in MenuText.h
+@@ -415,7 +513,16 @@ enum catNamesEnum
+ 	CAT_GENERATOR,
+ 	CAT_MIDI,
+ 	CAT_CLOCK,
+-	CAT_FX
++	CAT_FX,
++	CAT_VA_OSC,
++	CAT_VA_MIXER,
++	CAT_VA_FILTER,
++	CAT_VA_FENV,
++	CAT_VA_AENV,
++	CAT_VA_LFO,
++	CAT_VA_VOICE,
++	CAT_VA_MIX,
++
+ };
+ //-----------------------------------------------------------------
+ // these must correspond with longNames in MenuText.h
+@@ -508,8 +615,51 @@ enum longNamesEnum
+ 	LONG_P4,
+ 	LONG_PATTERN_MODE,
+ 	LONG_FLAM,
+-	LONG_SHIFT
+-	
++	LONG_SHIFT,
++	// the VA slots' parameters
++	LONG_VA_WAVE1,
++	LONG_VA_WAVE2,
++	LONG_VA_SEMI2,
++	LONG_VA_FINE2,
++	LONG_VA_PULSWDTH,
++	LONG_VA_OSCMIX,
++	LONG_VA_HARDSYNC,
++	LONG_VA_OCTAVE,
++	LONG_VA_OSCLEVEL,
++	LONG_VA_SUBLEVEL,
++	LONG_VA_SUBWAVE,
++	LONG_VA_SUBOCT,
++	LONG_VA_NOISE,
++	LONG_VA_NOISTYPE,
++	LONG_VA_DRIVE,
++	LONG_VA_SLOP,
++	LONG_VA_CUTOFF,
++	LONG_VA_RESNANCE,
++	LONG_VA_TYPE,
++	LONG_VA_ENVAMNT,
++	LONG_VA_KEYTRACK,
++	LONG_VA_VELOCITY,
++	LONG_VA_HIGHPASS,
++	LONG_VA_ATTACK,
++	LONG_VA_DECAY,
++	LONG_VA_SUSTAIN,
++	LONG_VA_RELEASE,
++	LONG_VA_RATE,
++	LONG_VA_WAVEFORM,
++	LONG_VA_PITCH,
++	LONG_VA_DELAY,
++	LONG_VA_MODE,
++	LONG_VA_GATE,
++	LONG_VA_GLIDE,
++	LONG_VA_UNISON,
++	LONG_VA_DETUNE,
++	LONG_VA_WIDTH,
++	LONG_VA_PRESET,
++	LONG_VA_VOLUME,
++	LONG_VA_PANNING,
++	LONG_VA_AUDIOOUT,
++	LONG_VA_CHANNEL,
++
+ };
+ 
+ //enum for the save category parameter
+diff --git a/Core/Inc/menu/menuPages.h b/Core/Inc/menu/menuPages.h
+index 8fd2b5e..f395cb2 100644
+--- a/Core/Inc/menu/menuPages.h
++++ b/Core/Inc/menu/menuPages.h
+@@ -19,6 +19,51 @@
+ #include "menu.h"
+ 
+ 
++// one VA slot's page: 8 sub-pages (select buttons 1-8) of up to 8 parameters
++#define VA_MENU_PAGE(slot) \
++	{ \
++		/* OSC */ \
++		{ \
++			TEXT_VA_WAVE1, TEXT_VA_WAVE2, TEXT_VA_SEMI2, TEXT_VA_FINE2, TEXT_VA_PW, TEXT_VA_MIX, TEXT_VA_SYNC, TEXT_VA_OCT, \
++			VA_PAR(slot, VA_P_WAVE1), VA_PAR(slot, VA_P_WAVE2), VA_PAR(slot, VA_P_SEMI2), VA_PAR(slot, VA_P_FINE2), VA_PAR(slot, VA_P_PW), VA_PAR(slot, VA_P_MIX), VA_PAR(slot, VA_P_SYNC), VA_PAR(slot, VA_P_OCT) \
++		}, \
++		/* MIXER */ \
++		{ \
++			TEXT_VA_OSC_LEVEL, TEXT_VA_SUB, TEXT_VA_SUB_WAVE, TEXT_VA_SUB_OCT, TEXT_VA_NOISE, TEXT_VA_NOISE_TYPE, TEXT_VA_DRIVE, TEXT_VA_SLOP, \
++			VA_PAR(slot, VA_P_OSC_LEVEL), VA_PAR(slot, VA_P_SUB), VA_PAR(slot, VA_P_SUB_WAVE), VA_PAR(slot, VA_P_SUB_OCT), VA_PAR(slot, VA_P_NOISE), VA_PAR(slot, VA_P_NOISE_TYPE), VA_PAR(slot, VA_P_DRIVE), VA_PAR(slot, VA_P_SLOP) \
++		}, \
++		/* FILTER */ \
++		{ \
++			TEXT_VA_CUTOFF, TEXT_VA_RESO, TEXT_VA_FTYPE, TEXT_VA_FENV_AMT, TEXT_VA_KEYTRACK, TEXT_VA_FVEL, TEXT_VA_HPF, TEXT_EMPTY, \
++			VA_PAR(slot, VA_P_CUTOFF), VA_PAR(slot, VA_P_RESO), VA_PAR(slot, VA_P_FTYPE), VA_PAR(slot, VA_P_FENV_AMT), VA_PAR(slot, VA_P_KEYTRACK), VA_PAR(slot, VA_P_FVEL), VA_PAR(slot, VA_P_HPF), PAR_NONE \
++		}, \
++		/* FILTER ENVELOPE */ \
++		{ \
++			TEXT_VA_FATK, TEXT_VA_FDEC, TEXT_VA_FSUS, TEXT_VA_FREL, TEXT_EMPTY, TEXT_EMPTY, TEXT_EMPTY, TEXT_EMPTY, \
++			VA_PAR(slot, VA_P_FATK), VA_PAR(slot, VA_P_FDEC), VA_PAR(slot, VA_P_FSUS), VA_PAR(slot, VA_P_FREL), PAR_NONE, PAR_NONE, PAR_NONE, PAR_NONE \
++		}, \
++		/* AMP ENVELOPE */ \
++		{ \
++			TEXT_VA_AATK, TEXT_VA_ADEC, TEXT_VA_ASUS, TEXT_VA_AREL, TEXT_VA_AVEL, TEXT_EMPTY, TEXT_EMPTY, TEXT_EMPTY, \
++			VA_PAR(slot, VA_P_AATK), VA_PAR(slot, VA_P_ADEC), VA_PAR(slot, VA_P_ASUS), VA_PAR(slot, VA_P_AREL), VA_PAR(slot, VA_P_AVEL), PAR_NONE, PAR_NONE, PAR_NONE \
++		}, \
++		/* LFO */ \
++		{ \
++			TEXT_VA_LRATE, TEXT_VA_LWAVE, TEXT_VA_LPITCH, TEXT_VA_LCUT, TEXT_VA_LPWM, TEXT_VA_LDELAY, TEXT_EMPTY, TEXT_EMPTY, \
++			VA_PAR(slot, VA_P_LRATE), VA_PAR(slot, VA_P_LWAVE), VA_PAR(slot, VA_P_LPITCH), VA_PAR(slot, VA_P_LCUT), VA_PAR(slot, VA_P_LPWM), VA_PAR(slot, VA_P_LDELAY), PAR_NONE, PAR_NONE \
++		}, \
++		/* VOICE */ \
++		{ \
++			TEXT_VA_MODE, TEXT_VA_GATE, TEXT_VA_GLIDE, TEXT_VA_UNISON, TEXT_VA_SPREAD, TEXT_VA_WIDTH, TEXT_EMPTY, TEXT_EMPTY, \
++			VA_PAR(slot, VA_P_MODE), VA_PAR(slot, VA_P_GATE), VA_PAR(slot, VA_P_GLIDE), VA_PAR(slot, VA_P_UNISON), VA_PAR(slot, VA_P_SPREAD), VA_PAR(slot, VA_P_WIDTH), PAR_NONE, PAR_NONE \
++		}, \
++		/* MIX */ \
++		{ \
++			TEXT_VA_PRESET, TEXT_VA_VOLUME, TEXT_VA_PAN, TEXT_VA_OUT, TEXT_VA_MIDI_CHAN, TEXT_EMPTY, TEXT_EMPTY, TEXT_EMPTY, \
++			VA_PAR(slot, VA_P_PRESET), VA_PAR(slot, VA_P_VOLUME), VA_PAR(slot, VA_P_PAN), VA_PAR(slot, VA_P_OUT), VA_PAR(slot, VA_P_MIDI_CHAN), PAR_NONE, PAR_NONE, PAR_NONE \
++		}, \
++	}
++
+ /** This array hold the whole menu structure.
+ each voice has different pages. The pages hold the top and bottom enums to indicate which values and desriptors to show
+ */
+@@ -367,6 +412,12 @@ const Page menuPages[NUM_PAGES][NUM_SUB_PAGES] =
+ 		}
+ 	},
+ 	
++	// VA1_PAGE .. VA4_PAGE - the VA slots
++	VA_MENU_PAGE(0),
++	VA_MENU_PAGE(1),
++	VA_MENU_PAGE(2),
++	VA_MENU_PAGE(3),
++
+ 	// MENU_MIDI_PAGE - hold shift and load/save. do it again to access 5-8, and again to access others
+ 	{
+ 		{
+diff --git a/Core/Src/Preset/presetManager.c b/Core/Src/Preset/presetManager.c
+index 41ef096..ecd0fe9 100644
+--- a/Core/Src/Preset/presetManager.c
++++ b/Core/Src/Preset/presetManager.c
+@@ -51,7 +51,6 @@ char currentFolder[13];
+ #define FILE_VERSION 2
+ 
+ /*
+-#define NUM_TRACKS 7
+ #define NUM_PATTERN 8*/
+ #define STEPS_PER_PATTERN NUM_STEPS //64
+ 
+@@ -84,6 +83,36 @@ uint32_t preset_patTimer = 0;
+ uint8_t preset_kitDirty = 0;
+ uint8_t preset_patDirty = 0;
+ 
++// The VA slots' sound of each kit in RAM (mainParameters holds the drum voices');
++// written after the drum parameters in every kit file.
++#define VA_KIT_BYTES (VA_NUM_SLOTS * VA_NUM_PARAMS)
++static uint8_t va_kitParameters[NUM_KIT_SLOTS][VA_KIT_BYTES];
++
++// a kit's VA block, with the default sounds if it has none yet
++static uint8_t *preset_vaKit(uint8_t presetNr)
++{
++	uint8_t *p = va_kitParameters[presetNr];
++	for (int i = 0; i < VA_KIT_BYTES; i++)
++		if (p[i])
++			return p;
++	va_initKitParameters(p);
++	return p;
++}
++
++// reads the VA block of a kit file; defaults if the file has none
++static void preset_readVaData(uint8_t *dst)
++{
++	unsigned int bytesRead = 0;
++	if (f_read((FIL*)&SDFile, dst, VA_KIT_BYTES, &bytesRead) != FR_OK || bytesRead != VA_KIT_BYTES)
++		va_initKitParameters(dst);
++}
++
++static void preset_vaKitToActive(uint8_t presetNr)
++{
++	memcpy(&activeParameters[PAR_VA1_FIRST], preset_vaKit(presetNr), VA_KIT_BYTES);
++	va_allNotesOff(0xff);
++}
++
+ void preset_initTmpFolder()
+ {
+ 	char folderName[13];
+@@ -228,6 +257,7 @@ FRESULT preset_saveTmpKit()
+ 	}
+ 	//write the preset data
+ 	f_write((FIL*)&SDFile,activeParameters,END_OF_SOUND_PARAMETERS,&bytesWritten);
++	f_write((FIL*)&SDFile,&activeParameters[PAR_VA1_FIRST],VA_KIT_BYTES,&bytesWritten);
+ 
+ 	//close the file
+ 	f_close((FIL*)&SDFile);
+@@ -283,6 +313,8 @@ FRESULT preset_LoadTmpKit()
+ 				if(para[PAR_TARGET_LFO1+i] >= nmt )
+ 					para[PAR_TARGET_LFO1+i] = 0;
+ 			}
++			preset_readVaData(&activeParameters[PAR_VA1_FIRST]);
++			va_allNotesOff(0xff);
+ 		}
+ 
+ 
+@@ -787,8 +819,11 @@ void preset_init(uint8_t presetNr)
+ 			para[PAR_TARGET_LFO1+i] = 0;
+ 	}
+ 
++	va_initKitParameters(va_kitParameters[presetNr]);
++
+ 	//copy parameters to edit buffer
+ 	memcpy(activeParameters, mainParameters[presetNr], sizeof(uint8_t) * END_OF_SOUND_PARAMETERS);
++	preset_vaKitToActive(presetNr);
+ 	preset_sendDrumsetParameters();
+ 	//frontPanel_sendData(PRESET,PRESET_LOAD,presetNr);
+ 
+@@ -828,6 +863,8 @@ static void preset_writeDrumsetData(uint8_t presetNr, uint8_t isMorph)
+ 			f_write((FIL*)&SDFile,&mainParameters[presetNr][i],1,&bytesWritten);
+ 		}
+ 	}
++	// the VA slots (not morphed: a morphed kit keeps the edit buffer's)
++	f_write((FIL*)&SDFile, isMorph ? &activeParameters[PAR_VA1_FIRST] : preset_vaKit(presetNr), VA_KIT_BYTES, &bytesWritten);
+ }
+ 
+ //----------------------------------------------------
+@@ -842,6 +879,7 @@ void preset_loadDrumsetRam(uint8_t presetNr, uint8_t isMorph, uint8_t sendImmedi
+ 	{
+ 		//copy parameters to edit buffer
+ 		memcpy(activeParameters, mainParameters[presetNr], sizeof(uint8_t) * END_OF_SOUND_PARAMETERS);
++		preset_vaKitToActive(presetNr);
+ 		//if(activeParameters[PAR_PATTERN_MODE] = 1)
+ 		//load asociated morph kit as well
+ 
+@@ -893,6 +931,7 @@ void preset_saveDrumsetRam(uint8_t presetNr, uint8_t isMorph)
+ 		//copy edit buffer to parameter array
+ 		memcpy(mainParameters[presetNr], activeParameters, sizeof(uint8_t) * END_OF_SOUND_PARAMETERS);
+ 	}
++	memcpy(va_kitParameters[presetNr], &activeParameters[PAR_VA1_FIRST], VA_KIT_BYTES);
+ }
+ //----------------------------------------------------
+ FRESULT preset_saveDrumsetSD(uint8_t presetNr, uint8_t isMorph)
+@@ -931,7 +970,7 @@ static void preset_writeGlobalData()
+ {
+ 	unsigned int bytesWritten;
+ 	int i;
+-	for(i=PAR_BEGINNING_OF_GLOBALS;(i<NUM_PARAMS);i++)
++	for(i=PAR_BEGINNING_OF_GLOBALS;(i<END_OF_GLOBAL_PARAMETERS);i++)
+ 	{
+ 		f_write((FIL*)&SDFile,&activeParameters[i],1,&bytesWritten);
+ 	}
+@@ -971,7 +1010,7 @@ static uint8_t preset_readGlobalData()
+ 	UINT bytesRead;
+ #if 0
+ 	int i;
+-	for(i=PAR_BEGINNING_OF_GLOBALS;(i<NUM_PARAMS) &&( bytesRead!=0);i++) {
++	for(i=PAR_BEGINNING_OF_GLOBALS;(i<END_OF_GLOBAL_PARAMETERS) &&( bytesRead!=0);i++) {
+ 		f_read((FIL*)&SDFile,&activeParameters[i],1,&bytesRead);
+ 		if(!bytesRead)
+ 			return 0;
+@@ -980,7 +1019,7 @@ static uint8_t preset_readGlobalData()
+ 		return 0;
+ 	return 1;
+ #else
+-	const uint8_t numGlobals = NUM_PARAMS - PAR_BEGINNING_OF_GLOBALS;
++	const uint8_t numGlobals = END_OF_GLOBAL_PARAMETERS - PAR_BEGINNING_OF_GLOBALS;
+ 	f_read((FIL*)&SDFile,&activeParameters[PAR_BEGINNING_OF_GLOBALS],numGlobals,&bytesRead);
+ 	if(bytesRead != numGlobals)	return 0;
+ 	else return 1;
+@@ -1165,6 +1204,9 @@ static FRESULT preset_readDrumsetData(uint8_t presetNr, uint8_t isMorph)
+ 			if(para[PAR_TARGET_LFO1+i] >= nmt )
+ 				para[PAR_TARGET_LFO1+i] = 0;
+ 		}
++		// the VA slots; a morph target's are not used
++		static uint8_t discard[VA_KIT_BYTES];
++		preset_readVaData(isMorph ? discard : va_kitParameters[presetNr]);
+ 	}
+ 
+ 	return res;
+@@ -2507,7 +2549,7 @@ FRESULT preset_saveProject(uint8_t presetNr)
+ 
+ 		// write some padding (we'll allocate 64 bytes for globals, right now we have +/- 18) so that
+ 		// we don't need to change the file format later
+-		remain=	64- (NUM_PARAMS - PAR_BEGINNING_OF_GLOBALS);
++		remain=	64- (END_OF_GLOBAL_PARAMETERS - PAR_BEGINNING_OF_GLOBALS);
+ 
+ 	} else {
+ 		// write the bpm
+@@ -2933,7 +2975,7 @@ FRESULT preset_loadProject(uint8_t presetNr, uint8_t clearTmp)
+ 		if(!preset_readGlobalData())
+ 			goto closeFile;
+ 		// size of padding after globals
+-		remain=	64- (NUM_PARAMS - PAR_BEGINNING_OF_GLOBALS);
++		remain=	64- (END_OF_GLOBAL_PARAMETERS - PAR_BEGINNING_OF_GLOBALS);
+ 
+ 	} else {
+ 		// read bpm
+diff --git a/Core/Src/Soundengine/DSPAudio/mixer.c b/Core/Src/Soundengine/DSPAudio/mixer.c
+index 622ac85..a975229 100644
+--- a/Core/Src/Soundengine/DSPAudio/mixer.c
++++ b/Core/Src/Soundengine/DSPAudio/mixer.c
+@@ -24,6 +24,8 @@
+ #include "Soundengine/TriggerOut.h"
+ #include "menu/menu.h"
+ #include "Soundengine/FxBus.h"
++#include "Soundengine/DSPAudio/VaEngine.h"
++#include "Soundengine/MIDI/MidiParser.h"
+ 
+ 	uint8_t r2_Available;
+ 	uint8_t l1_Available;
+@@ -709,6 +711,37 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
+ #endif
+ 
+ #endif
++
++	//------------------- the VA slots (stereo) -------------------
++	for(uint8_t slot=0; slot<VA_NUM_SLOTS; slot++)
++	{
++		const uint8_t *vp = &activeParameters[VA_PAR(slot, 0)];
++		// the slot's MIDI channel (a VA parameter, 1..16)
++		midi_MidiChannels[midi_voiceChanIdx((uint8_t)(VA_FIRST_TRACK + slot))] = (uint8_t)((vp[VA_P_MIDI_CHAN] - 1) & 0x0f);
++
++		int16_t vaL[OUTPUT_DMA_SIZE], vaR[OUTPUT_DMA_SIZE];
++		if(!va_render(slot, vaL, vaR))
++			continue;
++
++		const uint8_t dest = vp[VA_P_OUT] <= MIXER_ROUTING_FX_BUS ? vp[VA_P_OUT] : MIXER_ROUTING_DAC1_STEREO;
++		// PAN as a balance control: the stereo image stays intact
++		const float pan = (float)vp[VA_P_PAN] / 63.f;	// 0..~2, 1 = centre
++		const float gainL = pan <= 1.f ? 1.f : 2.f - pan;
++		const float gainR = pan >= 1.f ? 1.f : pan;
++		if(dest == MIXER_ROUTING_DAC1_STEREO || dest == MIXER_ROUTING_DAC2_STEREO || dest == MIXER_ROUTING_FX_BUS)
++		{
++			mixer_addDataToOutput(dest, gainL, 0.f, vaL, &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
++			mixer_addDataToOutput(dest, 0.f, gainR, vaR, &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
++		}
++		else
++		{
++			// a mono output: the sum
++			for(int i=0;i<OUTPUT_DMA_SIZE;i++)
++				vaL[i] = (int16_t)(((int32_t)vaL[i] + vaR[i]) / 2);
++			mixer_addDataToOutput(dest, 1.f, 1.f, vaL, &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
++		}
++	}
++
+ 	FxBus_process(fxBusData,  &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], OUTPUT_DMA_SIZE);
+ /*
+ 	if(activeParameters[UNUSED_PAR_GLO_SAT])
+diff --git a/Core/Src/Soundengine/MIDI/MidiParser.c b/Core/Src/Soundengine/MIDI/MidiParser.c
+index bb68cb4..9aea447 100644
+--- a/Core/Src/Soundengine/MIDI/MidiParser.c
++++ b/Core/Src/Soundengine/MIDI/MidiParser.c
+@@ -101,7 +101,7 @@ static inline float calcPitchModAmount(uint8_t data2)
+ //-----------------------------------------------------------
+ // vars
+ //-----------------------------------------------------------
+-uint8_t midi_MidiChannels[8];	// the currently selected midi channel for each voice (element 7 is global channel)
++uint8_t midi_MidiChannels[MIDI_NUM_CHAN_SLOTS];	// the currently selected midi channel for each voice (element 7 is global channel)
+ 
+ // note overrides for each voice
+ //uint8_t midi_NoteOverride[7];
+@@ -1501,7 +1501,7 @@ static void midiParser_noteOn(uint8_t voice, uint8_t note, uint8_t vel, uint8_t
+ 		// trigger the default note
+ 
+ 		//if(midi_NoteOverride[voice] != 0) {
+-		if(activeParameters[PAR_MIDI_NOTE1 + voice] != 0) {
++		if(voice < NUM_DRUM_TRACKS && activeParameters[PAR_MIDI_NOTE1 + voice] != 0) {
+ 			// looking for specific note
+ 			//if(note==midi_NoteOverride[voice])
+ 			if(note==activeParameters[PAR_MIDI_NOTE1 + voice])
+@@ -1515,7 +1515,7 @@ static void midiParser_noteOn(uint8_t voice, uint8_t note, uint8_t vel, uint8_t
+ 		//Recording Mode - record the note to sequencer and echo to channel of that voice
+ 		// (we'd want to hear what's being recorded)
+ 		if(do_rec) {
+-			const uint8_t chan=midi_MidiChannels[voice];
++			const uint8_t chan=midi_MidiChannels[midi_voiceChanIdx(voice)];
+ 
+ 			// record note if rec is on
+ 			seq_addNote(voice,vel, note);
+@@ -1542,7 +1542,7 @@ static void midiParser_noteOn(uint8_t voice, uint8_t note, uint8_t vel, uint8_t
+ //check if midi channel is selected for a voice or as global channel
+ uint8_t midiParser_isValidChannel(uint8_t chan)
+ {
+-	for(int i=0;i<8;i++)
++	for(int i=0;i<MIDI_NUM_CHAN_SLOTS;i++)
+ 	{
+ 		if(chan == midi_MidiChannels[i]) return 1;
+ 	}
+@@ -1846,7 +1846,7 @@ void midiParser_parseMidiMessage(MidiMsg msg)
+ 				int8_t v, q=-1;
+ 				// if a note message comes in on global channel, then send that note to
+ 				// the voice that is currently active on the front.
+-				if(midi_MidiChannels[7]==chanonly) {
++				if(midi_MidiChannels[MIDI_CHAN_GLOBAL]==chanonly) {
+ 					q=frontParser_activeTrack; // avoid sending it again later if the active track happens to have the same channel set
+ 											   // (this might not really matter. does sending a note on twice do any harm?)
+ 					if(msgonly==NOTE_ON && msg.data2) {
+@@ -1857,8 +1857,8 @@ void midiParser_parseMidiMessage(MidiMsg msg)
+ 				}
+ 
+ 				// check each voice to see if it cares about this message
+-				for(v=0;v<7;v++) {
+-					if(midi_MidiChannels[v]==chanonly && v != q) { // if channel match and we haven't sent it already for the voice
++				for(v=0;v<NUM_TRACKS;v++) {
++					if(midi_MidiChannels[midi_voiceChanIdx(v)]==chanonly && v != q) { // if channel match and we haven't sent it already for the voice
+ 						if(msgonly==NOTE_ON && msg.data2) {
+ 							midiParser_noteOn(v, msg.data1, msg.data2, 1);
+ 							//Also used in sequencer trigger note function
+@@ -1871,7 +1871,7 @@ void midiParser_parseMidiMessage(MidiMsg msg)
+ 
+ 		} else if(msgonly==PROG_CHANGE) {
+ 			// respond to prog change and change patterns. This responds only when global channel matches the PC message's channel.
+-			if((midiParser_txRxFilter & MIDI_FILTER_PROG_C) && (chanonly == midi_MidiChannels[7]))
++			if((midiParser_txRxFilter & MIDI_FILTER_PROG_C) && (chanonly == midi_MidiChannels[MIDI_CHAN_GLOBAL]))
+ 				seq_setNextPattern(msg.data1);
+ 
+ 		} else if(msgonly==MIDI_CC){
+@@ -1898,7 +1898,7 @@ void midiParser_parseMidiMessage(MidiMsg msg)
+ 			{
+ 
+ 				// respond to CC message. This responds only when global channel or voice channel matches the cc message's channel
+-				if((midiParser_txRxFilter & MIDI_FILTER_CC) && ((chanonly == midi_MidiChannels[voiceNr]) || (chanonly == midi_MidiChannels[7]) )) {
++				if((midiParser_txRxFilter & MIDI_FILTER_CC) && ((chanonly == midi_MidiChannels[voiceNr]) || (chanonly == midi_MidiChannels[MIDI_CHAN_GLOBAL]) )) {
+ 					//record automation if record is turned on
+ 					seq_recordAutomation(frontParser_activeTrack, msg.data1, msg.data2);
+ 
+diff --git a/Core/Src/Soundengine/MIDI/MidiVoiceControl.c b/Core/Src/Soundengine/MIDI/MidiVoiceControl.c
+index b3b67a0..b9feab8 100644
+--- a/Core/Src/Soundengine/MIDI/MidiVoiceControl.c
++++ b/Core/Src/Soundengine/MIDI/MidiVoiceControl.c
+@@ -22,16 +22,19 @@
+ #include "Soundengine/TriggerOut.h"
+ #include "Soundengine/MIDI/Uart.h"
+ #include "Soundengine/MIDI/MidiParser.h"
++#include "Soundengine/DSPAudio/VaEngine.h"
+ //#include "LCD_driver.h"
+ uint8_t voiceStatus[NUM_DRUM_VOICES];
+-static uint8_t active_voices=0;	// which voices are currently playing a note
++static uint16_t active_voices=0;	// which voices are currently playing a note
+ //----------------------------------------------------------------
+ // this fn assumes a valid voice is sent
+ void voiceControl_noteOn(uint8_t voice, uint8_t note, uint8_t vel)
+ {
+ 	active_voices |= (1<<voice);
+ 
+-	if(voice < 3)
++	if(voice >= VA_FIRST_TRACK)
++		va_noteOn((uint8_t)(voice - VA_FIRST_TRACK), note, vel);
++	else if(voice < 3)
+ 		Drum_trigger(voice, vel, note);
+ 	else if(voice < 4)
+ 		Snare_trigger(vel, note);
+@@ -53,7 +56,7 @@ void voiceControl_noteOn(uint8_t voice, uint8_t note, uint8_t vel)
+ 
+ 	if (active_voices & (1<<voice))
+ 	{
+-    uint8_t midiChan = midi_MidiChannels[voice];
++    uint8_t midiChan = midi_MidiChannels[midi_voiceChanIdx(voice)];
+ 		seq_sendMidiNoteOn(midiChan, note, vel);
+ 	}
+ 
+@@ -80,7 +83,7 @@ void voiceControl_noteOff(uint8_t voice)
+ 		active_voices &= (~(1<<voice));
+ 
+ 		//send midi note off
+-		midiChan = midi_MidiChannels[voice];
++		midiChan = midi_MidiChannels[midi_voiceChanIdx(voice)];
+ 		seq_midiNoteOff(midiChan);
+ 	}
+ }
+diff --git a/Core/Src/Soundengine/Sequencer/sequencer.c b/Core/Src/Soundengine/Sequencer/sequencer.c
+index 9b51d96..be028db 100644
+--- a/Core/Src/Soundengine/Sequencer/sequencer.c
++++ b/Core/Src/Soundengine/Sequencer/sequencer.c
+@@ -48,7 +48,7 @@ uint8_t seq_prescaleCounter = 0;
+ 
+ uint8_t seq_masterStepCnt=0;				/** keeps track of the played steps between 0 and 127 independent from the track counters*/
+ uint8_t seq_rollRate = 1;				//start with roll rate = 1/16
+-uint8_t seq_rollState = 0;					/**< each bit represents a voice. if bit is set, roll is active*/
++uint16_t seq_rollState = 0;					/**< each bit represents a voice. if bit is set, roll is active*/
+ 
+ static int8_t 	seq_stepIndex[NUM_TRACKS];	/**< we have 16 steps con 4 bars = 64 steps.
+ 											     each track has its own counter to allow different pattern lengths */
+@@ -78,7 +78,7 @@ int8_t seq_stepToSkip[NUM_TRACKS];
+ static int8_t seq_armedArmedAutomationStep = -1;
+ static int8_t seq_armedArmedAutomationTrack = -1;
+ 
+-static uint8_t seq_mutedTracks=0;			/**< indicate which tracks are muted */
++static uint16_t seq_mutedTracks=0;			/**< indicate which tracks are muted */
+ uint8_t seq_songModeEnabled=0;
+ uint8_t seq_running = 0;					/**<  1 running, 0 if stopped*/
+ 
+@@ -494,7 +494,7 @@ void seq_triggerVoice(uint8_t voiceNr, uint8_t vol, uint8_t note)
+ 	uint8_t midiChan; // which midi channel to send a note on
+ 	uint8_t midiNote; // which midi note to send
+ 
+-	if(voiceNr > 6) return;
++	if(voiceNr >= NUM_TRACKS) return;
+ 
+ 
+ #if USE_PATTERN_EDIT_BUFFER
+@@ -521,12 +521,12 @@ void seq_triggerVoice(uint8_t voiceNr, uint8_t vol, uint8_t note)
+ 	//Trigger internal synth voice
+ 	voiceControl_noteOn(voiceNr, note, vol);
+ 
+-	midiChan = midi_MidiChannels[voiceNr];
++	midiChan = midi_MidiChannels[midi_voiceChanIdx(voiceNr)];
+ 
+ 	// the note that is played will be whatever is received unless we have a note override set
+ 	// A note override is any non-zero value for this parameter
+ 	//if(midi_NoteOverride[voiceNr] == 0)
+-	if(activeParameters[PAR_MIDI_NOTE1 + voiceNr] == 0)
++	if(voiceNr >= NUM_DRUM_TRACKS || activeParameters[PAR_MIDI_NOTE1 + voiceNr] == 0)
+ 		midiNote = note;
+ 	else
+ 		//midiNote = midi_NoteOverride[voiceNr];
+@@ -2046,7 +2046,7 @@ uint8_t seq_isMainStepActive(uint8_t voice, uint8_t mainStepNr, uint8_t pattern)
+ //------------------------------------------------------------------------------
+ IN_ITCM_RAM void seq_setMute(uint8_t trackNr, uint8_t isMuted)
+ {
+-	if(trackNr==7)
++	if(trackNr>=NUM_TRACKS)
+ 	{
+ 		//unmute all
+ 		seq_mutedTracks = 0;
+@@ -2152,7 +2152,7 @@ void seq_sendStepInfoToFront(uint16_t stepNr)
+ //-------------------------------------------------------------------------------
+ void seq_setRoll(uint8_t voice, uint8_t onOff)
+ {
+-	if(voice >= 7) return;
++	if(voice >= NUM_TRACKS) return;
+ 
+ 	if(onOff) {
+ 		seq_rollState |= (1<<voice);
+@@ -2758,7 +2758,7 @@ static void seq_sendProgChg(const uint8_t ptn)
+ 	if((midiParser_txRxFilter & (MIDI_FILTER_PROG_C<<4))==0)
+ 		return;
+ 
+-	msg.status = PROG_CHANGE | midi_MidiChannels[7];
++	msg.status = PROG_CHANGE | midi_MidiChannels[MIDI_CHAN_GLOBAL];
+ 	msg.data1=ptn;
+ 	msg.bits.length=1;
+ 	seq_sendMidi(msg);
+diff --git a/Core/Src/Soundengine/Soundengine.c b/Core/Src/Soundengine/Soundengine.c
+index 041f0d2..837e1f8 100644
+--- a/Core/Src/Soundengine/Soundengine.c
++++ b/Core/Src/Soundengine/Soundengine.c
+@@ -17,6 +17,8 @@
+ #include <string.h>
+ #include "Soundengine/USB/usb_manager.h"
+ #include "Soundengine/MIDI/Uart.h"
++#include "Soundengine/DSPAudio/VaEngine.h"
++#include "menu/menu.h"
+ 
+ uint8_t soundengine_calcNextSampleBlock()
+ {
+@@ -67,6 +69,8 @@ void soundengine_init()
+ 	Snare_init();
+ 	HiHat_init();
+ 	Cymbal_init();
++	va_init();
++	va_initKitParameters(&activeParameters[PAR_VA1_FIRST]);
+ 
+ 	//precalc the first dma buffer block
+ 	soundengine_calcNextSampleBlock();
+diff --git a/Core/Src/buttonHandler.c b/Core/Src/buttonHandler.c
+index da2703b..0ccf6f7 100644
+--- a/Core/Src/buttonHandler.c
++++ b/Core/Src/buttonHandler.c
+@@ -53,7 +53,7 @@ volatile struct {
+ 
+ } buttonHandler_stateMemory;
+ 
+-static uint8_t buttonHandler_mutedVoices = 0;
++static uint16_t buttonHandler_mutedVoices = 0;
+ volatile static int8_t buttonHandler_armedAutomationStep = NO_STEP_SELECTED;
+ 
+ #define ARM_AUTOMATION		0x40
+@@ -447,7 +447,7 @@ static void buttonHandler_handleModeButtons(uint8_t mode) {
+ 		break;
+ 	case SELECT_MODE_VOICE: //Edit/Voice
+ 
+-		if(menu_activePage < 7) //already in voice/edit mode
++		if(menu_activePage < NUM_TRACKS) //already in voice/edit mode
+ 		{
+ 			buttonHandler_stateMemory.selectButtonMode = SELECT_MODE_STEP;
+ 			//update the status LED
+@@ -512,13 +512,13 @@ void buttonHandler_muteVoice(uint8_t voice, uint8_t isMuted) {
+ 
+ 	//muted tracks are lit
+ 	if (menu_muteModeActive) {
+-		led_setActiveVoiceLeds((uint8_t) (~buttonHandler_mutedVoices));
++		led_setActiveVoiceLeds((uint16_t) (~buttonHandler_mutedVoices));
+ 	}
+ }
+ ;
+ //--------------------------------------------------------
+ void buttonHandler_showMuteLEDs() {
+-	led_setActiveVoiceLeds((uint8_t) (~buttonHandler_mutedVoices));
++	led_setActiveVoiceLeds((uint16_t) (~buttonHandler_mutedVoices));
+ 	menu_muteModeActive = 1;
+ }
+ //--------------------------------------------------------
+@@ -1242,7 +1242,7 @@ static void buttonHandler_seqButtonPressed(uint8_t seqButtonPressed)
+ 		case SELECT_MODE_LAST_STEP_ALL:
+ 			{
+ 				const uint8_t barOffset = menu_activeBar*16;
+-				for(uint8_t i = 0;i<7;i++)
++				for(uint8_t i = 0;i<NUM_TRACKS;i++)
+ 				{
+ 					seq_setTrackLength(i, seqButtonPressed+barOffset+1);
+ 				}
+@@ -1482,7 +1482,7 @@ static void buttonHandler_voiceButtonPressed(uint8_t voiceNr)
+ 		} else {
+ 			// no source selected so select src
+ 			copyClear_setSrc((int8_t)voiceNr, MODE_COPY_TRACK);
+-			led_setBlinkLed((uint8_t) (LED_VOICE1 + voiceNr), 1);
++			led_setBlinkLed(led_voiceLed(voiceNr), 1);
+ 		}
+ 	} else {
+ 		// mode none or clear
+@@ -1593,6 +1593,12 @@ void buttonHandler_buttonPressed(uint8_t buttonNr) {
+ 	case BUT_VOICE_7:
+ 		buttonHandler_voiceButtonPressed(buttonNr-BUT_VOICE_1);
+ 		break;
++	case BUT_VOICE_8:
++	case BUT_VOICE_9:
++	case BUT_VOICE_10:
++	case BUT_VOICE_11:
++		buttonHandler_voiceButtonPressed((uint8_t)(7 + buttonNr - BUT_VOICE_8));
++		break;
+ 
+ 	case BUT_PAGE_UP:
+ 		if((buttonHandler_stateMemory.selectButtonMode == SELECT_MODE_PATTERN) || (buttonHandler_stateMemory.selectButtonMode == SELECT_MODE_SONG))
+diff --git a/Core/Src/frontPanelParser.c b/Core/Src/frontPanelParser.c
+index 6a121a4..632c239 100644
+--- a/Core/Src/frontPanelParser.c
++++ b/Core/Src/frontPanelParser.c
+@@ -18,6 +18,7 @@
+ #include "ledHandler.h"
+ #include "IO/uart.h"
+ #include "buttonHandler.h"
++#include "Soundengine/Sequencer/sequencer.h"
+ #include "front.h"
+ //debug
+ #include <stdlib.h>
+@@ -592,9 +593,9 @@ void frontPanel_parseData(uint8_t data)
+ 				}								
+ 				else if(frontParser_midiMsg.status == NOTE_ON)
+ 				{
+-					if(frontParser_midiMsg.data1 > 6) return;
++					if(frontParser_midiMsg.data1 >= NUM_TRACKS) return;
+ 					//only SELECT_MODE_VOICE and SELECT_MODE_MUTE
+-					led_pulseLed((uint8_t)(LED_VOICE1+frontParser_midiMsg.data1));
++					led_pulseLed(led_voiceLed(frontParser_midiMsg.data1));
+ 				}
+ 
+ 			}				
+diff --git a/Core/Src/ledHandler.c b/Core/Src/ledHandler.c
+index a0663e5..2ede513 100644
+--- a/Core/Src/ledHandler.c
++++ b/Core/Src/ledHandler.c
+@@ -128,6 +128,14 @@ void led_clearVoiceLeds()
+ 	uint8_t arrayPos = LED_VOICE1/8;
+ 	dout_outputData[arrayPos] &= 0x80;
+ 	led_originalLedState[arrayPos] &= 0x80;
++	arrayPos = LED_VOICE8/8;
++	dout_outputData[arrayPos] &= (uint8_t)~0x1E;
++	led_originalLedState[arrayPos] &= (uint8_t)~0x1E;
++}
++//--------------------------------------------
++uint8_t led_voiceLed(uint8_t voiceNr)
++{
++	return voiceNr < 7 ? (uint8_t)(LED_VOICE1 + voiceNr) : (uint8_t)(LED_VOICE8 + voiceNr - 7);
+ }
+ //--------------------------------------------
+ void led_setActivePage(uint8_t pageNr)
+@@ -197,7 +205,7 @@ void led_setActiveSelectButton(uint8_t butNr)
+ 	led_originalLedState[arrayPos] |= (uint8_t)(1<<bitPos);
+ };
+ //---------------------------------------------
+-void led_setActiveVoiceLeds(uint8_t pattern)
++void led_setActiveVoiceLeds(uint16_t pattern)
+ {
+ 	uint8_t arrayPos = LED_VOICE1/8;
+ 	//clear upper 7 bits
+@@ -207,17 +215,25 @@ void led_setActiveVoiceLeds(uint8_t pattern)
+ 	dout_outputData[arrayPos] =  (uint8_t)(dout_outputData[arrayPos] | ( (pattern<<1)&0xFE));
+ 	//since this is not a temp. change, store in led_originalLedState as well
+ 	led_originalLedState[arrayPos] =  (uint8_t)(led_originalLedState[arrayPos] | (pattern<<1&0xFE));
++
++	// the VA voices: bits 7..10 of the pattern, LEDs 41..44
++	arrayPos = LED_VOICE8/8;
++	const uint8_t va = (uint8_t)(((pattern >> 7) & 0x0F) << 1);
++	dout_outputData[arrayPos] = (uint8_t)((dout_outputData[arrayPos] & ~0x1E) | va);
++	led_originalLedState[arrayPos] = (uint8_t)((led_originalLedState[arrayPos] & ~0x1E) | va);
+ }
+ //---------------------------------------------
+ void led_setActiveVoice(uint8_t voiceNr)
+ {
+-	voiceNr =  (uint8_t)(voiceNr + LED_VOICE1);
++	voiceNr = led_voiceLed(voiceNr);
+ 	uint8_t arrayPos = voiceNr/8;
+ 	uint8_t bitPos = voiceNr&0x7;
+ 	
+-	//clear upper 7 bit (1st bit is bar_up led)
+-	dout_outputData[arrayPos] &= 0x1;
+-	led_originalLedState[arrayPos] &= 0x1;
++	//clear the voice LEDs (1st bit of the first byte is bar_up led)
++	dout_outputData[LED_VOICE1/8] &= 0x1;
++	led_originalLedState[LED_VOICE1/8] &= 0x1;
++	dout_outputData[LED_VOICE8/8] &= (uint8_t)~0x1E;
++	led_originalLedState[LED_VOICE8/8] &= (uint8_t)~0x1E;
+ 	//set active LED
+ 	dout_outputData[arrayPos] |= (uint8_t)(1<<bitPos);
+ 	//since this is not a temp. change, store in led_originalLedState as well
+diff --git a/Core/Src/menu/menu.c b/Core/Src/menu/menu.c
+index 080e0ba..77618e9 100644
+--- a/Core/Src/menu/menu.c
++++ b/Core/Src/menu/menu.c
+@@ -249,6 +249,55 @@ const Name valueNames[NUM_NAMES] =
+ 		{SHORT_P3, CAT_FX, LONG_P3},/*TEXT_FX_P3*/
+ 		{SHORT_P4, CAT_FX, LONG_P4},/*TEXT_FX_P4*/
+ 		{SHORT_KCM, CAT_GLOBAL, LONG_PATTERN_MODE},/*TEXT_AUTO_SWITCH_KIT*/
++		{SHORT_VA_WV1, CAT_VA_OSC, LONG_VA_WAVE1},/*TEXT_VA_WAVE1*/
++		{SHORT_VA_WV2, CAT_VA_OSC, LONG_VA_WAVE2},/*TEXT_VA_WAVE2*/
++		{SHORT_VA_SEM, CAT_VA_OSC, LONG_VA_SEMI2},/*TEXT_VA_SEMI2*/
++		{SHORT_VA_FIN, CAT_VA_OSC, LONG_VA_FINE2},/*TEXT_VA_FINE2*/
++		{SHORT_VA_PW, CAT_VA_OSC, LONG_VA_PULSWDTH},/*TEXT_VA_PW*/
++		{SHORT_VA_MIX, CAT_VA_OSC, LONG_VA_OSCMIX},/*TEXT_VA_MIX*/
++		{SHORT_VA_SYN, CAT_VA_OSC, LONG_VA_HARDSYNC},/*TEXT_VA_SYNC*/
++		{SHORT_VA_OCT, CAT_VA_OSC, LONG_VA_OCTAVE},/*TEXT_VA_OCT*/
++		{SHORT_VA_OSC, CAT_VA_MIXER, LONG_VA_OSCLEVEL},/*TEXT_VA_OSC_LEVEL*/
++		{SHORT_VA_SUB, CAT_VA_MIXER, LONG_VA_SUBLEVEL},/*TEXT_VA_SUB*/
++		{SHORT_VA_SBW, CAT_VA_MIXER, LONG_VA_SUBWAVE},/*TEXT_VA_SUB_WAVE*/
++		{SHORT_VA_SBO, CAT_VA_MIXER, LONG_VA_SUBOCT},/*TEXT_VA_SUB_OCT*/
++		{SHORT_VA_NOI, CAT_VA_MIXER, LONG_VA_NOISE},/*TEXT_VA_NOISE*/
++		{SHORT_VA_NTY, CAT_VA_MIXER, LONG_VA_NOISTYPE},/*TEXT_VA_NOISE_TYPE*/
++		{SHORT_VA_DRV, CAT_VA_MIXER, LONG_VA_DRIVE},/*TEXT_VA_DRIVE*/
++		{SHORT_VA_SLP, CAT_VA_MIXER, LONG_VA_SLOP},/*TEXT_VA_SLOP*/
++		{SHORT_VA_CUT, CAT_VA_FILTER, LONG_VA_CUTOFF},/*TEXT_VA_CUTOFF*/
++		{SHORT_VA_RES, CAT_VA_FILTER, LONG_VA_RESNANCE},/*TEXT_VA_RESO*/
++		{SHORT_VA_TYP, CAT_VA_FILTER, LONG_VA_TYPE},/*TEXT_VA_FTYPE*/
++		{SHORT_VA_ENV, CAT_VA_FILTER, LONG_VA_ENVAMNT},/*TEXT_VA_FENV_AMT*/
++		{SHORT_VA_KEY, CAT_VA_FILTER, LONG_VA_KEYTRACK},/*TEXT_VA_KEYTRACK*/
++		{SHORT_VA_VEL, CAT_VA_FILTER, LONG_VA_VELOCITY},/*TEXT_VA_FVEL*/
++		{SHORT_VA_HPF, CAT_VA_FILTER, LONG_VA_HIGHPASS},/*TEXT_VA_HPF*/
++		{SHORT_VA_ATK, CAT_VA_FENV, LONG_VA_ATTACK},/*TEXT_VA_FATK*/
++		{SHORT_VA_DEC, CAT_VA_FENV, LONG_VA_DECAY},/*TEXT_VA_FDEC*/
++		{SHORT_VA_SUS, CAT_VA_FENV, LONG_VA_SUSTAIN},/*TEXT_VA_FSUS*/
++		{SHORT_VA_REL, CAT_VA_FENV, LONG_VA_RELEASE},/*TEXT_VA_FREL*/
++		{SHORT_VA_ATK, CAT_VA_AENV, LONG_VA_ATTACK},/*TEXT_VA_AATK*/
++		{SHORT_VA_DEC, CAT_VA_AENV, LONG_VA_DECAY},/*TEXT_VA_ADEC*/
++		{SHORT_VA_SUS, CAT_VA_AENV, LONG_VA_SUSTAIN},/*TEXT_VA_ASUS*/
++		{SHORT_VA_REL, CAT_VA_AENV, LONG_VA_RELEASE},/*TEXT_VA_AREL*/
++		{SHORT_VA_VEL, CAT_VA_AENV, LONG_VA_VELOCITY},/*TEXT_VA_AVEL*/
++		{SHORT_VA_RAT, CAT_VA_LFO, LONG_VA_RATE},/*TEXT_VA_LRATE*/
++		{SHORT_VA_WAV, CAT_VA_LFO, LONG_VA_WAVEFORM},/*TEXT_VA_LWAVE*/
++		{SHORT_VA_PIT, CAT_VA_LFO, LONG_VA_PITCH},/*TEXT_VA_LPITCH*/
++		{SHORT_VA_CUT, CAT_VA_LFO, LONG_VA_CUTOFF},/*TEXT_VA_LCUT*/
++		{SHORT_VA_PWM, CAT_VA_LFO, LONG_VA_PULSWDTH},/*TEXT_VA_LPWM*/
++		{SHORT_VA_DLY, CAT_VA_LFO, LONG_VA_DELAY},/*TEXT_VA_LDELAY*/
++		{SHORT_VA_MOD, CAT_VA_VOICE, LONG_VA_MODE},/*TEXT_VA_MODE*/
++		{SHORT_VA_GAT, CAT_VA_VOICE, LONG_VA_GATE},/*TEXT_VA_GATE*/
++		{SHORT_VA_GLD, CAT_VA_VOICE, LONG_VA_GLIDE},/*TEXT_VA_GLIDE*/
++		{SHORT_VA_UNI, CAT_VA_VOICE, LONG_VA_UNISON},/*TEXT_VA_UNISON*/
++		{SHORT_VA_SPR, CAT_VA_VOICE, LONG_VA_DETUNE},/*TEXT_VA_SPREAD*/
++		{SHORT_VA_WID, CAT_VA_VOICE, LONG_VA_WIDTH},/*TEXT_VA_WIDTH*/
++		{SHORT_VA_PRE, CAT_VA_MIX, LONG_VA_PRESET},/*TEXT_VA_PRESET*/
++		{SHORT_VA_VOL, CAT_VA_MIX, LONG_VA_VOLUME},/*TEXT_VA_VOLUME*/
++		{SHORT_VA_PAN, CAT_VA_MIX, LONG_VA_PANNING},/*TEXT_VA_PAN*/
++		{SHORT_VA_OUT, CAT_VA_MIX, LONG_VA_AUDIOOUT},/*TEXT_VA_OUT*/
++		{SHORT_VA_CHN, CAT_VA_MIX, LONG_VA_CHANNEL},/*TEXT_VA_MIDI_CHAN*/
+ 
+ 
+ };
+@@ -565,6 +614,206 @@ const enum Datatypes PROGMEM parameter_dtypes[NUM_PARAMS] = {
+ 	    /*PAR_MIDI_NOTE6*/		DTYPE_NOTE_NAME,
+ 	    /*PAR_MIDI_NOTE7*/		DTYPE_NOTE_NAME,
+ 		/*PAR_PATTERN_MODE*/ DTYPE_MENU | (MENU_PAT_MODE<<8),
++		// VA1
++		/*VA_P_WAVE1*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_WAVE2*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SEMI2*/ DTYPE_PM63,
++		/*VA_P_FINE2*/ DTYPE_PM63,
++		/*VA_P_PW*/ DTYPE_0B127,
++		/*VA_P_MIX*/ DTYPE_0B127,
++		/*VA_P_SYNC*/ DTYPE_ON_OFF,
++		/*VA_P_OCT*/ DTYPE_MENU | (MENU_VA_OCT<<8),
++		/*VA_P_OSC_LEVEL*/ DTYPE_0B127,
++		/*VA_P_SUB*/ DTYPE_0B127,
++		/*VA_P_SUB_WAVE*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SUB_OCT*/ DTYPE_MENU | (MENU_VA_SUB_OCT<<8),
++		/*VA_P_NOISE*/ DTYPE_0B127,
++		/*VA_P_NOISE_TYPE*/ DTYPE_MENU | (MENU_VA_NOISE<<8),
++		/*VA_P_DRIVE*/ DTYPE_0B127,
++		/*VA_P_SLOP*/ DTYPE_0B127,
++		/*VA_P_CUTOFF*/ DTYPE_0B127,
++		/*VA_P_RESO*/ DTYPE_0B127,
++		/*VA_P_FTYPE*/ DTYPE_MENU | (MENU_VA_FILTER<<8),
++		/*VA_P_FENV_AMT*/ DTYPE_PM63,
++		/*VA_P_KEYTRACK*/ DTYPE_0B127,
++		/*VA_P_FVEL*/ DTYPE_0B127,
++		/*VA_P_HPF*/ DTYPE_0B127,
++		/*VA_P_FATK*/ DTYPE_0B127,
++		/*VA_P_FDEC*/ DTYPE_0B127,
++		/*VA_P_FSUS*/ DTYPE_0B127,
++		/*VA_P_FREL*/ DTYPE_0B127,
++		/*VA_P_AATK*/ DTYPE_0B127,
++		/*VA_P_ADEC*/ DTYPE_0B127,
++		/*VA_P_ASUS*/ DTYPE_0B127,
++		/*VA_P_AREL*/ DTYPE_0B127,
++		/*VA_P_AVEL*/ DTYPE_0B127,
++		/*VA_P_LRATE*/ DTYPE_0B127,
++		/*VA_P_LWAVE*/ DTYPE_MENU | (MENU_VA_LFO<<8),
++		/*VA_P_LPITCH*/ DTYPE_0B127,
++		/*VA_P_LCUT*/ DTYPE_PM63,
++		/*VA_P_LPWM*/ DTYPE_0B127,
++		/*VA_P_LDELAY*/ DTYPE_0B127,
++		/*VA_P_MODE*/ DTYPE_MENU | (MENU_VA_MODE<<8),
++		/*VA_P_GATE*/ DTYPE_0B127,
++		/*VA_P_GLIDE*/ DTYPE_0B127,
++		/*VA_P_UNISON*/ DTYPE_MENU | (MENU_VA_UNISON<<8),
++		/*VA_P_SPREAD*/ DTYPE_0B127,
++		/*VA_P_WIDTH*/ DTYPE_0B127,
++		/*VA_P_PRESET*/ DTYPE_MENU | ((MENU_VA_PRESET1 + 0)<<8),
++		/*VA_P_VOLUME*/ DTYPE_0B127,
++		/*VA_P_PAN*/ DTYPE_PM63,
++		/*VA_P_OUT*/ DTYPE_MENU | (MENU_AUDIO_OUT<<8),
++		/*VA_P_MIDI_CHAN*/ DTYPE_1B16,
++		// VA2
++		/*VA_P_WAVE1*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_WAVE2*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SEMI2*/ DTYPE_PM63,
++		/*VA_P_FINE2*/ DTYPE_PM63,
++		/*VA_P_PW*/ DTYPE_0B127,
++		/*VA_P_MIX*/ DTYPE_0B127,
++		/*VA_P_SYNC*/ DTYPE_ON_OFF,
++		/*VA_P_OCT*/ DTYPE_MENU | (MENU_VA_OCT<<8),
++		/*VA_P_OSC_LEVEL*/ DTYPE_0B127,
++		/*VA_P_SUB*/ DTYPE_0B127,
++		/*VA_P_SUB_WAVE*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SUB_OCT*/ DTYPE_MENU | (MENU_VA_SUB_OCT<<8),
++		/*VA_P_NOISE*/ DTYPE_0B127,
++		/*VA_P_NOISE_TYPE*/ DTYPE_MENU | (MENU_VA_NOISE<<8),
++		/*VA_P_DRIVE*/ DTYPE_0B127,
++		/*VA_P_SLOP*/ DTYPE_0B127,
++		/*VA_P_CUTOFF*/ DTYPE_0B127,
++		/*VA_P_RESO*/ DTYPE_0B127,
++		/*VA_P_FTYPE*/ DTYPE_MENU | (MENU_VA_FILTER<<8),
++		/*VA_P_FENV_AMT*/ DTYPE_PM63,
++		/*VA_P_KEYTRACK*/ DTYPE_0B127,
++		/*VA_P_FVEL*/ DTYPE_0B127,
++		/*VA_P_HPF*/ DTYPE_0B127,
++		/*VA_P_FATK*/ DTYPE_0B127,
++		/*VA_P_FDEC*/ DTYPE_0B127,
++		/*VA_P_FSUS*/ DTYPE_0B127,
++		/*VA_P_FREL*/ DTYPE_0B127,
++		/*VA_P_AATK*/ DTYPE_0B127,
++		/*VA_P_ADEC*/ DTYPE_0B127,
++		/*VA_P_ASUS*/ DTYPE_0B127,
++		/*VA_P_AREL*/ DTYPE_0B127,
++		/*VA_P_AVEL*/ DTYPE_0B127,
++		/*VA_P_LRATE*/ DTYPE_0B127,
++		/*VA_P_LWAVE*/ DTYPE_MENU | (MENU_VA_LFO<<8),
++		/*VA_P_LPITCH*/ DTYPE_0B127,
++		/*VA_P_LCUT*/ DTYPE_PM63,
++		/*VA_P_LPWM*/ DTYPE_0B127,
++		/*VA_P_LDELAY*/ DTYPE_0B127,
++		/*VA_P_MODE*/ DTYPE_MENU | (MENU_VA_MODE<<8),
++		/*VA_P_GATE*/ DTYPE_0B127,
++		/*VA_P_GLIDE*/ DTYPE_0B127,
++		/*VA_P_UNISON*/ DTYPE_MENU | (MENU_VA_UNISON<<8),
++		/*VA_P_SPREAD*/ DTYPE_0B127,
++		/*VA_P_WIDTH*/ DTYPE_0B127,
++		/*VA_P_PRESET*/ DTYPE_MENU | ((MENU_VA_PRESET1 + 1)<<8),
++		/*VA_P_VOLUME*/ DTYPE_0B127,
++		/*VA_P_PAN*/ DTYPE_PM63,
++		/*VA_P_OUT*/ DTYPE_MENU | (MENU_AUDIO_OUT<<8),
++		/*VA_P_MIDI_CHAN*/ DTYPE_1B16,
++		// VA3
++		/*VA_P_WAVE1*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_WAVE2*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SEMI2*/ DTYPE_PM63,
++		/*VA_P_FINE2*/ DTYPE_PM63,
++		/*VA_P_PW*/ DTYPE_0B127,
++		/*VA_P_MIX*/ DTYPE_0B127,
++		/*VA_P_SYNC*/ DTYPE_ON_OFF,
++		/*VA_P_OCT*/ DTYPE_MENU | (MENU_VA_OCT<<8),
++		/*VA_P_OSC_LEVEL*/ DTYPE_0B127,
++		/*VA_P_SUB*/ DTYPE_0B127,
++		/*VA_P_SUB_WAVE*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SUB_OCT*/ DTYPE_MENU | (MENU_VA_SUB_OCT<<8),
++		/*VA_P_NOISE*/ DTYPE_0B127,
++		/*VA_P_NOISE_TYPE*/ DTYPE_MENU | (MENU_VA_NOISE<<8),
++		/*VA_P_DRIVE*/ DTYPE_0B127,
++		/*VA_P_SLOP*/ DTYPE_0B127,
++		/*VA_P_CUTOFF*/ DTYPE_0B127,
++		/*VA_P_RESO*/ DTYPE_0B127,
++		/*VA_P_FTYPE*/ DTYPE_MENU | (MENU_VA_FILTER<<8),
++		/*VA_P_FENV_AMT*/ DTYPE_PM63,
++		/*VA_P_KEYTRACK*/ DTYPE_0B127,
++		/*VA_P_FVEL*/ DTYPE_0B127,
++		/*VA_P_HPF*/ DTYPE_0B127,
++		/*VA_P_FATK*/ DTYPE_0B127,
++		/*VA_P_FDEC*/ DTYPE_0B127,
++		/*VA_P_FSUS*/ DTYPE_0B127,
++		/*VA_P_FREL*/ DTYPE_0B127,
++		/*VA_P_AATK*/ DTYPE_0B127,
++		/*VA_P_ADEC*/ DTYPE_0B127,
++		/*VA_P_ASUS*/ DTYPE_0B127,
++		/*VA_P_AREL*/ DTYPE_0B127,
++		/*VA_P_AVEL*/ DTYPE_0B127,
++		/*VA_P_LRATE*/ DTYPE_0B127,
++		/*VA_P_LWAVE*/ DTYPE_MENU | (MENU_VA_LFO<<8),
++		/*VA_P_LPITCH*/ DTYPE_0B127,
++		/*VA_P_LCUT*/ DTYPE_PM63,
++		/*VA_P_LPWM*/ DTYPE_0B127,
++		/*VA_P_LDELAY*/ DTYPE_0B127,
++		/*VA_P_MODE*/ DTYPE_MENU | (MENU_VA_MODE<<8),
++		/*VA_P_GATE*/ DTYPE_0B127,
++		/*VA_P_GLIDE*/ DTYPE_0B127,
++		/*VA_P_UNISON*/ DTYPE_MENU | (MENU_VA_UNISON<<8),
++		/*VA_P_SPREAD*/ DTYPE_0B127,
++		/*VA_P_WIDTH*/ DTYPE_0B127,
++		/*VA_P_PRESET*/ DTYPE_MENU | ((MENU_VA_PRESET1 + 2)<<8),
++		/*VA_P_VOLUME*/ DTYPE_0B127,
++		/*VA_P_PAN*/ DTYPE_PM63,
++		/*VA_P_OUT*/ DTYPE_MENU | (MENU_AUDIO_OUT<<8),
++		/*VA_P_MIDI_CHAN*/ DTYPE_1B16,
++		// VA4
++		/*VA_P_WAVE1*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_WAVE2*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SEMI2*/ DTYPE_PM63,
++		/*VA_P_FINE2*/ DTYPE_PM63,
++		/*VA_P_PW*/ DTYPE_0B127,
++		/*VA_P_MIX*/ DTYPE_0B127,
++		/*VA_P_SYNC*/ DTYPE_ON_OFF,
++		/*VA_P_OCT*/ DTYPE_MENU | (MENU_VA_OCT<<8),
++		/*VA_P_OSC_LEVEL*/ DTYPE_0B127,
++		/*VA_P_SUB*/ DTYPE_0B127,
++		/*VA_P_SUB_WAVE*/ DTYPE_MENU | (MENU_VA_WAVE<<8),
++		/*VA_P_SUB_OCT*/ DTYPE_MENU | (MENU_VA_SUB_OCT<<8),
++		/*VA_P_NOISE*/ DTYPE_0B127,
++		/*VA_P_NOISE_TYPE*/ DTYPE_MENU | (MENU_VA_NOISE<<8),
++		/*VA_P_DRIVE*/ DTYPE_0B127,
++		/*VA_P_SLOP*/ DTYPE_0B127,
++		/*VA_P_CUTOFF*/ DTYPE_0B127,
++		/*VA_P_RESO*/ DTYPE_0B127,
++		/*VA_P_FTYPE*/ DTYPE_MENU | (MENU_VA_FILTER<<8),
++		/*VA_P_FENV_AMT*/ DTYPE_PM63,
++		/*VA_P_KEYTRACK*/ DTYPE_0B127,
++		/*VA_P_FVEL*/ DTYPE_0B127,
++		/*VA_P_HPF*/ DTYPE_0B127,
++		/*VA_P_FATK*/ DTYPE_0B127,
++		/*VA_P_FDEC*/ DTYPE_0B127,
++		/*VA_P_FSUS*/ DTYPE_0B127,
++		/*VA_P_FREL*/ DTYPE_0B127,
++		/*VA_P_AATK*/ DTYPE_0B127,
++		/*VA_P_ADEC*/ DTYPE_0B127,
++		/*VA_P_ASUS*/ DTYPE_0B127,
++		/*VA_P_AREL*/ DTYPE_0B127,
++		/*VA_P_AVEL*/ DTYPE_0B127,
++		/*VA_P_LRATE*/ DTYPE_0B127,
++		/*VA_P_LWAVE*/ DTYPE_MENU | (MENU_VA_LFO<<8),
++		/*VA_P_LPITCH*/ DTYPE_0B127,
++		/*VA_P_LCUT*/ DTYPE_PM63,
++		/*VA_P_LPWM*/ DTYPE_0B127,
++		/*VA_P_LDELAY*/ DTYPE_0B127,
++		/*VA_P_MODE*/ DTYPE_MENU | (MENU_VA_MODE<<8),
++		/*VA_P_GATE*/ DTYPE_0B127,
++		/*VA_P_GLIDE*/ DTYPE_0B127,
++		/*VA_P_UNISON*/ DTYPE_MENU | (MENU_VA_UNISON<<8),
++		/*VA_P_SPREAD*/ DTYPE_0B127,
++		/*VA_P_WIDTH*/ DTYPE_0B127,
++		/*VA_P_PRESET*/ DTYPE_MENU | ((MENU_VA_PRESET1 + 3)<<8),
++		/*VA_P_VOLUME*/ DTYPE_0B127,
++		/*VA_P_PAN*/ DTYPE_PM63,
++		/*VA_P_OUT*/ DTYPE_MENU | (MENU_AUDIO_OUT<<8),
++		/*VA_P_MIDI_CHAN*/ DTYPE_1B16,
+ };
+ 
+ 
+@@ -1594,6 +1843,14 @@ void menu_repaintGeneric()
+ 			{
+ 				//get the used menu (upper 4 bit)
+ 				const uint8_t menuId = (parameter_dtypes[parNr] >> 8);
++				if(menuId >= MENU_VA_PRESET1 && menuId < MENU_VA_PRESET1 + VA_NUM_SLOTS
++					&& curParmVal < va_numPresets[menuId - MENU_VA_PRESET1])
++				{
++					// a VA preset: its whole name
++					const char *name = va_presets[menuId - MENU_VA_PRESET1][curParmVal].name;
++					memcpy(&editDisplayBuffer[1][4], name, strlen(name));
++				}
++				else
+ 				// get the value name
+ 				getMenuItemNameForValue(menuId, curParmVal, &editDisplayBuffer[1][13]);
+ 			}
+@@ -2605,6 +2862,20 @@ static uint8_t getMaxEntriesForMenu(uint8_t menuId)
+ 	case MENU_STEP_SHIFT:
+ 			return stepShiftNames[0][0];
+ 
++	case MENU_VA_WAVE:		return vaWaveNames[0][0];
++	case MENU_VA_OCT:		return vaOctNames[0][0];
++	case MENU_VA_SUB_OCT:	return vaSubOctNames[0][0];
++	case MENU_VA_NOISE:		return vaNoiseNames[0][0];
++	case MENU_VA_FILTER:	return vaFilterNames[0][0];
++	case MENU_VA_LFO:		return vaLfoNames[0][0];
++	case MENU_VA_MODE:		return vaModeNames[0][0];
++	case MENU_VA_UNISON:	return vaUnisonNames[0][0];
++	case MENU_VA_PRESET1:
++	case MENU_VA_PRESET1 + 1:
++	case MENU_VA_PRESET1 + 2:
++	case MENU_VA_PRESET1 + 3:
++		return va_numPresets[menuId - MENU_VA_PRESET1];
++
+ 	default:
+ 		return 0;
+ 	}
+@@ -2713,6 +2984,25 @@ static void getMenuItemNameForValue(const uint8_t menuId, const uint8_t curParmV
+ 		p=stepShiftNames[curParmVal+1];
+ 		break;
+ 
++	case MENU_VA_WAVE:		p=vaWaveNames[curParmVal+1];	break;
++	case MENU_VA_OCT:		p=vaOctNames[curParmVal+1];		break;
++	case MENU_VA_SUB_OCT:	p=vaSubOctNames[curParmVal+1];	break;
++	case MENU_VA_NOISE:		p=vaNoiseNames[curParmVal+1];	break;
++	case MENU_VA_FILTER:	p=vaFilterNames[curParmVal+1];	break;
++	case MENU_VA_LFO:		p=vaLfoNames[curParmVal+1];		break;
++	case MENU_VA_MODE:		p=vaModeNames[curParmVal+1];	break;
++	case MENU_VA_UNISON:	p=vaUnisonNames[curParmVal+1];	break;
++	case MENU_VA_PRESET1:
++	case MENU_VA_PRESET1 + 1:
++	case MENU_VA_PRESET1 + 2:
++	case MENU_VA_PRESET1 + 3:
++		// the first three letters; edit mode shows the whole name
++		if(curParmVal < va_numPresets[menuId - MENU_VA_PRESET1])
++			p=va_presets[menuId - MENU_VA_PRESET1][curParmVal].name;
++		else
++			p=menuText_dash;
++		break;
++
+ 
+ 	default:
+ 		p=menuText_dash;
+@@ -2787,7 +3077,7 @@ void menu_parseEncoder(int8_t inc, uint8_t button)
+ 		}
+ 		else if (mode == SELECT_MODE_LAST_STEP_ALL)
+ 		{
+-			for(int i=0;i<7;i++)
++			for(int i=0;i<NUM_TRACKS;i++)
+ 			{
+ 				seq_setTrackLength(i, l);
+ 			}
+@@ -3364,7 +3654,7 @@ void menu_switchPage(uint8_t pageNr)
+ 	default: //voice pages etc
+ 	{
+ 		menu_activePage = pageNr;
+-		if(pageNr<7) {
++		if(pageNr<NUM_TRACKS) {
+ 			menu_setActiveVoice(pageNr);
+ 		}
+ 		//leave edit mode if active
+@@ -3393,7 +3683,7 @@ void menu_switchPage(uint8_t pageNr)
+ 		buttonHandler_showMuteLEDs();
+ 	} else
+ 	{
+-		led_setActiveVoiceLeds((uint8_t)(1<<(menu_getActiveVoice())));
++		led_setActiveVoiceLeds((uint16_t)(1<<(menu_getActiveVoice())));
+ 		menu_muteModeActive = 0;
+ 	}
+ 
+@@ -3417,6 +3707,13 @@ void menu_sendAllGlobals()
+ // This includes values for the currently active step in the sequencer
+ void menu_parseGlobalParam(uint16_t paramNr, uint8_t value)
+ {
++	if(IS_VA_PAR(paramNr))
++	{
++		const uint16_t idx = (uint16_t)(paramNr - PAR_VA1_FIRST);
++		va_paramChanged((uint8_t)(idx / VA_NUM_PARAMS), (uint8_t)(idx % VA_NUM_PARAMS));
++		return;
++	}
++
+ 	switch(paramNr)
+ 	{
+ 
+diff --git a/README.md b/README.md
+index a0bb11a..3ecf584 100644
+--- a/README.md
++++ b/README.md
+@@ -1,4 +1,4 @@
+-# LXR V2 firmware (desktop, STM32F765VG)
++it# LXR V2 firmware (desktop, STM32F765VG)
+ 
+ Firmware for the LXR V2 desktop drum machine: an STM32F765 (Cortex-M7, 216 MHz) running the
+ drum voices, FX bus, step sequencer, MIDI (DIN + USB), SD-card preset storage and the LCD/button UI.

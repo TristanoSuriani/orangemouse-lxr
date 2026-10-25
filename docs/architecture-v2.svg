@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 1000" width="1400" height="1000" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="ah-k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1e1e1e"/>
+    </marker>
+    <marker id="ah-b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1971c2"/>
+    </marker>
+    <marker id="ah-g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#868e96"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="1000" fill="#ffffff"/>
+
+  <!-- Audio thread boundary -->
+  <rect x="330" y="30" width="1040" height="790" rx="18" fill="#f8f9fa" stroke="#868e96" stroke-width="2" stroke-dasharray="10 6"/>
+  <text x="350" y="58" font-size="17" font-weight="700" fill="#495057">AudioWorklet: one WASM module, one audio thread</text>
+  <text x="350" y="80" font-size="14" fill="#495057">48 kHz · 128-frame blocks (≈2.7 ms per block)</text>
+
+  <!-- Tracker -->
+  <rect x="690" y="100" width="320" height="70" rx="14" fill="#228be6" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="850" y="132" font-size="20" font-weight="700" text-anchor="middle" fill="#1e1e1e">Tracker</text>
+  <text x="850" y="155" font-size="14" text-anchor="middle" fill="#1e1e1e">master clock and sequencer</text>
+
+  <!-- MIDI Composer -->
+  <rect x="690" y="240" width="320" height="70" rx="14" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="850" y="272" font-size="20" font-weight="700" text-anchor="middle" fill="#1e1e1e">MIDI Composer</text>
+  <text x="850" y="295" font-size="14" text-anchor="middle" fill="#1e1e1e">routes events to engines</text>
+
+  <!-- Engines -->
+  <rect x="355" y="410" width="230" height="108" rx="14" fill="#ffec99" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="470" y="442" font-size="19" font-weight="700" text-anchor="middle" fill="#1e1e1e">LXR (dry)</text>
+  <text x="470" y="465" font-size="13" text-anchor="middle" fill="#1e1e1e">7 drum voices</text>
+  <text x="470" y="487" font-size="12" text-anchor="middle" fill="#495057">sequencer: alone or follows</text>
+  <text x="470" y="504" font-size="12" text-anchor="middle" fill="#495057">built-in delay bypassed</text>
+
+  <rect x="605" y="410" width="230" height="108" rx="14" fill="#ffec99" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="720" y="442" font-size="19" font-weight="700" text-anchor="middle" fill="#1e1e1e">Orange Mouse VA</text>
+  <text x="720" y="465" font-size="13" text-anchor="middle" fill="#1e1e1e">4 slots: bass, poly,</text>
+  <text x="720" y="487" font-size="12" text-anchor="middle" fill="#495057">lead, noises</text>
+
+  <rect x="855" y="410" width="230" height="108" rx="14" fill="#ffec99" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="970" y="442" font-size="19" font-weight="700" text-anchor="middle" fill="#1e1e1e">Plaits (dry)</text>
+  <text x="970" y="465" font-size="13" text-anchor="middle" fill="#1e1e1e">MIT · C wrapper</text>
+  <text x="970" y="487" font-size="12" text-anchor="middle" fill="#495057">genre-picked engines</text>
+
+  <rect x="1105" y="410" width="230" height="108" rx="14" fill="#ffec99" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="1220" y="442" font-size="19" font-weight="700" text-anchor="middle" fill="#1e1e1e">Dexed (dry)</text>
+  <text x="1220" y="465" font-size="13" text-anchor="middle" fill="#1e1e1e">MSFA engine · GPLv3</text>
+  <text x="1220" y="487" font-size="12" text-anchor="middle" fill="#495057">DX7 presets only</text>
+
+  <!-- Notes: Tracker -> MIDI Composer -> engines -->
+  <line x1="850" y1="170" x2="850" y2="236" stroke="#1e1e1e" stroke-width="3" marker-end="url(#ah-k)"/>
+  <text x="862" y="208" font-size="13" fill="#1e1e1e">notes · CC · clock (sample-accurate)</text>
+
+  <line x1="740" y1="310" x2="490" y2="405" stroke="#1e1e1e" stroke-width="3" marker-end="url(#ah-k)"/>
+  <line x1="800" y1="310" x2="730" y2="405" stroke="#1e1e1e" stroke-width="3" marker-end="url(#ah-k)"/>
+  <line x1="900" y1="310" x2="960" y2="405" stroke="#1e1e1e" stroke-width="3" marker-end="url(#ah-k)"/>
+  <line x1="960" y1="310" x2="1200" y2="405" stroke="#1e1e1e" stroke-width="3" marker-end="url(#ah-k)"/>
+
+  <!-- Audio Composer + Surge FX -->
+  <rect x="600" y="610" width="500" height="96" rx="14" fill="#a5d8ff" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="820" y="648" font-size="20" font-weight="700" text-anchor="middle" fill="#1e1e1e">Audio Composer</text>
+  <text x="820" y="672" font-size="14" text-anchor="middle" fill="#1e1e1e">per-track level, pan, sends, master bus</text>
+
+  <rect x="1030" y="672" width="200" height="74" rx="14" fill="#ffc9c9" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="1130" y="704" font-size="18" font-weight="700" text-anchor="middle" fill="#1e1e1e">Surge XT FX</text>
+  <text x="1130" y="726" font-size="13" text-anchor="middle" fill="#1e1e1e">sst-effects library</text>
+
+  <!-- Audio: engines -> Audio Composer -> Out -->
+  <line x1="470" y1="518" x2="640" y2="604" stroke="#1971c2" stroke-width="3" marker-end="url(#ah-b)"/>
+  <text x="440" y="575" font-size="13" fill="#1971c2">7 stems</text>
+  <line x1="720" y1="518" x2="770" y2="604" stroke="#1971c2" stroke-width="3" marker-end="url(#ah-b)"/>
+  <text x="664" y="575" font-size="13" fill="#1971c2">4 stems</text>
+  <line x1="970" y1="518" x2="930" y2="604" stroke="#1971c2" stroke-width="3" marker-end="url(#ah-b)"/>
+  <line x1="1220" y1="518" x2="1060" y2="604" stroke="#1971c2" stroke-width="3" marker-end="url(#ah-b)"/>
+  <text x="1150" y="578" font-size="13" fill="#1971c2">stereo</text>
+
+  <line x1="850" y1="706" x2="850" y2="876" stroke="#1971c2" stroke-width="3" marker-end="url(#ah-b)"/>
+  <text x="862" y="790" font-size="13" fill="#1971c2">stereo mix</text>
+
+  <!-- Out -->
+  <rect x="750" y="880" width="200" height="70" rx="14" fill="#228be6" stroke="#1e1e1e" stroke-width="3"/>
+  <text x="850" y="912" font-size="20" font-weight="700" text-anchor="middle" fill="#1e1e1e">Out</text>
+  <text x="850" y="934" font-size="13" text-anchor="middle" fill="#1e1e1e">AudioContext destination</text>
+
+  <!-- Main thread UI -->
+  <rect x="30" y="100" width="260" height="300" rx="14" fill="#e9ecef" stroke="#1e1e1e" stroke-width="2"/>
+  <text x="160" y="132" font-size="18" font-weight="700" text-anchor="middle" fill="#1e1e1e">Main thread (UI)</text>
+  <text x="50" y="170" font-size="14" fill="#1e1e1e">• LXR front panel and LCD</text>
+  <text x="50" y="198" font-size="14" fill="#1e1e1e">• Orange Mouse VA, Plaits panels</text>
+  <text x="50" y="226" font-size="14" fill="#1e1e1e">• Dexed preset browser</text>
+  <text x="50" y="254" font-size="14" fill="#1e1e1e">• Tracker view</text>
+  <text x="50" y="282" font-size="14" fill="#1e1e1e">• Mixer and FX view</text>
+  <text x="50" y="310" font-size="14" fill="#1e1e1e">• Web MIDI in/out</text>
+  <text x="50" y="350" font-size="12" fill="#495057">Edits only. No timing-critical</text>
+  <text x="50" y="366" font-size="12" fill="#495057">work runs here.</text>
+
+  <line x1="290" y1="230" x2="684" y2="230" stroke="#868e96" stroke-width="2" stroke-dasharray="6 5" marker-start="url(#ah-g)" marker-end="url(#ah-g)"/>
+  <text x="340" y="220" font-size="13" fill="#495057">edits, params ⇄ LCD, LEDs, meters</text>
+  <text x="340" y="250" font-size="12" fill="#868e96">(MessagePort)</text>
+
+  <!-- Decisions -->
+  <rect x="30" y="440" width="260" height="300" rx="14" fill="#ffffff" stroke="#ced4da" stroke-width="2"/>
+  <text x="50" y="472" font-size="16" font-weight="700" fill="#1e1e1e">Decisions</text>
+  <text x="50" y="502" font-size="13" fill="#1e1e1e">1. One clock: the Tracker,</text>
+  <text x="66" y="520" font-size="13" fill="#1e1e1e">or LXR's sequencer alone.</text>
+  <text x="50" y="550" font-size="13" fill="#1e1e1e">2. All engines in one worklet.</text>
+  <text x="66" y="568" font-size="13" fill="#1e1e1e">Split into Workers + ring</text>
+  <text x="66" y="586" font-size="13" fill="#1e1e1e">buffers only if CPU runs out.</text>
+  <text x="50" y="616" font-size="13" fill="#1e1e1e">3. Everything at 48 kHz.</text>
+  <text x="66" y="634" font-size="13" fill="#1e1e1e">LXR's REAL_FS changes</text>
+  <text x="66" y="652" font-size="13" fill="#1e1e1e">from 44140 to 48000.</text>
+  <text x="50" y="682" font-size="13" fill="#1e1e1e">4. Engines output dry.</text>
+  <text x="66" y="700" font-size="13" fill="#1e1e1e">All effects live in the</text>
+  <text x="66" y="718" font-size="13" fill="#1e1e1e">Audio Composer.</text>
+
+  <!-- Legend -->
+  <line x1="40" y1="880" x2="100" y2="880" stroke="#1e1e1e" stroke-width="3" marker-end="url(#ah-k)"/>
+  <text x="112" y="885" font-size="14" fill="#1e1e1e">notes, CC, clock</text>
+  <line x1="40" y1="912" x2="100" y2="912" stroke="#1971c2" stroke-width="3" marker-end="url(#ah-b)"/>
+  <text x="112" y="917" font-size="14" fill="#1e1e1e">audio</text>
+  <line x1="40" y1="944" x2="100" y2="944" stroke="#868e96" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#ah-g)"/>
+  <text x="112" y="949" font-size="14" fill="#1e1e1e">UI messages</text>
+</svg>

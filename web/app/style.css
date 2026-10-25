@@ -1,0 +1,337 @@
+/* Copyright (C) 2026 Erica Synths
+ * SPDX-License-Identifier: GPL-3.0-only */
+
+:root {
+  --page: #17181b;
+  --panel: #26282d;
+  --panel-edge: #34373e;
+  --pad: #3a3d45;
+  --pad-down: #2b2d33;
+  --pad-text: #d9dbe0;
+  --pad-alt: #8d93a0;
+  --led-off: #4a2a1a;
+  --led-on: #ff8a1f;
+  --led-glow: rgba(255, 138, 31, 0.55);
+  --accent: #ff8a1f;
+  --text: #e8e9ec;
+  --muted: #9a9fab;
+  --lcd-bg: #060606;
+  --lcd-on: #ffc94d;
+  --lcd-off: #17130a;
+  --knob: #1b1c20;
+  --knob-ring: #50545e;
+  --focus: #6ab0ff;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--page);
+  color: var(--text);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px;
+}
+
+button, select, input { font: inherit; }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+kbd {
+  border: 1px solid var(--panel-edge);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 4px;
+  font-size: 12px;
+  background: var(--panel);
+}
+
+/* ---- the machine ---------------------------------------------------------- */
+
+.machine {
+  width: min(1100px, 100%);
+  background: linear-gradient(180deg, #2b2e34, var(--panel));
+  border: 1px solid var(--panel-edge);
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.top {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.display-block { display: flex; flex-direction: column; gap: 14px; }
+
+.lcd {
+  width: 400px;
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 6px solid #0d0d0f;
+  image-rendering: pixelated;
+  background: var(--lcd-bg);
+}
+
+.pots { display: flex; justify-content: space-between; padding: 0 18px; }
+
+.caption { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* endless pots and the encoder */
+.pot, .encoder {
+  --angle: 0deg;
+  border-radius: 50%;
+  cursor: ns-resize;
+  touch-action: none;
+  position: relative;
+}
+
+.pot {
+  width: 54px;
+  height: 54px;
+  background: radial-gradient(circle at 40% 35%, #34363c, var(--knob) 70%);
+  border: 3px solid var(--knob-ring);
+  transform: rotate(var(--angle));
+}
+
+.pot-mark, .encoder-mark {
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  width: 3px;
+  height: 14px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.encoder-block { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 6px; }
+
+.encoder {
+  width: 92px;
+  height: 92px;
+  background: repeating-conic-gradient(from 0deg, #2c2e33 0 6deg, #222428 6deg 12deg);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+}
+
+.encoder-cap {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #3a3d44, #1e1f23 75%);
+  position: relative;
+  transform: rotate(var(--angle));
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.encoder:active .encoder-cap { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); }
+
+.faders {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.fader-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 52px;
+}
+
+.fader-wrap .caption { text-align: center; font-size: 10px; }
+
+.fader {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 28px;
+  height: 140px;
+  accent-color: var(--accent);
+  cursor: ns-resize;
+}
+
+/* ---- buttons ---------------------------------------------------------------- */
+
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.controls { justify-content: space-between; row-gap: 14px; }
+
+.group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pad {
+  position: relative;
+  min-width: 56px;
+  height: 52px;
+  padding: 16px 8px 6px;
+  border: 1px solid #4a4e58;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #444852, var(--pad));
+  color: var(--pad-text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  box-shadow: 0 2px 0 #1a1b1f;
+  touch-action: none;
+}
+
+.pad .label { font-size: 12px; font-weight: 600; }
+.pad .alt { font-size: 10px; color: var(--pad-alt); }
+
+.pad .led {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 14px;
+  height: 5px;
+  margin-left: -7px;
+  border-radius: 3px;
+  background: var(--led-off);
+}
+
+.pad.lit .led { background: var(--led-on); box-shadow: 0 0 8px var(--led-glow); }
+
+.pad.down {
+  background: var(--pad-down);
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.pad.latched { border-color: var(--accent); }
+
+.pad.voice { flex: 1 1 0; min-width: 90px; }
+.pad.small { min-width: 64px; }
+.pad.select { min-width: 46px; }
+.pad.shift .label { color: var(--accent); }
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 8px;
+}
+
+.pad.step { min-width: 0; height: 60px; padding-left: 2px; padding-right: 2px; }
+.pad.step .alt { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* every fourth step starts a beat */
+.pad.step:nth-child(4n + 1) { border-color: #6a6f7b; }
+
+/* ---- dock --------------------------------------------------------------------- */
+
+.dock {
+  width: min(1100px, 100%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.dock-item { display: flex; align-items: center; gap: 8px; }
+.dock-item input[type=range] { accent-color: var(--accent); width: 120px; }
+.dock-item select { background: var(--panel); color: var(--text); border: 1px solid var(--panel-edge); border-radius: 6px; padding: 4px 6px; max-width: 180px; }
+
+.dock-button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.dock-button:hover { border-color: var(--muted); }
+
+.dock-status { margin-left: auto; font-size: 13px; }
+
+.help { width: min(1100px, 100%); margin: 0; color: var(--muted); font-size: 13px; }
+
+/* ---- guide ------------------------------------------------------------------------ */
+
+.guide {
+  width: min(1100px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  padding: 4px 18px;
+  color: var(--text);
+}
+
+.guide summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.guide h3 { margin: 18px 0 6px; font-size: 15px; }
+.guide p, .guide li { color: #c9ccd3; max-width: 75ch; }
+.guide ol, .guide ul { padding-left: 22px; }
+.guide li { margin: 3px 0; }
+.guide .table-wrap { overflow-x: auto; }
+
+.guide table { border-collapse: collapse; margin: 6px 0 10px; font-size: 13px; }
+.guide th, .guide td { border: 1px solid var(--panel-edge); padding: 5px 10px; text-align: left; }
+.guide th { color: var(--muted); font-weight: 600; }
+.guide .note { color: var(--muted); font-size: 13px; }
+
+/* ---- power overlay --------------------------------------------------------------- */
+
+.power {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(10, 10, 12, 0.82);
+  backdrop-filter: blur(3px);
+}
+
+.power[hidden] { display: none; }
+
+.power button {
+  font-size: 18px;
+  font-weight: 600;
+  padding: 14px 34px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #1a1206;
+  cursor: pointer;
+}
+
+.power p { color: var(--muted); margin: 0; }
+
+/* ---- narrow screens ------------------------------------------------------------------ */
+
+@media (max-width: 760px) {
+  body { padding: 16px; }
+  .machine { padding: 14px; }
+  .faders { margin-left: 0; width: 100%; justify-content: space-between; gap: 4px; }
+  .fader-wrap { width: auto; flex: 1; }
+  .fader { height: 110px; }
+  .steps { grid-template-columns: repeat(8, 1fr); }
+  .pad.voice { min-width: 70px; }
+  #selects { display: grid; grid-template-columns: repeat(4, 1fr); width: 100%; }
+}

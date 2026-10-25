@@ -1,2 +1,6 @@
 /build/
 __pycache__/
+/web/build/
+/web/app/lxr.wasm
+/web/.cache/
+/.idea/

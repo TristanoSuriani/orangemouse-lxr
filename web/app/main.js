@@ -1,0 +1,443 @@
+// Copyright (C) 2026 Erica Synths
+// SPDX-License-Identifier: GPL-3.0-only
+//
+// The front panel: builds the controls, starts the firmware in an
+// AudioWorklet (lxr-worklet.js) and connects it to the display, LEDs, the
+// SD card store (IndexedDB) and Web MIDI.
+
+import { Lcd } from './lcd.js';
+import { SdCardStore, SD_SECTORS, SECTOR_SIZE, flushOnHide } from './sdcard.js';
+
+// Button numbers as in enum ButtonNumbers (Core/Inc/buttonHandler.h); each
+// button's LED has the same number in enum LedNumbers (ledHandler.h).
+const BUT = {
+  PAGE_UP: 0, VOICE_1: 1,
+  SELECT5: 8, SELECT1: 16,
+  MODE1: 24,
+  SHIFT: 32, START_STOP: 33, REC: 34, COPY: 35,
+  PAGE_DOWN: 40,
+};
+const SEQ_BUTTONS = [39, 38, 37, 36, 31, 30, 29, 28, 23, 22, 21, 20, 15, 14, 13, 12];  // SEQ1..SEQ16
+const SELECT_BUTTONS = [16, 17, 18, 19, 8, 9, 10, 11];                                // SELECT1..SELECT8
+
+const VOICES = ['Drum 1', 'Drum 2', 'Drum 3', 'Snare', 'Cymbal', 'Hihat cl', 'Hihat op'];
+const MODES = [['Voice', 'Step'], ['Perf', 'Euklid'], ['Load', 'FX'], ['Save', 'Menu']];
+const FADERS = ['Drum 1', 'Drum 2', 'Drum 3', 'Snare', 'Cymbal', 'Hihat'];
+// Shift + step button functions (enum SeqButtonFunctions, buttonHandler.h);
+// steps 1-7 have no shift function.
+const STEP_SHIFT = ['', '', '', '', '', '', '', 'Kit', 'Morph', 'Song', 'Project', 'Config', 'Reload', 'Last', 'FX', 'Pattern'];
+const POT_DEGREES_PER_PIXEL = 1.5;
+const ENCODER_PIXELS_PER_DETENT = 12;
+
+const lcd = new Lcd(document.getElementById('lcd'));
+const status = document.getElementById('status');
+const buttons = new Map();     // button number -> element
+let node = null;               // AudioWorkletNode, once switched on
+let turnEncoder = null;        // turns the encoder by n detents
+let shiftKeyDown = false;
+
+function send(msg) {
+  node?.port.postMessage(msg);
+}
+
+function setStatus(text) {
+  status.textContent = text;
+}
+
+// ---- controls -------------------------------------------------------------------
+
+function makeButton(id, label, { alt = '', kind = '' } = {}) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = `pad ${kind}`.trim();
+  el.innerHTML = `<span class="led"></span><span class="label">${label}</span>${alt ? `<span class="alt">${alt}</span>` : ''}`;
+  el.setAttribute('aria-label', alt ? `${label} (shift: ${alt})` : label);
+  el.setAttribute('aria-pressed', 'false');
+
+  let held = false;     // pressed by pointer
+  let latched = false;  // held down with Alt-click
+  const update = () => {
+    const down = held || latched;
+    el.classList.toggle('down', down);
+    el.classList.toggle('latched', latched);
+    el.setAttribute('aria-pressed', String(down));
+    send({ type: 'button', id, down });
+  };
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    if (e.altKey) {
+      latched = !latched;
+      update();
+      return;
+    }
+    if (latched) {
+      latched = false;
+      update();
+      return;
+    }
+    el.setPointerCapture(e.pointerId);
+    held = true;
+    update();
+  });
+  const release = () => {
+    if (!held) return;
+    held = false;
+    update();
+  };
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointercancel', release);
+  el.addEventListener('keydown', (e) => {
+    if ((e.key === ' ' || e.key === 'Enter') && !e.repeat) {
+      e.preventDefault();
+      e.stopPropagation();
+      held = true;
+      update();
+    }
+  });
+  el.addEventListener('keyup', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      release();
+    }
+  });
+  buttons.set(id, el);
+  return el;
+}
+
+// Drag up/right or scroll up to turn clockwise. Calls onTurn(amount in pixels).
+function makeRotary(el, onTurn) {
+  let last = null;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    el.setPointerCapture(e.pointerId);
+    last = { x: e.clientX, y: e.clientY };
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!last) return;
+    const delta = (e.clientX - last.x) - (e.clientY - last.y);
+    last = { x: e.clientX, y: e.clientY };
+    if (delta) onTurn(delta);
+  });
+  const end = () => { last = null; };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+  el.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    onTurn(-Math.sign(e.deltaY) * 8);
+  }, { passive: false });
+}
+
+function buildPanel() {
+  // the four endless pots below the display
+  const pots = document.getElementById('pots');
+  for (let i = 0; i < 4; i++) {
+    const wrap = document.createElement('div');
+    wrap.className = 'pot-wrap';
+    wrap.innerHTML = `<div class="pot" tabindex="0" role="slider" aria-label="Pot ${i + 1}"><div class="pot-mark"></div></div>`;
+    const pot = wrap.firstElementChild;
+    let angle = 0;
+    const turn = (degrees) => {
+      angle += degrees;
+      pot.style.setProperty('--angle', `${angle}deg`);
+      send({ type: 'pot', pot: i, degrees });
+    };
+    makeRotary(pot, (px) => turn(px * POT_DEGREES_PER_PIXEL));
+    pot.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); turn(6); }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); turn(-6); }
+    });
+    pots.append(wrap);
+  }
+
+  // the data encoder
+  const encoder = document.getElementById('encoder');
+  let encoderAngle = 0;
+  let encoderPixels = 0;
+  turnEncoder = (detents) => {
+    encoderAngle += detents * 15;
+    encoder.style.setProperty('--angle', `${encoderAngle}deg`);
+    send({ type: 'encoder', detents });
+  };
+  makeRotary(encoder, (px) => {
+    encoderPixels += px;
+    const detents = Math.trunc(encoderPixels / ENCODER_PIXELS_PER_DETENT);
+    if (detents) {
+      encoderPixels -= detents * ENCODER_PIXELS_PER_DETENT;
+      turnEncoder(detents);
+    }
+  });
+  // a click without dragging pushes the encoder
+  let pushStart = null;
+  encoder.addEventListener('pointerdown', (e) => {
+    pushStart = { x: e.clientX, y: e.clientY };
+  });
+  encoder.addEventListener('pointermove', (e) => {
+    if (pushStart && Math.hypot(e.clientX - pushStart.x, e.clientY - pushStart.y) > 4) pushStart = null;
+  });
+  encoder.addEventListener('pointerup', () => {
+    if (pushStart) pushEncoder();
+    pushStart = null;
+  });
+  encoder.addEventListener('pointercancel', () => { pushStart = null; });
+  encoder.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); turnEncoder(1); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); turnEncoder(-1); }
+  });
+
+  // volume faders
+  const faders = document.getElementById('faders');
+  FADERS.forEach((name, i) => {
+    const wrap = document.createElement('label');
+    wrap.className = 'fader-wrap';
+    wrap.innerHTML = `<input type="range" class="fader" min="0" max="1" step="0.005" value="0.8" aria-label="${name} volume"><span class="caption">${name}</span>`;
+    const input = wrap.querySelector('input');
+    input.addEventListener('input', () => send({ type: 'fader', fader: i, value: Number(input.value) }));
+    faders.append(wrap);
+  });
+
+  const voices = document.getElementById('voices');
+  VOICES.forEach((name, i) => voices.append(makeButton(BUT.VOICE_1 + i, name, { kind: 'voice' })));
+
+  const pages = document.getElementById('pages');
+  pages.append(makeButton(BUT.PAGE_UP, 'Page ▲', { kind: 'small' }), makeButton(BUT.PAGE_DOWN, 'Page ▼', { kind: 'small' }));
+
+  const selects = document.getElementById('selects');
+  SELECT_BUTTONS.forEach((id, i) => selects.append(makeButton(id, String(i + 1), { kind: 'select' })));
+
+  const modes = document.getElementById('modes');
+  MODES.forEach(([label, alt], i) => modes.append(makeButton(BUT.MODE1 + i, label, { alt, kind: 'mode' })));
+
+  const transport = document.getElementById('transport');
+  transport.append(
+    makeButton(BUT.SHIFT, 'Shift', { kind: 'shift' }),
+    makeButton(BUT.COPY, 'Copy', { alt: 'Clear' }),
+    makeButton(BUT.REC, 'Rec'),
+    makeButton(BUT.START_STOP, 'Start', { kind: 'start' }),
+  );
+
+  const steps = document.getElementById('steps');
+  SEQ_BUTTONS.forEach((id, i) => steps.append(makeButton(id, String(i + 1), { alt: STEP_SHIFT[i], kind: 'step' })));
+}
+
+// A short push of the encoder button, long enough for the firmware's
+// debouncing (4 samples, 10 ms apart).
+function pushEncoder() {
+  send({ type: 'encoderButton', down: true });
+  setTimeout(() => send({ type: 'encoderButton', down: false }), 80);
+}
+
+function showLeds([low, high]) {
+  for (const [id, el] of buttons) {
+    const on = id < 32 ? (low >>> id) & 1 : (high >>> (id - 32)) & 1;
+    el.classList.toggle('lit', !!on);
+  }
+}
+
+// ---- keyboard ---------------------------------------------------------------------
+
+function pressFromKeyboard(id, down) {
+  const el = buttons.get(id);
+  el?.classList.toggle('down', down);
+  send({ type: 'button', id, down });
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+  if (e.key === 'Shift' && !shiftKeyDown) {
+    shiftKeyDown = true;
+    pressFromKeyboard(BUT.SHIFT, true);
+  } else if (e.key === ' ' && !e.repeat) {
+    e.preventDefault();
+    pressFromKeyboard(BUT.START_STOP, true);
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    turnEncoder?.(e.key === 'ArrowRight' ? 1 : -1);
+  } else if (e.key === 'Enter' && !e.repeat) {
+    e.preventDefault();
+    pushEncoder();
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  if (e.key === 'Shift') {
+    shiftKeyDown = false;
+    pressFromKeyboard(BUT.SHIFT, false);
+  } else if (e.key === ' ') {
+    pressFromKeyboard(BUT.START_STOP, false);
+  }
+});
+
+// ---- MIDI ------------------------------------------------------------------------
+
+const midi = { access: null, input: null, output: null };
+
+async function setUpMidi() {
+  if (!navigator.requestMIDIAccess) {
+    document.getElementById('midiIn').disabled = true;
+    document.getElementById('midiOut').disabled = true;
+    return;
+  }
+  try {
+    midi.access = await navigator.requestMIDIAccess();
+  } catch {
+    return;
+  }
+  const inSel = document.getElementById('midiIn');
+  const outSel = document.getElementById('midiOut');
+  const fill = () => {
+    for (const [sel, ports] of [[inSel, midi.access.inputs], [outSel, midi.access.outputs]]) {
+      const current = sel.value;
+      sel.length = 1;
+      for (const port of ports.values()) sel.add(new Option(port.name, port.id));
+      sel.value = [...ports.keys()].includes(current) ? current : '';
+    }
+  };
+  fill();
+  midi.access.onstatechange = fill;
+  inSel.addEventListener('change', () => {
+    if (midi.input) midi.input.onmidimessage = null;
+    midi.input = midi.access.inputs.get(inSel.value) || null;
+    if (midi.input) midi.input.onmidimessage = (e) => send({ type: 'midi', bytes: Array.from(e.data) });
+  });
+  outSel.addEventListener('change', () => {
+    midi.output = midi.access.outputs.get(outSel.value) || null;
+  });
+}
+
+// The firmware sends a running byte stream (DIN MIDI); Web MIDI wants whole
+// messages, so split it up again.
+const midiOutParser = { status: 0, data: [], sysex: null };
+
+function sendMidiBytes(bytes) {
+  if (!midi.output) return;
+  const p = midiOutParser;
+  for (const b of bytes) {
+    if (b >= 0xf8) { midi.output.send([b]); continue; }                 // real-time
+    if (b === 0xf0) { p.sysex = [b]; continue; }
+    if (p.sysex) {
+      p.sysex.push(b);
+      if (b === 0xf7) { midi.output.send(p.sysex); p.sysex = null; }
+      continue;
+    }
+    if (b & 0x80) { p.status = b; p.data = []; continue; }
+    if (!p.status) continue;
+    p.data.push(b);
+    const type = p.status & 0xf0;
+    const length = type === 0xc0 || type === 0xd0 || p.status === 0xf1 || p.status === 0xf3 ? 1 : 2;
+    if (p.data.length === length) {
+      midi.output.send([p.status, ...p.data]);
+      p.data = [];
+      if (p.status >= 0xf0) p.status = 0;
+    }
+  }
+}
+
+// ---- start up ----------------------------------------------------------------------
+
+const store = new SdCardStore();
+flushOnHide(store);
+
+async function switchOn() {
+  const power = document.getElementById('power');
+  const message = document.getElementById('powerMessage');
+  message.textContent = 'Starting…';
+
+  const context = new AudioContext({ sampleRate: 44100, latencyHint: 'interactive' });
+  const [wasm, card] = await Promise.all([
+    fetch('lxr.wasm').then((r) => {
+      if (!r.ok) throw new Error(`lxr.wasm: ${r.status} ${r.statusText} (build it first, see README.md)`);
+      return r.arrayBuffer();
+    }),
+    store.load(),
+    context.audioWorklet.addModule('lxr-worklet.js'),
+  ]);
+
+  const gain = context.createGain();
+  const volume = document.getElementById('volume');
+  gain.gain.value = Number(volume.value);
+  volume.addEventListener('input', () => gain.gain.setTargetAtTime(Number(volume.value), context.currentTime, 0.02));
+
+  node = new AudioWorkletNode(context, 'lxr', {
+    numberOfInputs: 0,
+    outputChannelCount: [2],
+    processorOptions: {
+      wasm,
+      sdImage: card.image.buffer,
+      blankCard: card.blank,
+      seed: (Math.random() * 0xffffffff) >>> 0,
+    },
+  });
+  node.connect(gain).connect(context.destination);
+  node.port.onmessage = (e) => onWorkletMessage(e.data);
+  node.onprocessorerror = () => setStatus('The firmware stopped with an error, reload the page.');
+
+  for (const [i, input] of document.querySelectorAll('.fader').entries()) {
+    send({ type: 'fader', fader: i, value: Number(input.value) });
+  }
+  await context.resume();
+  power.hidden = true;
+  setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
+}
+
+function onWorkletMessage(msg) {
+  switch (msg.type) {
+    case 'ui':
+      if (msg.lcd) {
+        lcd.update(msg.lcd, msg.cgram, msg.lcdOn);
+        lcd.canvas.setAttribute('aria-label', `Display: ${lcd.toString()}`);
+      }
+      if (msg.leds) showLeds(msg.leds);
+      if (msg.midi) sendMidiBytes(msg.midi);
+      if (msg.log) msg.log.forEach((line) => console.info('[LXR]', line));
+      break;
+    case 'sd':
+      store.write(msg.sectors, msg.data);
+      break;
+    case 'sdAll':
+      store.writeAll(msg.data);
+      break;
+  }
+}
+
+// ---- SD card menu -----------------------------------------------------------------
+
+document.getElementById('exportCard').addEventListener('click', async () => {
+  send({ type: 'flushSd' });
+  await new Promise((r) => setTimeout(r, 100));
+  const image = await store.snapshot();
+  const url = URL.createObjectURL(new Blob([image], { type: 'application/octet-stream' }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: 'lxr-sdcard.img' });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+document.getElementById('importCard').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  if (file.size !== SD_SECTORS * SECTOR_SIZE) {
+    setStatus(`The image must be exactly ${SD_SECTORS * SECTOR_SIZE / 1048576} MB (an exported LXR Web card).`);
+    return;
+  }
+  if (!confirm('Replace the SD card with this image? The page reloads.')) return;
+  await store.writeAll(new Uint8Array(await file.arrayBuffer()));
+  location.reload();
+});
+
+document.getElementById('resetCard').addEventListener('click', async () => {
+  if (!confirm('Erase the SD card with all projects, kits and patterns? The page reloads.')) return;
+  node?.port.close();
+  await store.erase();
+  location.reload();
+});
+
+buildPanel();
+setUpMidi();
+document.getElementById('powerButton').addEventListener('click', () => {
+  switchOn().catch((err) => {
+    console.error(err);
+    document.getElementById('powerMessage').textContent = `Could not start: ${err.message}`;
+  });
+});
