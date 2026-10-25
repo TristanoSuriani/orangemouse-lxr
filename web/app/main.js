@@ -12,7 +12,9 @@ import { makePad, makeRotary } from './kit/controls.js';
 import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
 import { createTrackerDevice } from './devices/tracker.js';
-import { newSong, songMessages } from './tracker/song.js';
+import { songMessages } from './tracker/song.js';
+import * as library from './tracker/library.js';
+import { demoSong } from './tracker/demo.js';
 import { DotMatrix } from './kit/dotmatrix.js';
 import { addGuide } from './kit/guide.js';
 import { HelpStrip, describe } from './kit/help.js';
@@ -453,7 +455,17 @@ buildPanel();
 describeLxr();
 const va = createVaDevice({ send, help });
 const tracker = createTrackerDevice({ send, help });
-tracker.load(newSong());
+// the demo song at once; the song last edited replaces it when the library answers
+tracker.load(demoSong());
+(async () => {
+  const id = library.currentId();
+  const saved = id && (await library.load(id));
+  if (saved) {
+    saved.id = id;
+    tracker.load(saved);
+    devices[0].mini(tracker.summary());
+  }
+})();
 document.getElementById('devices').prepend(tracker.el);
 document.getElementById('devices').append(va.el);
 

@@ -19,6 +19,8 @@ import { makePad, makeKnob, setLed } from '../kit/controls.js';
 import { addGuide } from '../kit/guide.js';
 import { KEY_SEMITONES } from '../kit/keybed.js';
 import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, newPattern, getCell, songMessages, Editor } from '../tracker/song.js';
+import * as library from '../tracker/library.js';
+import { demoSong } from '../tracker/demo.js';
 
 const COLS = 84;
 const ROWS = 20;
@@ -52,12 +54,22 @@ const GUIDE = [
   { title: 'Chords', text: 'Hold Shift while typing: the note joins the cell instead of replacing it, up to 4 (the cell shows ² ³ ⁴). The cursor stays.' },
   { title: 'Step', text: 'STEP (or - and =) sets how far the cursor moves after a note: 1 fills every row, 4 writes on the beat, 0 keeps it still for auditioning.' },
   { title: 'Select, copy, paste', text: 'Without a selection, Cmd/Ctrl C and V copy one cell. Shift+arrows or a drag select a block; paste lands at the cursor. Cmd+Shift+V pastes back into the same tracks. Cmd+A: the track, again: everything. Cmd+Z undoes.' },
-  { title: 'Play', text: 'Space plays the song from the start of the order list, or stops. Enter (LOOP) repeats the pattern you edit. PAT -/+ choose the pattern; PAT + past the last makes a new one. ORD + adds it to the order list.' },
+  { title: 'Play', text: 'Space plays the song from the order position you chose (click it on the ORDER row), or stops. Enter (LOOP) repeats the pattern you edit. PAT -/+ choose the pattern; PAT + past the last makes a new one; Cmd+D duplicates it. ORD + adds it to the order list. BPM sets the pattern\'s tempo.' },
+  { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, C copies a share code, V loads one.' },
   { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots. Tab moves between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
-export function createTrackerDevice({ send, help }) {
+export function createTrackerDevice({ send: sendToWorklet, help }) {
   const song = { value: null };
+  // every change to the song is sent to the worklet, and saves the song a moment later
+  let saveTimer = null;
+  const send = (m) => {
+    sendToWorklet(m);
+    if (m.type === 'tracker' && m.op !== 'play' && m.op !== 'stop') {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => library.save(song.value), 800);
+    }
+  };
   let editor = null;
   const state = {
     p: 0,                     // the pattern edited
@@ -70,19 +82,26 @@ export function createTrackerDevice({ send, help }) {
     top: 0,                   // the first pattern row on the display
     playing: [0, 0, 0, 0, 120],   // from the worklet: playing, pattern, position, row, tempo
     clip: null,               // { w, h, k0, cells }
+    pos: 0,                   // the order position PLAY starts from
+    mode: 'pattern',          // or 'songs': the library on the display
+    songs: [],                // the library's list, in songs mode
+    songCur: 0,
+    confirm: null,            // a song id waiting for its second Delete
+    message: '',              // a short note on the status row (songs mode)
   };
 
   const el = document.createElement('section');
   el.className = 'device tracker';
   el.setAttribute('aria-label', 'Tracker');
   el.tabIndex = -1;
-  // the title and the ? pad share the control row: the display gets the height
+  // the ? pad shares the control row (the rack card names the device): the
+  // display gets the height
   el.innerHTML = `
     <canvas class="lcd tracker-lcd"></canvas>
     <div class="tracker-controls">
       <div class="pots tracker-knobs"></div>
       <div class="group tracker-pads"></div>
-      <header class="device-head"><h2><b>Tracker</b></h2></header>
+      <header class="device-head"></header>
     </div>`;
   const canvas = el.querySelector('.tracker-lcd');
   const display = new DotMatrix(canvas, { cols: COLS, rows: ROWS, dot: 2, margin: 6 });
@@ -109,8 +128,9 @@ export function createTrackerDevice({ send, help }) {
     display.uninvert();
 
     const play = state.playing[0] ? `▶ ${state.playing[1] === state.p ? 'HERE' : `P${hex(state.playing[1])}`} POS ${hex(state.playing[2])}` : 'STOPPED';
+    if (state.mode === 'songs') { renderSongs(play); return; }
     const bpm = pt.bpm || s.bpm;
-    display.line(0, `PAT ${hex(state.p)}/${hex(s.patterns.length - 1)} LEN ${pt.rows} BPM ${Math.round(bpm)}${pt.bpm ? '*' : ''}  ${play.padEnd(16)}`
+    display.line(0, `PAT ${hex(state.p)}/${hex(s.patterns.length - 1)} LEN ${pt.rows} BPM ${Math.round(bpm)}  ${play.padEnd(16)}`
       + ` ${state.edit ? 'EDIT' : 'JAM '} STEP ${state.step} OCT ${state.octs[state.cur.k]}  T${state.view ? '9-16' : '1-8'}`);
 
     let head = '   ';
@@ -144,19 +164,131 @@ export function createTrackerDevice({ send, help }) {
     const starts = [];
     s.order.forEach((p) => { starts.push(order.length); order += hex(p) + ' '; });
     display.line(ROWS - 2, order);
-    if (state.playing[0]) display.invert(ROWS - 2, starts[state.playing[2]] ?? 0, 2);
+    display.invert(ROWS - 2, starts[state.playing[0] ? state.playing[2] : state.pos] ?? 0, 2);
+    orderStarts = starts;
 
     // the knobs' values
     const c = cell();
     const vel = c && !c.off ? (c.vel || 100) : '-';
     const rtg = c && !c.off ? (c.retrig >= 2 ? c.retrig : 'off') : '-';
-    display.line(ROWS - 1, [`VEL ${vel}`, `RTG ${rtg}`, `BPM ${Math.round(s.bpm)}`, `LEN ${pt.rows}`].map((x) => x.padEnd(21)).join(''));
+    display.line(ROWS - 1, [`VEL ${vel}`, `RTG ${rtg}`, `BPM ${Math.round(bpm)}`, `LEN ${pt.rows}`].map((x) => x.padEnd(21)).join(''));
     display.draw();
     help.refresh();
     setLed(pads.edit, state.edit);
     setLed(pads.play, state.playing[0] && !loopMode);
     setLed(pads.loop, state.playing[0] && loopMode);
     setLed(pads.view, state.view === 1);
+  }
+
+  // ---- the library on the display (SONGS) ----
+  let orderStarts = [];
+  function renderSongs(play) {
+    display.uninvert();
+    display.line(0, `SONGS ${state.message || 'N new  D duplicate  R rename  DEL delete  E export  I import  C/V code'}`.slice(0, COLS));
+    display.line(1, `   ${'NAME'.padEnd(40)}SAVED`);
+    const list = state.songs;
+    const top = Math.max(0, Math.min(list.length - VISIBLE, state.songCur - Math.floor(VISIBLE / 2)));
+    for (let i = 0; i < VISIBLE; i++) {
+      const item = list[top + i];
+      const row = FIRST + i;
+      if (!item) { display.line(row, ''); continue; }
+      const current = item.id === song.value.id ? '▶' : ' ';
+      display.line(row, ` ${current} ${item.name.slice(0, 39).padEnd(40)}${new Date(item.updated).toLocaleString().slice(0, 30)}`);
+      if (top + i === state.songCur) display.invert(row, 3, 40);
+    }
+    display.line(ROWS - 2, list.length ? `${list.length} SONG${list.length === 1 ? '' : 'S'}   ${play}` : 'NO SONGS SAVED YET');
+    display.line(ROWS - 1, 'SONGS again (or Esc) goes back to the pattern');
+    display.draw();
+    help.refresh();
+  }
+
+  async function openSongs(on = state.mode !== 'songs') {
+    state.mode = on ? 'songs' : 'pattern';
+    state.message = '';
+    state.confirm = null;
+    if (on) {
+      await library.save(song.value);
+      state.songs = await library.list();
+      state.songCur = Math.max(0, state.songs.findIndex((x) => x.id === song.value.id));
+    }
+    setLed(pads.songs, on);
+    render();
+  }
+
+  function note(text) {
+    state.message = text;
+    render();
+  }
+
+  async function songKey(e) {
+    const list = state.songs;
+    const item = list[state.songCur];
+    const k = e.key.toLowerCase();
+    if (e.key === 'ArrowUp') state.songCur = Math.max(0, state.songCur - 1);
+    else if (e.key === 'ArrowDown') state.songCur = Math.min(list.length - 1, state.songCur + 1);
+    else if (e.key === 'Escape') return openSongs(false);
+    else if (e.key === 'Enter' && item) {
+      const loaded = await library.load(item.id);
+      if (loaded) { load(loaded); return openSongs(false); }
+    } else if (k === 'n') {
+      const fresh = library.migrate({ name: `Song ${list.length + 1}` });
+      load(fresh);
+      await library.save(fresh);
+      return openSongs(true);
+    } else if (k === 'd' && item) {
+      const copy = await library.load(item.id);
+      if (copy) { copy.id = library.songId(); copy.name = `${copy.name} copy`; await library.save(copy); state.songs = await library.list(); note(`DUPLICATED ${item.name.toUpperCase()}`); }
+    } else if (k === 'r' && item) {
+      const name = window.prompt('Song name', item.name);
+      if (name) {
+        const target = item.id === song.value.id ? song.value : await library.load(item.id);
+        if (target) { target.id = item.id; target.name = name.slice(0, 40); await library.save(target); state.songs = await library.list(); }
+      }
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && item) {
+      if (state.confirm !== item.id) { state.confirm = item.id; return note(`DELETE ${item.name.toUpperCase()}? PRESS DELETE AGAIN`); }
+      await library.remove(item.id);
+      state.confirm = null;
+      state.songs = await library.list();
+      state.songCur = Math.min(state.songCur, state.songs.length - 1);
+      if (item.id === song.value.id) load(state.songs.length ? await library.load(state.songs[0].id) : demoSong());
+      return note('DELETED');
+    } else if (k === 'e' && item) {
+      const s = await library.load(item.id);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(s, null, 1)], { type: 'application/json' }));
+      Object.assign(document.createElement('a'), { href: url, download: `${s.name}.json` }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return note('EXPORTED');
+    } else if (k === 'i') {
+      const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json,application/json' });
+      input.onchange = async () => {
+        try {
+          const s = library.migrate(JSON.parse(await input.files[0].text()));
+          s.id = library.songId();
+          await library.save(s);
+          load(s);
+          openSongs(true);
+        } catch { note('THAT FILE IS NOT A SONG'); }
+      };
+      input.click();
+      return;
+    } else if (k === 'c' && item) {
+      const code = await library.toCode(item.id === song.value.id ? song.value : await library.load(item.id));
+      try { await navigator.clipboard.writeText(code); note(`SHARE CODE COPIED (${code.length} CHARACTERS)`); } catch { window.prompt('Share code', code); }
+      return;
+    } else if (k === 'v') {
+      const code = window.prompt('Paste a share code');
+      if (!code) return;
+      try {
+        const s = await library.fromCode(code);
+        s.id = library.songId();
+        await library.save(s);
+        load(s);
+        return openSongs(true);
+      } catch { return note('THAT IS NOT A SONG CODE'); }
+    } else return false;
+    state.confirm = state.confirm && e.key !== 'Delete' && e.key !== 'Backspace' ? null : state.confirm;
+    render();
+    return true;
   }
 
   // ---- editing ----
@@ -274,7 +406,16 @@ export function createTrackerDevice({ send, help }) {
   function play(mode) {
     if (state.playing[0]) { send({ type: 'tracker', op: 'stop' }); return; }
     loopMode = mode === 'pattern';
-    send({ type: 'tracker', op: 'play', mode, from: mode === 'song' ? 0 : state.p });
+    send({ type: 'tracker', op: 'play', mode, from: mode === 'song' ? state.pos : state.p });
+  }
+  function duplicatePattern() {
+    const s = song.value;
+    if (s.patterns.length >= PATTERNS) return;
+    const copy = JSON.parse(JSON.stringify(pat()));
+    s.patterns.push(copy);
+    state.p = s.patterns.length - 1;
+    for (const m of songMessages(s).filter((x) => x.op === 'pattern' || (x.op === 'cell' && x.p === state.p))) send(m);
+    render();
   }
   function toggleMute(k, solo) {
     const t = song.value.tracks[k];
@@ -294,8 +435,13 @@ export function createTrackerDevice({ send, help }) {
         const i = Math.max(0, Math.min(order.length - 1, order.indexOf(c.retrig >= 2 ? c.retrig : 0) + Math.sign(n)));
         return { ...c, retrig: order[i] };
       })],
-    ['BPM', 'The song\'s tempo. A pattern can have its own (marked * on the display).',
-      (n) => { song.value.bpm = Math.max(20, Math.min(300, song.value.bpm + n)); send({ type: 'tracker', op: 'tempo', bpm: song.value.bpm }); render(); }],
+    ['BPM', 'The tempo of the pattern you edit: each pattern has its own (new ones start at the song\'s).',
+      (n) => {
+        const pt = pat();
+        pt.bpm = Math.max(20, Math.min(300, (pt.bpm || song.value.bpm) + n));
+        send({ type: 'tracker', op: 'pattern', p: state.p, rows: pt.rows, bpm: pt.bpm });
+        render();
+      }],
     ['LEN', 'The pattern\'s length in rows (sixteenths): 16 is a bar, 64 four bars.',
       (n) => { pat().rows = Math.max(1, Math.min(MAX_ROWS, pat().rows + n)); send({ type: 'tracker', op: 'pattern', p: state.p, rows: pat().rows, bpm: pat().bpm }); state.cur.r = clampRow(state.cur.r); render(); }],
   ];
@@ -326,6 +472,7 @@ export function createTrackerDevice({ send, help }) {
     ['octDown', 'OCT -', 'The keys play an octave lower ([).', () => { state.octs[state.cur.k] = Math.max(0, state.octs[state.cur.k] - 1); render(); }],
     ['octUp', 'OCT +', 'The keys play an octave higher (]).', () => { state.octs[state.cur.k] = Math.min(8, state.octs[state.cur.k] + 1); render(); }],
     ['step', 'STEP', 'How far the cursor moves after a note: 0, 1, 2, 4, 8 (- and =).', () => { state.step = STEPS[(STEPS.indexOf(state.step) + 1) % STEPS.length]; render(); }],
+    ['songs', 'SONGS', 'The library on the display: load, new, duplicate, rename, delete, export, import, share codes.', () => openSongs()],
   ];
   for (const [id, label, text, action] of PADS) {
     const pad = makePad(label, { kind: 'small', onChange: (down) => down && action() });
@@ -340,6 +487,10 @@ export function createTrackerDevice({ send, help }) {
     const box = canvas.getBoundingClientRect();
     const col = Math.floor(((e.clientX - box.left) * (canvas.width / box.width) - display.margin) / display.charW);
     const row = Math.floor(((e.clientY - box.top) * (canvas.height / box.height) - display.margin) / display.charH);
+    if (row === ROWS - 2) {
+      const i = orderStarts.findIndex((start) => col >= start && col < start + 2);
+      return i >= 0 ? { order: i } : null;
+    }
     if (col < 3) return null;
     const k = state.view * SHOWN + Math.min(SHOWN - 1, Math.floor((col - 3) / CELL));
     if (row === 1) return { header: true, k };
@@ -348,9 +499,17 @@ export function createTrackerDevice({ send, help }) {
   };
   let dragging = false;
   canvas.addEventListener('pointerdown', (e) => {
+    if (state.mode === 'songs') return;
     const h = hit(e);
     if (!h) return;
     e.preventDefault();
+    if (h.order !== undefined) {   // choose where PLAY starts, and edit that pattern
+      state.pos = h.order;
+      state.p = song.value.order[h.order];
+      state.cur.r = clampRow(state.cur.r);
+      render();
+      return;
+    }
     if (h.header) { toggleMute(h.k, e.button === 2); return; }
     if (e.button !== 0) return;
     canvas.setPointerCapture(e.pointerId);
@@ -360,8 +519,8 @@ export function createTrackerDevice({ send, help }) {
     render();
   });
   canvas.addEventListener('pointermove', (e) => {
-    hover = hit(e);
-    if (dragging && hover && !hover.header) {
+    hover = state.mode === 'songs' ? null : hit(e);
+    if (dragging && hover && hover.r !== undefined) {
       if (!state.anchor) state.anchor = { ...state.cur };
       state.cur = { r: hover.r, k: hover.k };
       render();
@@ -375,7 +534,9 @@ export function createTrackerDevice({ send, help }) {
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   describe(canvas, help, () => {
+    if (state.mode === 'songs') return 'The songs: arrows choose, Enter loads, N new, D duplicate, R rename, Delete twice deletes, E/I export/import .json, C/V share code. Esc goes back.';
     if (!hover) return 'The pattern: click a cell to move there, drag to select. Click a track name to mute it, right-click to solo it.';
+    if (hover.order !== undefined) return `Order position ${hover.order + 1}: pattern ${hex(song.value.order[hover.order])}. Click: PLAY starts here, and you edit that pattern.`;
     const t = song.value.tracks[hover.k];
     const where = t.engine === null ? 'not playing anything yet' : `plays ${ENGINES[t.engine].name} ${ENGINES[t.engine].parts[t.part]}`;
     if (hover.header) return `Track ${hover.k + 1} ${t.name} (${where}): click to mute, right-click to solo.${t.mute ? ' Muted.' : ''}${t.solo ? ' Solo.' : ''}`;
@@ -385,6 +546,11 @@ export function createTrackerDevice({ send, help }) {
   // ---- the computer keyboard (while the tracker is shown) ----
   function handleKey(e, down) {
     const mod = e.metaKey || e.ctrlKey;
+    if (state.mode === 'songs') {
+      if (!down || mod || e.altKey) return false;
+      songKey(e);
+      return true;
+    }
     if (!down) {
       if (e.code in KEY_SEMITONES) { audition(KEY_SEMITONES[e.code], false); return true; }
       return false;
@@ -397,6 +563,7 @@ export function createTrackerDevice({ send, help }) {
       if (k === 'x') { copy(true); return true; }
       if (k === 'v') { paste(e.shiftKey); return true; }
       if (k === 'a') { selectAll(); return true; }
+      if (k === 'd') { duplicatePattern(); return true; }
       return false;
     }
     if (e.altKey) return false;
@@ -450,9 +617,11 @@ export function createTrackerDevice({ send, help }) {
 
   // ---- the song, and the worklet ----
   function load(s) {
+    if (song.value) sendToWorklet({ type: 'tracker', op: 'stop' });
     song.value = s;
     editor = new Editor(s, send);
-    state.p = 0;
+    state.p = s.order[0] ?? 0;
+    state.pos = 0;
     state.cur = { r: 0, k: 0 };
     state.anchor = null;
     for (const m of songMessages(s)) send(m);
@@ -467,7 +636,7 @@ export function createTrackerDevice({ send, help }) {
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
   return { el, load, onState, handleKey, song: () => song.value, summary: () => [
+    song.value.name.toUpperCase(),
     `PAT ${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
-    `BPM ${Math.round(song.value.bpm)} ORD ${song.value.order.length}`,
   ] };
 }

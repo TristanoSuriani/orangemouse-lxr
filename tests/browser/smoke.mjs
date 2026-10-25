@@ -240,6 +240,35 @@ try {
   await sleep(200);
   check((await evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`)).includes('STOPPED'), 'Enter again stops');
 
+  console.log('== the song library');
+  const trackerText = () => evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`);
+  await sleep(1000);   // the demo song saves itself
+  await clickPad('.tracker-pads .pad:last-child');   // SONGS
+  await sleep(300);
+  check((await trackerText()).toUpperCase().includes('FIRST STEPS'), 'SONGS lists the demo song');
+  await press('KeyN', 'n');
+  await sleep(400);
+  check((await trackerText()).includes('2 SONGS'), 'N makes a second song');
+  await press('Escape', 'Escape');
+  await press('KeyZ', 'z');
+  check((await trackerRow(0)).includes('C-4'), `the new song takes a note: "${await trackerRow(0)}"`);
+  await sleep(1200);   // autosave
+  const code = await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    const s = window.orangeMouse.tracker.song();
+    const back = await lib.fromCode(await lib.toCode(s));
+    const old = lib.migrate({ patterns: [{ rows: 16, cells: { '0:0': { notes: [60] } } }] });
+    return { same: JSON.stringify(back.patterns) === JSON.stringify(s.patterns), old: old.tracks.length === 16 && old.order.length === 1 && old.patterns[0].rows === 16 };
+  })()`);
+  check(code.same, 'a share code gives back the same song');
+  check(code.old, 'an old song without tracks or order loads, completed');
+  await cdp('Page.reload');
+  await sleep(2000);
+  check((await evaluate(`document.querySelector('.rack-card').getAttribute('aria-label') && document.querySelector('.rack-lcd').getAttribute('aria-label')`)).includes('SONG 2'), 'after a reload the studio opens the last song');
+  check((await trackerRow(0)).includes('C-4'), 'and its note was saved');
+  await evaluate(`document.getElementById('powerButton').click()`);
+  for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
+
   console.log('== the LXR plays');
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'note', engine: 0, part: 0, note: 36, velocity: 120, on: true })`);
   check((await peak(300)) > 0.02, 'an LXR drum 1 hit makes sound');
