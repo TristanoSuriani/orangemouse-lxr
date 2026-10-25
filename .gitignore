@@ -10,3 +10,4 @@ __pycache__/
 /spikes/dexed/carts/
 /tests/host/build/
 /tests/host/out/
+.cache/
