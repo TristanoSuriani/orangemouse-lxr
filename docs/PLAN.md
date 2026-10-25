@@ -3,6 +3,7 @@
 A browser studio made of hardware-looking devices: a tracker, the LXR, Orange Mouse VA, Plaits and Dexed,
 mixed through Surge XT effects. It is built for one user, so every choice favours less rework and fast
 feedback over generality. Architecture: `docs/architecture-v2.svg`.
+Live status of every step: [Orange Mouse Build](https://claude.ai/artifact/QuzWvua6PxLsX7kEV89q6h).
 
 ## Principles
 
