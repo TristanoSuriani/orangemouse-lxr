@@ -7,6 +7,10 @@
  * hihat), two stems (the LXR's stereo outputs 1 and 2). It renders in its
  * own 64-frame blocks, as on the hardware.
  *
+ * Its own sequencer follows the studio's clock while the tracker plays, as
+ * it follows MIDI clock on the hardware; when the tracker stops, it runs on
+ * its own clock again (the LXR alone).
+ *
  * The firmware keeps its state in globals, so there is one instance.
  *
  * Copyright (C) 2026 Erica Synths
@@ -22,6 +26,7 @@
 #include "Soundengine/MIDI/MidiParser.h"
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "Soundengine/Sequencer/sequencer.h"
+#include "Soundengine/Sequencer/clockSync.h"
 #include "om_registry_lxr.h"
 
 // web/port/web_main.c and web_sdcard.c (web_port.h has web_sdSectors)
@@ -137,6 +142,29 @@ static void lxrSetTempo(void *self, float bpm)
 	seq_setBpm((uint16_t)(bpm + 0.5f));
 }
 
+static uint8_t lxr_ownSync;   // the sync mode before the studio's clock took over
+
+static void lxrClock(void *self, uint8_t event)
+{
+	(void)self;
+	switch (event)
+	{
+	case OM_CLOCK_START:
+		lxr_ownSync = seq_getExtSync();
+		seq_setExtSync(2);            // MIDI clock (seq_sync ticks only in this mode)
+		sync_midiResetPosition();
+		sync_midiStartStop(1);
+		break;
+	case OM_CLOCK_TICK:
+		seq_sync();
+		break;
+	case OM_CLOCK_STOP:
+		sync_midiStartStop(0);
+		seq_setExtSync(lxr_ownSync);
+		break;
+	}
+}
+
 static void lxrRender(void *self, float *const *stems, uint32_t frames)
 {
 	(void)self;
@@ -160,5 +188,6 @@ const OmEngineClass om_lxr_engine = {
 	.set_param = lxrSetParam,
 	.get_param = lxrGetParam,
 	.set_tempo = lxrSetTempo,
+	.clock = lxrClock,
 	.render = lxrRender,
 };

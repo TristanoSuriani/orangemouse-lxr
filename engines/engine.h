@@ -28,6 +28,9 @@
 
 #define OM_MAX_BLOCK 64   // the most frames the studio asks an engine for at once
 
+// the studio's clock, as MIDI clock: start, 24 ticks a beat, stop
+enum { OM_CLOCK_START, OM_CLOCK_TICK, OM_CLOCK_STOP };
+
 typedef struct OmEngineClass
 {
 	const char *name;
@@ -46,6 +49,8 @@ typedef struct OmEngineClass
 	void (*set_param)(void *self, uint8_t part, uint16_t param, uint8_t value);
 	uint8_t (*get_param)(void *self, uint8_t part, uint16_t param);
 	void (*set_tempo)(void *self, float bpm);
+	// optional (NULL): follows the studio's clock (the LXR's own sequencer)
+	void (*clock)(void *self, uint8_t event);
 
 	// renders `frames` frames of every stem: stems[2 * s] left, stems[2 * s + 1]
 	// right, written (not added); full scale = 1.0

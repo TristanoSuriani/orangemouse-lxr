@@ -13,7 +13,7 @@
 #include <string.h>
 #include "studio.h"
 
-enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM };
+enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK };
 
 typedef struct
 {
@@ -141,6 +141,13 @@ const OmEngineClass *om_studio_engine(const OmStudio *st, uint8_t engine)
 	return engine < st->engines ? st->engine[engine].cls : NULL;
 }
 
+void om_studio_clock(OmStudio *st, uint64_t frame, uint8_t event)
+{
+	for (uint8_t e = 0; e < st->engines; e++)
+		if (st->engine[e].cls->clock)
+			push(st, e, (Event){.frame = frame, .type = EV_CLOCK, .note = event});
+}
+
 void om_studio_set_stem(OmStudio *st, uint8_t engine, uint8_t stem, float level, float balance)
 {
 	if (engine >= st->engines || stem >= OM_MAX_STEMS)
@@ -160,6 +167,7 @@ static void dispatch(Engine *en, uint64_t until)
 		case EV_NOTE_ON:  en->cls->note_on(en->self, ev->part, ev->note, ev->value); break;
 		case EV_NOTE_OFF: en->cls->note_off(en->self, ev->part, ev->note); break;
 		case EV_PARAM:    en->cls->set_param(en->self, ev->part, ev->param, ev->value); break;
+		case EV_CLOCK:    en->cls->clock(en->self, ev->note); break;
 		}
 		en->head = (en->head + 1) % OM_MAX_EVENTS;
 		en->count--;

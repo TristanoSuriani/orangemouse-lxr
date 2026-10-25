@@ -52,9 +52,10 @@ echo "== parameter registry"
 { python3 -I tools/lxr_registry.py --check && python3 -I tools/registry.py --check && node tests/registry_test.mjs; } \
   | sed 's/^/   /' || fail=1
 
-echo "== studio and tracker unit tests"
+echo "== studio, tracker and clock tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1
 $BIN/tracker_test | sed 's/^/   /' || fail=1
+$BIN/lxr_sync_test | sed 's/^/   /' || fail=1
 
 echo "== LXR demo groove"
 $BIN/lxr_render --raw "$OUT/demo.f32" --wav "$OUT/demo.wav" | grep '^hash' > "$OUT/lxr_demo.txt"

@@ -38,6 +38,8 @@ float om_studio_tempo(const OmStudio *st);
 int om_studio_note_on(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t note, uint8_t velocity);
 int om_studio_note_off(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t note);
 int om_studio_set_param(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint16_t param, uint8_t value);
+// A clock event (OM_CLOCK_*) to every engine that follows the clock.
+void om_studio_clock(OmStudio *st, uint64_t frame, uint8_t event);
 
 // A parameter's current value (events still queued are not applied yet), and
 // an engine's class (NULL past the last engine).

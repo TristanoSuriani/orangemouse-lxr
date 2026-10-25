@@ -31,6 +31,9 @@ static void mockOff(void *self, uint8_t part, uint8_t note) { (void)self; if (ne
 static void mockParam(void *self, uint8_t part, uint16_t param, uint8_t value) { (void)self; (void)part; (void)param; (void)value; }
 static uint8_t mockGet(void *self, uint8_t part, uint16_t param) { (void)self; (void)part; (void)param; return 0; }
 static void mockTempo(void *self, float bpm) { (void)self; (void)bpm; }
+static uint64_t clocks[1024][2];   // frame, event
+static int nclocks;
+static void mockClock(void *self, uint8_t event) { (void)self; if (nclocks < 1024) { clocks[nclocks][0] = rendered; clocks[nclocks][1] = event; nclocks++; } }
 static void mockRender(void *self, float *const *stems, uint32_t frames)
 {
 	(void)self;
@@ -40,7 +43,7 @@ static void mockRender(void *self, float *const *stems, uint32_t frames)
 }
 static const OmEngineClass mock = {.name = "mock", .parts = 4, .stems = 1, .block = 0,
 	.create = mockCreate, .destroy = mockDestroy, .note_on = mockOn, .note_off = mockOff,
-	.set_param = mockParam, .get_param = mockGet, .set_tempo = mockTempo, .render = mockRender};
+	.set_param = mockParam, .get_param = mockGet, .set_tempo = mockTempo, .clock = mockClock, .render = mockRender};
 
 static OmStudio *st;
 static OmTracker *tr;
@@ -55,6 +58,7 @@ static void fresh(void)
 	for (uint8_t k = 0; k < 4; k++)
 		om_tracker_route(tr, k, 0, k);
 	nevs = 0;
+	nclocks = 0;
 	rendered = 0;
 }
 
@@ -217,6 +221,27 @@ int main(void)
 		om_tracker_play_pattern(tr, 0);
 		run(1000);
 		CHECK(!nth(1, 0, 0) && !nth(1, 1, 0) && nth(1, 2, 0), "solo: only track 3 should play");
+	}
+
+	// the clock: start, 6 ticks a row, stop at the song's end
+	{
+		fresh();
+		om_tracker_set_length(tr, 0, 2);
+		om_tracker_set_order(tr, 0, 0);
+		om_tracker_set_order(tr, 1, OM_ORDER_END);
+		om_tracker_play_song(tr, 0);
+		run(30000);
+		int ticks = 0, bad = 0, starts = 0, stops = 0;
+		uint64_t stopAt = 0;
+		for (int i = 0; i < nclocks; i++)
+		{
+			if (clocks[i][1] == OM_CLOCK_START) starts++;
+			if (clocks[i][1] == OM_CLOCK_STOP) { stops++; stopAt = clocks[i][0]; }
+			if (clocks[i][1] == OM_CLOCK_TICK) { if (clocks[i][0] != (uint64_t)ticks * 1000) bad++; ticks++; }
+		}
+		CHECK(starts == 1 && clocks[0][1] == OM_CLOCK_START && clocks[0][0] == 0, "the clock does not start at frame 0");
+		CHECK(ticks == 12 && bad == 0, "%d ticks (12 expected, every 1000 frames), %d off", ticks, bad);
+		CHECK(stops == 1 && stopAt == 12000, "the clock stops %d times, at frame %llu (12000 expected)", stops, (unsigned long long)stopAt);
 	}
 
 	om_tracker_destroy(tr);

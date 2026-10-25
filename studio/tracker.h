@@ -15,6 +15,8 @@
  *    end together.
  *  - The order list chains patterns. Song mode plays it from a position and
  *    stops at its end (it does not wrap); loop mode repeats one pattern.
+ *  - It sends the studio's clock while it plays: start, 6 ticks a row (24 a
+ *    beat), stop. The LXR's own sequencer follows it.
  *
  * The page owns the song (editing, undo, the library) and sends each change
  * here; this copy is what plays.

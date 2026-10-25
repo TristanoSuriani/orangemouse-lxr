@@ -165,6 +165,8 @@ static uint8_t audible(const OmTracker *t, uint8_t k)
 // Plays one row of the current pattern at `frame`.
 static void playRow(OmTracker *t, uint8_t row, uint64_t frame, double length)
 {
+	for (int j = 0; j < 6; j++)   // the clock: 24 ticks a beat
+		om_studio_clock(t->studio, frame + (uint64_t)(j * length / 6), OM_CLOCK_TICK);
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 	{
 		const OmCell *c = &t->pattern[t->current].cell[row][k];
@@ -221,8 +223,11 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 		t->nextFrame += length;
 		nextRow(t);
 		if (!t->playing)
+		{
 			for (uint8_t k = 0; k < OM_TRACKS; k++)
 				release(t, k, (uint64_t)(t->nextFrame + 0.5));
+			om_studio_clock(t->studio, (uint64_t)(t->nextFrame + 0.5), OM_CLOCK_STOP);
+		}
 	}
 }
 
@@ -233,6 +238,9 @@ static void start(OmTracker *t)
 	t->row = 0;
 	t->lastRow = 0;
 	t->nextFrame = (double)om_studio_frame(t->studio);
+	if (t->playing)
+		om_studio_clock(t->studio, om_studio_frame(t->studio), OM_CLOCK_STOP);
+	om_studio_clock(t->studio, om_studio_frame(t->studio), OM_CLOCK_START);
 	t->playing = 1;
 }
 
@@ -257,6 +265,8 @@ void om_tracker_play_pattern(OmTracker *t, uint8_t pattern)
 
 void om_tracker_stop(OmTracker *t)
 {
+	if (t->playing)
+		om_studio_clock(t->studio, om_studio_frame(t->studio), OM_CLOCK_STOP);
 	t->playing = 0;
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 		release(t, k, om_studio_frame(t->studio));
