@@ -33,6 +33,7 @@ set(lxr_port_sources
     ${LXR_PORT_DIR}/web_main.c
     ${LXR_PORT_DIR}/web_sdcard.c
     ${LXR_PORT_DIR}/web_test.c
+    ${LXR_PORT_DIR}/web_lxr_ui.c
 )
 
 # The LXR as a studio engine (engines/engine.h).

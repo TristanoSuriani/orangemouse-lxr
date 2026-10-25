@@ -23,13 +23,14 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "No parameter here."
   },
   {
    "id": "PAR_OSC_WAVE_DRUM1",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Drum 1",
    "min": 0,
    "max": 5,
@@ -44,13 +45,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_OSC_WAVE_DRUM2",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Drum 2",
    "min": 0,
    "max": 5,
@@ -65,13 +67,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_OSC_WAVE_DRUM3",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Drum 3",
    "min": 0,
    "max": 5,
@@ -86,13 +89,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_OSC_WAVE_SNARE",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Snare",
    "min": 0,
    "max": 5,
@@ -107,7 +111,8 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_NRPN_DATA_ENTRY_COARSE",
@@ -127,7 +132,7 @@ export default {
    "id": "PAR_WAVE1_CYM",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Cymbal",
    "min": 0,
    "max": 5,
@@ -142,13 +147,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_WAVE1_HH",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Hihat",
    "min": 0,
    "max": 5,
@@ -163,29 +169,31 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_COARSE1",
    "short": "coa",
-   "name": "Coarse",
-   "group": "Oscilltr",
+   "name": "Coarse tune",
+   "group": "Oscillator",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 31,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The oscillator's pitch in semitones: the basic tuning of the drum."
   },
   {
    "id": "PAR_FINE1",
    "short": "fin",
-   "name": "Fine",
-   "group": "Oscilltr",
+   "name": "Fine tune",
+   "group": "Oscillator",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
@@ -195,29 +203,31 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Small pitch adjustment, between semitones."
   },
   {
    "id": "PAR_COARSE2",
    "short": "coa",
-   "name": "Coarse",
-   "group": "Oscilltr",
+   "name": "Coarse tune",
+   "group": "Oscillator",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 41,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The oscillator's pitch in semitones: the basic tuning of the drum."
   },
   {
    "id": "PAR_FINE2",
    "short": "fin",
-   "name": "Fine",
-   "group": "Oscilltr",
+   "name": "Fine tune",
+   "group": "Oscillator",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
@@ -227,29 +237,31 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Small pitch adjustment, between semitones."
   },
   {
    "id": "PAR_COARSE3",
    "short": "coa",
-   "name": "Coarse",
-   "group": "Oscilltr",
+   "name": "Coarse tune",
+   "group": "Oscillator",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 58,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The oscillator's pitch in semitones: the basic tuning of the drum."
   },
   {
    "id": "PAR_FINE3",
    "short": "fin",
-   "name": "Fine",
-   "group": "Oscilltr",
+   "name": "Fine tune",
+   "group": "Oscillator",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
@@ -259,29 +271,31 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Small pitch adjustment, between semitones."
   },
   {
    "id": "PAR_COARSE4",
    "short": "coa",
-   "name": "Coarse",
-   "group": "Oscilltr",
+   "name": "Coarse tune",
+   "group": "Oscillator",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 45,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The oscillator's pitch in semitones: the basic tuning of the drum."
   },
   {
    "id": "PAR_FINE4",
    "short": "fin",
-   "name": "Fine",
-   "group": "Oscilltr",
+   "name": "Fine tune",
+   "group": "Oscillator",
    "part": "Snare",
    "min": 0,
    "max": 127,
@@ -291,29 +305,31 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Small pitch adjustment, between semitones."
   },
   {
    "id": "PAR_COARSE5",
    "short": "coa",
-   "name": "Coarse",
-   "group": "Oscilltr",
+   "name": "Coarse tune",
+   "group": "Oscillator",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 127,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The oscillator's pitch in semitones: the basic tuning of the drum."
   },
   {
    "id": "PAR_FINE5",
    "short": "fin",
-   "name": "Fine",
-   "group": "Oscilltr",
+   "name": "Fine tune",
+   "group": "Oscillator",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
@@ -323,29 +339,31 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Small pitch adjustment, between semitones."
   },
   {
    "id": "PAR_COARSE6",
    "short": "coa",
-   "name": "Coarse",
-   "group": "Oscilltr",
+   "name": "Coarse tune",
+   "group": "Oscillator",
    "part": "Hihat",
    "min": 0,
    "max": 127,
    "default": 50,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The oscillator's pitch in semitones: the basic tuning of the drum."
   },
   {
    "id": "PAR_FINE6",
    "short": "fin",
-   "name": "Fine",
-   "group": "Oscilltr",
+   "name": "Fine tune",
+   "group": "Oscillator",
    "part": "Hihat",
    "min": 0,
    "max": 127,
@@ -355,13 +373,14 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Small pitch adjustment, between semitones."
   },
   {
    "id": "PAR_MOD_WAVE_DRUM1",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Drum 1",
    "min": 0,
    "max": 5,
@@ -376,13 +395,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_MOD_WAVE_DRUM2",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Drum 2",
    "min": 0,
    "max": 5,
@@ -397,13 +417,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_MOD_WAVE_DRUM3",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Drum 3",
    "min": 0,
    "max": 5,
@@ -418,13 +439,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_WAVE2_CYM",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Cymbal",
    "min": 0,
    "max": 5,
@@ -439,13 +461,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_WAVE3_CYM",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Cymbal",
    "min": 0,
    "max": 5,
@@ -460,13 +483,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_WAVE2_HH",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Hihat",
    "min": 0,
    "max": 5,
@@ -481,13 +505,14 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_WAVE3_HH",
    "short": "wav",
    "name": "Waveform",
-   "group": "Oscilltr",
+   "group": "Oscillator",
    "part": "Hihat",
    "min": 0,
    "max": 5,
@@ -502,12 +527,13 @@ export default {
      "Noi",
      "PWM"
     ]
-   }
+   },
+   "help": "The oscillator's wave: sine is round, triangle soft, saw bright, rect hollow; noise; PWM."
   },
   {
    "id": "PAR_NOISE_FREQ1",
    "short": "noi",
-   "name": "Frequncy",
+   "name": "Noise color",
    "group": "Noise",
    "part": "Drum 1",
    "min": 0,
@@ -515,141 +541,151 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The noise's frequency: low is a dark rumble, high a bright hiss."
   },
   {
    "id": "PAR_MIX1",
    "short": "mix",
-   "name": "Mix",
-   "group": "Nois/Osc",
+   "name": "Noise/osc mix",
+   "group": "Noise/osc",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 61,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Balance between the noise and the tone: the snare's rattle against its body."
   },
   {
    "id": "PAR_MOD_OSC_F1_CYM",
    "short": "f1",
-   "name": "Freqcy 1",
-   "group": "Mod Osc",
+   "name": "Mod osc 1 freq",
+   "group": "Mod oscillators",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Frequency of the first modulating oscillator: changes the metallic color."
   },
   {
    "id": "PAR_MOD_OSC_F2_CYM",
    "short": "f2",
-   "name": "Freqcy 2",
-   "group": "Mod Osc",
+   "name": "Mod osc 2 freq",
+   "group": "Mod oscillators",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Frequency of the second modulating oscillator: changes the metallic color."
   },
   {
    "id": "PAR_MOD_OSC_GAIN1_CYM",
    "short": "g1",
-   "name": "Gain 1",
-   "group": "Mod Osc",
+   "name": "Mod osc 1 depth",
+   "group": "Mod oscillators",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the first modulating oscillator bends the tone: more is harsher."
   },
   {
    "id": "PAR_MOD_OSC_GAIN2_CYM",
    "short": "g2",
-   "name": "Gain 2",
-   "group": "Mod Osc",
+   "name": "Mod osc 2 depth",
+   "group": "Mod oscillators",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the second modulating oscillator bends the tone: more is harsher."
   },
   {
    "id": "PAR_MOD_OSC_F1",
    "short": "f1",
-   "name": "Freqcy 1",
-   "group": "Mod Osc",
+   "name": "Mod osc 1 freq",
+   "group": "Mod oscillators",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 56,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Frequency of the first modulating oscillator: changes the metallic color."
   },
   {
    "id": "PAR_MOD_OSC_F2",
    "short": "f2",
-   "name": "Freqcy 2",
-   "group": "Mod Osc",
+   "name": "Mod osc 2 freq",
+   "group": "Mod oscillators",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 127,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Frequency of the second modulating oscillator: changes the metallic color."
   },
   {
    "id": "PAR_MOD_OSC_GAIN1",
    "short": "g1",
-   "name": "Gain 1",
-   "group": "Mod Osc",
+   "name": "Mod osc 1 depth",
+   "group": "Mod oscillators",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the first modulating oscillator bends the tone: more is harsher."
   },
   {
    "id": "PAR_MOD_OSC_GAIN2",
    "short": "g2",
-   "name": "Gain 2",
-   "group": "Mod Osc",
+   "name": "Mod osc 2 depth",
+   "group": "Mod oscillators",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the second modulating oscillator bends the tone: more is harsher."
   },
   {
    "id": "PAR_FILTER_FREQ_1",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "Filter cutoff",
    "group": "Filter",
    "part": "Drum 1",
    "min": 0,
@@ -657,12 +693,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The filter's frequency: lower is darker (low-pass) or thinner (high-pass)."
   },
   {
    "id": "PAR_FILTER_FREQ_2",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "Filter cutoff",
    "group": "Filter",
    "part": "Drum 2",
    "min": 0,
@@ -670,12 +707,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The filter's frequency: lower is darker (low-pass) or thinner (high-pass)."
   },
   {
    "id": "PAR_FILTER_FREQ_3",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "Filter cutoff",
    "group": "Filter",
    "part": "Drum 3",
    "min": 0,
@@ -683,12 +721,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The filter's frequency: lower is darker (low-pass) or thinner (high-pass)."
   },
   {
    "id": "PAR_FILTER_FREQ_4",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "Filter cutoff",
    "group": "Filter",
    "part": "Snare",
    "min": 0,
@@ -696,12 +735,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The filter's frequency: lower is darker (low-pass) or thinner (high-pass)."
   },
   {
    "id": "PAR_FILTER_FREQ_5",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "Filter cutoff",
    "group": "Filter",
    "part": "Cymbal",
    "min": 0,
@@ -709,12 +749,13 @@ export default {
    "default": 68,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The filter's frequency: lower is darker (low-pass) or thinner (high-pass)."
   },
   {
    "id": "PAR_FILTER_FREQ_6",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "Filter cutoff",
    "group": "Filter",
    "part": "Hihat",
    "min": 0,
@@ -722,12 +763,13 @@ export default {
    "default": 104,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The filter's frequency: lower is darker (low-pass) or thinner (high-pass)."
   },
   {
    "id": "PAR_RESO_1",
    "short": "res",
-   "name": "Resnance",
+   "name": "Resonance",
    "group": "Filter",
    "part": "Drum 1",
    "min": 0,
@@ -735,12 +777,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Emphasis at the cutoff: a ringing, whistling edge when high."
   },
   {
    "id": "PAR_RESO_2",
    "short": "res",
-   "name": "Resnance",
+   "name": "Resonance",
    "group": "Filter",
    "part": "Drum 2",
    "min": 0,
@@ -748,12 +791,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Emphasis at the cutoff: a ringing, whistling edge when high."
   },
   {
    "id": "PAR_RESO_3",
    "short": "res",
-   "name": "Resnance",
+   "name": "Resonance",
    "group": "Filter",
    "part": "Drum 3",
    "min": 0,
@@ -761,12 +805,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Emphasis at the cutoff: a ringing, whistling edge when high."
   },
   {
    "id": "PAR_RESO_4",
    "short": "res",
-   "name": "Resnance",
+   "name": "Resonance",
    "group": "Filter",
    "part": "Snare",
    "min": 0,
@@ -774,12 +819,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Emphasis at the cutoff: a ringing, whistling edge when high."
   },
   {
    "id": "PAR_RESO_5",
    "short": "res",
-   "name": "Resnance",
+   "name": "Resonance",
    "group": "Filter",
    "part": "Cymbal",
    "min": 0,
@@ -787,12 +833,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Emphasis at the cutoff: a ringing, whistling edge when high."
   },
   {
    "id": "PAR_RESO_6",
    "short": "res",
-   "name": "Resnance",
+   "name": "Resonance",
    "group": "Filter",
    "part": "Hihat",
    "min": 0,
@@ -800,441 +847,475 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Emphasis at the cutoff: a ringing, whistling edge when high."
   },
   {
    "id": "PAR_VELOA1",
    "short": "atk",
    "name": "Attack",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Time for the hit to reach full volume: 0 is a sharp click, more a soft swell."
   },
   {
    "id": "PAR_VELOD1",
    "short": "dec",
    "name": "Decay",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 21,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How long the hit rings out: short for tight drums, long for booming ones."
   },
   {
    "id": "PAR_VELOA2",
    "short": "atk",
    "name": "Attack",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Time for the hit to reach full volume: 0 is a sharp click, more a soft swell."
   },
   {
    "id": "PAR_VELOD2",
    "short": "dec",
    "name": "Decay",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 13,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How long the hit rings out: short for tight drums, long for booming ones."
   },
   {
    "id": "PAR_VELOA3",
    "short": "atk",
    "name": "Attack",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Time for the hit to reach full volume: 0 is a sharp click, more a soft swell."
   },
   {
    "id": "PAR_VELOD3",
    "short": "dec",
    "name": "Decay",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 3,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How long the hit rings out: short for tight drums, long for booming ones."
   },
   {
    "id": "PAR_VELOA4",
    "short": "atk",
    "name": "Attack",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Time for the hit to reach full volume: 0 is a sharp click, more a soft swell."
   },
   {
    "id": "PAR_VELOD4",
    "short": "dec",
    "name": "Decay",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 10,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How long the hit rings out: short for tight drums, long for booming ones."
   },
   {
    "id": "PAR_VELOA5",
    "short": "atk",
    "name": "Attack",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Time for the hit to reach full volume: 0 is a sharp click, more a soft swell."
   },
   {
    "id": "PAR_VELOD5",
    "short": "dec",
    "name": "Decay",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 107,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How long the hit rings out: short for tight drums, long for booming ones."
   },
   {
    "id": "PAR_VELOA6",
    "short": "atk",
    "name": "Attack",
-   "group": "Veloc EG",
+   "group": "Volume envelope",
    "part": "Hihat",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Time for the hit to reach full volume: 0 is a sharp click, more a soft swell."
   },
   {
    "id": "PAR_VELOD6_CLOSED",
    "short": "d1",
-   "name": "Dcy Clsd",
-   "group": "Veloc EG",
+   "name": "Closed decay",
+   "group": "Volume envelope",
    "part": "",
    "min": 0,
    "max": 127,
    "default": 5,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How long the closed hihat rings."
   },
   {
    "id": "PAR_VELOD6_OPEN",
    "short": "d2",
-   "name": "Dcy Open",
-   "group": "Veloc EG",
+   "name": "Open decay",
+   "group": "Volume envelope",
    "part": "",
    "min": 0,
    "max": 127,
    "default": 17,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How long the open hihat rings (the closed one cuts it off)."
   },
   {
    "id": "PAR_VOL_SLOPE1",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 46,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_VOL_SLOPE2",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 11,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_VOL_SLOPE3",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 4,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_VOL_SLOPE4",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 10,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_VOL_SLOPE5",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_VOL_SLOPE6",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Hihat",
    "min": 0,
    "max": 127,
    "default": 6,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_REPEAT4",
    "short": "rpt",
-   "name": "RepeatCt",
-   "group": "Veloc EG",
+   "name": "Repeat count",
+   "group": "Volume envelope",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Retriggers the envelope several times per hit: claps and flams."
   },
   {
    "id": "PAR_REPEAT5",
    "short": "rpt",
-   "name": "RepeatCt",
-   "group": "Veloc EG",
+   "name": "Repeat count",
+   "group": "Volume envelope",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Retriggers the envelope several times per hit: claps and flams."
   },
   {
    "id": "PAR_MOD_EG1",
    "short": "dec",
-   "name": "Decay",
-   "group": "Mod EG",
+   "name": "Pitch decay",
+   "group": "Pitch envelope",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 26,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How fast the pitch falls after the hit: short is a click, long a laser drop."
   },
   {
    "id": "PAR_MOD_EG2",
    "short": "dec",
-   "name": "Decay",
-   "group": "Mod EG",
+   "name": "Pitch decay",
+   "group": "Pitch envelope",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 93,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How fast the pitch falls after the hit: short is a click, long a laser drop."
   },
   {
    "id": "PAR_MOD_EG3",
    "short": "dec",
-   "name": "Decay",
-   "group": "Mod EG",
+   "name": "Pitch decay",
+   "group": "Pitch envelope",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 7,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How fast the pitch falls after the hit: short is a click, long a laser drop."
   },
   {
    "id": "PAR_MOD_EG4",
    "short": "dec",
-   "name": "Decay",
-   "group": "Mod EG",
+   "name": "Pitch decay",
+   "group": "Pitch envelope",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 14,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How fast the pitch falls after the hit: short is a click, long a laser drop."
   },
   {
    "id": "PAR_MODAMNT1",
    "short": "mod",
-   "name": "Amount",
-   "group": "PitchMod",
+   "name": "Pitch drop",
+   "group": "Pitch envelope",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 44,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How far the pitch starts above its tuning: the thump of a kick."
   },
   {
    "id": "PAR_MODAMNT2",
    "short": "mod",
-   "name": "Amount",
-   "group": "PitchMod",
+   "name": "Pitch drop",
+   "group": "Pitch envelope",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 14,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How far the pitch starts above its tuning: the thump of a kick."
   },
   {
    "id": "PAR_MODAMNT3",
    "short": "mod",
-   "name": "Amount",
-   "group": "PitchMod",
+   "name": "Pitch drop",
+   "group": "Pitch envelope",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How far the pitch starts above its tuning: the thump of a kick."
   },
   {
    "id": "PAR_MODAMNT4",
    "short": "mod",
-   "name": "Amount",
-   "group": "PitchMod",
+   "name": "Pitch drop",
+   "group": "Pitch envelope",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 81,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How far the pitch starts above its tuning: the thump of a kick."
   },
   {
    "id": "PAR_PITCH_SLOPE1",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 22,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_PITCH_SLOPE2",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 10,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_PITCH_SLOPE3",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 14,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_PITCH_SLOPE4",
    "short": "slp",
-   "name": "Slope",
-   "group": "Veloc EG",
+   "name": "Envelope slope",
+   "group": "Volume envelope",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 15,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Shape of the decay: linear is even, exponential drops fast then lingers."
   },
   {
    "id": "PAR_FMAMNT1",
    "short": "amt",
-   "name": "Amount",
+   "name": "FM amount",
    "group": "FM",
    "part": "Drum 1",
    "min": 0,
@@ -1242,12 +1323,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the modulator changes the tone: metallic, bell-like, noisy."
   },
   {
    "id": "PAR_FM_FREQ1",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "FM frequency",
    "group": "FM",
    "part": "Drum 1",
    "min": 0,
@@ -1255,15 +1337,16 @@ export default {
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The modulator's pitch against the drum's: changes the FM color."
   },
   {
    "id": "PAR_FMAMNT2",
    "short": "amt",
-   "name": "Amount",
+   "name": "FM amount",
    "group": "FM",
    "part": "Drum 2",
    "min": 0,
@@ -1271,12 +1354,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the modulator changes the tone: metallic, bell-like, noisy."
   },
   {
    "id": "PAR_FM_FREQ2",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "FM frequency",
    "group": "FM",
    "part": "Drum 2",
    "min": 0,
@@ -1284,15 +1368,16 @@ export default {
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The modulator's pitch against the drum's: changes the FM color."
   },
   {
    "id": "PAR_FMAMNT3",
    "short": "amt",
-   "name": "Amount",
+   "name": "FM amount",
    "group": "FM",
    "part": "Drum 3",
    "min": 0,
@@ -1300,12 +1385,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the modulator changes the tone: metallic, bell-like, noisy."
   },
   {
    "id": "PAR_FM_FREQ3",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "FM frequency",
    "group": "FM",
    "part": "Drum 3",
    "min": 0,
@@ -1313,10 +1399,11 @@ export default {
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "The modulator's pitch against the drum's: changes the FM color."
   },
   {
    "id": "PAR_VOL1",
@@ -1329,7 +1416,8 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice's level."
   },
   {
    "id": "PAR_VOL2",
@@ -1342,7 +1430,8 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice's level."
   },
   {
    "id": "PAR_VOL3",
@@ -1355,7 +1444,8 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice's level."
   },
   {
    "id": "PAR_VOL4",
@@ -1368,7 +1458,8 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice's level."
   },
   {
    "id": "PAR_VOL5",
@@ -1381,7 +1472,8 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice's level."
   },
   {
    "id": "PAR_VOL6",
@@ -1394,12 +1486,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice's level."
   },
   {
    "id": "PAR_PAN1",
    "short": "pan",
-   "name": "Panning",
+   "name": "Pan",
    "group": "Voice",
    "part": "Drum 1",
    "min": 0,
@@ -1410,12 +1503,13 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Where the voice sits between left and right."
   },
   {
    "id": "PAR_PAN2",
    "short": "pan",
-   "name": "Panning",
+   "name": "Pan",
    "group": "Voice",
    "part": "Drum 2",
    "min": 0,
@@ -1426,12 +1520,13 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Where the voice sits between left and right."
   },
   {
    "id": "PAR_PAN3",
    "short": "pan",
-   "name": "Panning",
+   "name": "Pan",
    "group": "Voice",
    "part": "Drum 3",
    "min": 0,
@@ -1442,7 +1537,8 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Where the voice sits between left and right."
   },
   {
    "id": "PAR_NRPN_FINE",
@@ -1475,7 +1571,7 @@ export default {
   {
    "id": "PAR_PAN4",
    "short": "pan",
-   "name": "Panning",
+   "name": "Pan",
    "group": "Voice",
    "part": "Snare",
    "min": 0,
@@ -1486,12 +1582,13 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Where the voice sits between left and right."
   },
   {
    "id": "PAR_PAN5",
    "short": "pan",
-   "name": "Panning",
+   "name": "Pan",
    "group": "Voice",
    "part": "Cymbal",
    "min": 0,
@@ -1502,12 +1599,13 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Where the voice sits between left and right."
   },
   {
    "id": "PAR_PAN6",
    "short": "pan",
-   "name": "Panning",
+   "name": "Pan",
    "group": "Voice",
    "part": "Hihat",
    "min": 0,
@@ -1518,12 +1616,13 @@ export default {
     "center": 63,
     "scale": 1,
     "unit": ""
-   }
+   },
+   "help": "Where the voice sits between left and right."
   },
   {
    "id": "PAR_DRIVE1",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Overdrive",
    "group": "Voice",
    "part": "Drum 1",
    "min": 0,
@@ -1531,12 +1630,13 @@ export default {
    "default": 63,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Distorts the voice: warmth at first, then crunch."
   },
   {
    "id": "PAR_DRIVE2",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Overdrive",
    "group": "Voice",
    "part": "Drum 2",
    "min": 0,
@@ -1544,12 +1644,13 @@ export default {
    "default": 63,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Distorts the voice: warmth at first, then crunch."
   },
   {
    "id": "PAR_DRIVE3",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Overdrive",
    "group": "Voice",
    "part": "Drum 3",
    "min": 0,
@@ -1557,12 +1658,13 @@ export default {
    "default": 63,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Distorts the voice: warmth at first, then crunch."
   },
   {
    "id": "PAR_SNARE_DISTORTION",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Overdrive",
    "group": "Voice",
    "part": "Snare",
    "min": 0,
@@ -1570,12 +1672,13 @@ export default {
    "default": 63,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Distorts the voice: warmth at first, then crunch."
   },
   {
    "id": "PAR_CYMBAL_DISTORTION",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Overdrive",
    "group": "Voice",
    "part": "Cymbal",
    "min": 0,
@@ -1583,12 +1686,13 @@ export default {
    "default": 63,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Distorts the voice: warmth at first, then crunch."
   },
   {
    "id": "PAR_HAT_DISTORTION",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Overdrive",
    "group": "Voice",
    "part": "",
    "min": 0,
@@ -1596,12 +1700,13 @@ export default {
    "default": 63,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Distorts the voice: warmth at first, then crunch."
   },
   {
    "id": "PAR_VOICE_DECIMATION1",
    "short": "srt",
-   "name": "SampleRt",
+   "name": "Sample rate",
    "group": "Voice",
    "part": "Drum 1",
    "min": 0,
@@ -1609,12 +1714,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Lowers the voice's sample rate: gritty, lo-fi, 8-bit aliasing."
   },
   {
    "id": "PAR_VOICE_DECIMATION2",
    "short": "srt",
-   "name": "SampleRt",
+   "name": "Sample rate",
    "group": "Voice",
    "part": "Drum 2",
    "min": 0,
@@ -1622,12 +1728,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Lowers the voice's sample rate: gritty, lo-fi, 8-bit aliasing."
   },
   {
    "id": "PAR_VOICE_DECIMATION3",
    "short": "srt",
-   "name": "SampleRt",
+   "name": "Sample rate",
    "group": "Voice",
    "part": "Drum 3",
    "min": 0,
@@ -1635,12 +1742,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Lowers the voice's sample rate: gritty, lo-fi, 8-bit aliasing."
   },
   {
    "id": "PAR_VOICE_DECIMATION4",
    "short": "srt",
-   "name": "SampleRt",
+   "name": "Sample rate",
    "group": "Voice",
    "part": "Snare",
    "min": 0,
@@ -1648,12 +1756,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Lowers the voice's sample rate: gritty, lo-fi, 8-bit aliasing."
   },
   {
    "id": "PAR_VOICE_DECIMATION5",
    "short": "srt",
-   "name": "SampleRt",
+   "name": "Sample rate",
    "group": "Voice",
    "part": "Cymbal",
    "min": 0,
@@ -1661,12 +1770,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Lowers the voice's sample rate: gritty, lo-fi, 8-bit aliasing."
   },
   {
    "id": "PAR_VOICE_DECIMATION6",
    "short": "srt",
-   "name": "SampleRt",
+   "name": "Sample rate",
    "group": "Voice",
    "part": "Hihat",
    "min": 0,
@@ -1674,12 +1784,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Lowers the voice's sample rate: gritty, lo-fi, 8-bit aliasing."
   },
   {
    "id": "PAR_VOICE_DECIMATION_ALL",
    "short": "srt",
-   "name": "SampleRt",
+   "name": "Sample rate",
    "group": "Voice",
    "part": "",
    "min": 0,
@@ -1687,12 +1798,13 @@ export default {
    "default": 127,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Lowers the voice's sample rate: gritty, lo-fi, 8-bit aliasing."
   },
   {
    "id": "PAR_FREQ_LFO1",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "LFO rate",
    "group": "LFO",
    "part": "Drum 1",
    "min": 0,
@@ -1700,12 +1812,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Speed of this voice's LFO (or its division of the tempo with clock sync)."
   },
   {
    "id": "PAR_FREQ_LFO2",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "LFO rate",
    "group": "LFO",
    "part": "Drum 2",
    "min": 0,
@@ -1713,12 +1826,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Speed of this voice's LFO (or its division of the tempo with clock sync)."
   },
   {
    "id": "PAR_FREQ_LFO3",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "LFO rate",
    "group": "LFO",
    "part": "Drum 3",
    "min": 0,
@@ -1726,12 +1840,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Speed of this voice's LFO (or its division of the tempo with clock sync)."
   },
   {
    "id": "PAR_FREQ_LFO4",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "LFO rate",
    "group": "LFO",
    "part": "Snare",
    "min": 0,
@@ -1739,12 +1854,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Speed of this voice's LFO (or its division of the tempo with clock sync)."
   },
   {
    "id": "PAR_FREQ_LFO5",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "LFO rate",
    "group": "LFO",
    "part": "Cymbal",
    "min": 0,
@@ -1752,12 +1868,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Speed of this voice's LFO (or its division of the tempo with clock sync)."
   },
   {
    "id": "PAR_FREQ_LFO6",
    "short": "frq",
-   "name": "Frequncy",
+   "name": "LFO rate",
    "group": "LFO",
    "part": "Hihat",
    "min": 0,
@@ -1765,12 +1882,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Speed of this voice's LFO (or its division of the tempo with clock sync)."
   },
   {
    "id": "PAR_AMOUNT_LFO1",
    "short": "mod",
-   "name": "Amount",
+   "name": "LFO amount",
    "group": "LFO",
    "part": "Drum 1",
    "min": 0,
@@ -1778,12 +1896,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the LFO moves its destination."
   },
   {
    "id": "PAR_AMOUNT_LFO2",
    "short": "mod",
-   "name": "Amount",
+   "name": "LFO amount",
    "group": "LFO",
    "part": "Drum 2",
    "min": 0,
@@ -1791,12 +1910,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the LFO moves its destination."
   },
   {
    "id": "PAR_AMOUNT_LFO3",
    "short": "mod",
-   "name": "Amount",
+   "name": "LFO amount",
    "group": "LFO",
    "part": "Drum 3",
    "min": 0,
@@ -1804,12 +1924,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the LFO moves its destination."
   },
   {
    "id": "PAR_AMOUNT_LFO4",
    "short": "mod",
-   "name": "Amount",
+   "name": "LFO amount",
    "group": "LFO",
    "part": "Snare",
    "min": 0,
@@ -1817,12 +1938,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the LFO moves its destination."
   },
   {
    "id": "PAR_AMOUNT_LFO5",
    "short": "mod",
-   "name": "Amount",
+   "name": "LFO amount",
    "group": "LFO",
    "part": "Cymbal",
    "min": 0,
@@ -1830,12 +1952,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the LFO moves its destination."
   },
   {
    "id": "PAR_AMOUNT_LFO6",
    "short": "mod",
-   "name": "Amount",
+   "name": "LFO amount",
    "group": "LFO",
    "part": "Hihat",
    "min": 0,
@@ -1843,7 +1966,8 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How strongly the LFO moves its destination."
   },
   {
    "id": "PAR_BANK_CHANGE",
@@ -1862,7 +1986,7 @@ export default {
   {
    "id": "PAR_FILTER_DRIVE_1",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Filter drive",
    "group": "Filter",
    "part": "Drum 1",
    "min": 0,
@@ -1870,12 +1994,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Drives the filter's input: thicker and grittier, especially with resonance."
   },
   {
    "id": "PAR_FILTER_DRIVE_2",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Filter drive",
    "group": "Filter",
    "part": "Drum 2",
    "min": 0,
@@ -1883,12 +2008,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Drives the filter's input: thicker and grittier, especially with resonance."
   },
   {
    "id": "PAR_FILTER_DRIVE_3",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Filter drive",
    "group": "Filter",
    "part": "Drum 3",
    "min": 0,
@@ -1896,12 +2022,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Drives the filter's input: thicker and grittier, especially with resonance."
   },
   {
    "id": "PAR_FILTER_DRIVE_4",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Filter drive",
    "group": "Filter",
    "part": "Snare",
    "min": 0,
@@ -1909,12 +2036,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Drives the filter's input: thicker and grittier, especially with resonance."
   },
   {
    "id": "PAR_FILTER_DRIVE_5",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Filter drive",
    "group": "Filter",
    "part": "Cymbal",
    "min": 0,
@@ -1922,12 +2050,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Drives the filter's input: thicker and grittier, especially with resonance."
   },
   {
    "id": "PAR_FILTER_DRIVE_6",
    "short": "drv",
-   "name": "Overdriv",
+   "name": "Filter drive",
    "group": "Filter",
    "part": "Hihat",
    "min": 0,
@@ -1935,13 +2064,14 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Drives the filter's input: thicker and grittier, especially with resonance."
   },
   {
    "id": "PAR_MIX_MOD_1",
    "short": "mod",
-   "name": "Mode",
-   "group": "Oscilltr",
+   "name": "Osc mode",
+   "group": "Oscillator",
    "part": "Drum 1",
    "min": 0,
    "max": 1,
@@ -1952,13 +2082,14 @@ export default {
      "FM",
      "Mix"
     ]
-   }
+   },
+   "help": "FM: the second oscillator modulates the first. Mix: the two are mixed."
   },
   {
    "id": "PAR_MIX_MOD_2",
    "short": "mod",
-   "name": "Mode",
-   "group": "Oscilltr",
+   "name": "Osc mode",
+   "group": "Oscillator",
    "part": "Drum 2",
    "min": 0,
    "max": 1,
@@ -1969,13 +2100,14 @@ export default {
      "FM",
      "Mix"
     ]
-   }
+   },
+   "help": "FM: the second oscillator modulates the first. Mix: the two are mixed."
   },
   {
    "id": "PAR_MIX_MOD_3",
    "short": "mod",
-   "name": "Mode",
-   "group": "Oscilltr",
+   "name": "Osc mode",
+   "group": "Oscillator",
    "part": "Drum 3",
    "min": 0,
    "max": 1,
@@ -1986,12 +2118,13 @@ export default {
      "FM",
      "Mix"
     ]
-   }
+   },
+   "help": "FM: the second oscillator modulates the first. Mix: the two are mixed."
   },
   {
    "id": "PAR_VOLUME_MOD_ON_OFF1",
    "short": "vol",
-   "name": "Vol mod",
+   "name": "Vel to volume",
    "group": "Velocity",
    "part": "Drum 1",
    "min": 0,
@@ -2003,12 +2136,13 @@ export default {
      "off",
      "on"
     ]
-   }
+   },
+   "help": "On: harder hits are louder. Off: every hit at the same level."
   },
   {
    "id": "PAR_VOLUME_MOD_ON_OFF2",
    "short": "vol",
-   "name": "Vol mod",
+   "name": "Vel to volume",
    "group": "Velocity",
    "part": "Drum 2",
    "min": 0,
@@ -2020,12 +2154,13 @@ export default {
      "off",
      "on"
     ]
-   }
+   },
+   "help": "On: harder hits are louder. Off: every hit at the same level."
   },
   {
    "id": "PAR_VOLUME_MOD_ON_OFF3",
    "short": "vol",
-   "name": "Vol mod",
+   "name": "Vel to volume",
    "group": "Velocity",
    "part": "Drum 3",
    "min": 0,
@@ -2037,12 +2172,13 @@ export default {
      "off",
      "on"
     ]
-   }
+   },
+   "help": "On: harder hits are louder. Off: every hit at the same level."
   },
   {
    "id": "PAR_VOLUME_MOD_ON_OFF4",
    "short": "vol",
-   "name": "Vol mod",
+   "name": "Vel to volume",
    "group": "Velocity",
    "part": "Snare",
    "min": 0,
@@ -2054,12 +2190,13 @@ export default {
      "off",
      "on"
     ]
-   }
+   },
+   "help": "On: harder hits are louder. Off: every hit at the same level."
   },
   {
    "id": "PAR_VOLUME_MOD_ON_OFF5",
    "short": "vol",
-   "name": "Vol mod",
+   "name": "Vel to volume",
    "group": "Velocity",
    "part": "Cymbal",
    "min": 0,
@@ -2071,12 +2208,13 @@ export default {
      "off",
      "on"
     ]
-   }
+   },
+   "help": "On: harder hits are louder. Off: every hit at the same level."
   },
   {
    "id": "PAR_VOLUME_MOD_ON_OFF6",
    "short": "vol",
-   "name": "Vol mod",
+   "name": "Vel to volume",
    "group": "Velocity",
    "part": "Hihat",
    "min": 0,
@@ -2088,12 +2226,13 @@ export default {
      "off",
      "on"
     ]
-   }
+   },
+   "help": "On: harder hits are louder. Off: every hit at the same level."
   },
   {
    "id": "PAR_VELO_MOD_AMT_1",
    "short": "amt",
-   "name": "Amount",
+   "name": "Vel amount",
    "group": "Velocity",
    "part": "Drum 1",
    "min": 0,
@@ -2101,12 +2240,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How much velocity changes the destination parameter below."
   },
   {
    "id": "PAR_VELO_MOD_AMT_2",
    "short": "amt",
-   "name": "Amount",
+   "name": "Vel amount",
    "group": "Velocity",
    "part": "Drum 2",
    "min": 0,
@@ -2114,12 +2254,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How much velocity changes the destination parameter below."
   },
   {
    "id": "PAR_VELO_MOD_AMT_3",
    "short": "amt",
-   "name": "Amount",
+   "name": "Vel amount",
    "group": "Velocity",
    "part": "Drum 3",
    "min": 0,
@@ -2127,12 +2268,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How much velocity changes the destination parameter below."
   },
   {
    "id": "PAR_VELO_MOD_AMT_4",
    "short": "amt",
-   "name": "Amount",
+   "name": "Vel amount",
    "group": "Velocity",
    "part": "Snare",
    "min": 0,
@@ -2140,12 +2282,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How much velocity changes the destination parameter below."
   },
   {
    "id": "PAR_VELO_MOD_AMT_5",
    "short": "amt",
-   "name": "Amount",
+   "name": "Vel amount",
    "group": "Velocity",
    "part": "Cymbal",
    "min": 0,
@@ -2153,12 +2296,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How much velocity changes the destination parameter below."
   },
   {
    "id": "PAR_VELO_MOD_AMT_6",
    "short": "amt",
-   "name": "Amount",
+   "name": "Vel amount",
    "group": "Velocity",
    "part": "Hihat",
    "min": 0,
@@ -2166,12 +2310,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How much velocity changes the destination parameter below."
   },
   {
    "id": "PAR_VEL_DEST_1",
    "short": "dst",
-   "name": "DstParam",
+   "name": "Vel destination",
    "group": "Velocity",
    "part": "Drum 1",
    "min": 0,
@@ -2179,12 +2324,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter that velocity changes, e.g. decay or filter cutoff."
   },
   {
    "id": "PAR_VEL_DEST_2",
    "short": "dst",
-   "name": "DstParam",
+   "name": "Vel destination",
    "group": "Velocity",
    "part": "Drum 2",
    "min": 0,
@@ -2192,12 +2338,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter that velocity changes, e.g. decay or filter cutoff."
   },
   {
    "id": "PAR_VEL_DEST_3",
    "short": "dst",
-   "name": "DstParam",
+   "name": "Vel destination",
    "group": "Velocity",
    "part": "Drum 3",
    "min": 0,
@@ -2205,12 +2352,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter that velocity changes, e.g. decay or filter cutoff."
   },
   {
    "id": "PAR_VEL_DEST_4",
    "short": "dst",
-   "name": "DstParam",
+   "name": "Vel destination",
    "group": "Velocity",
    "part": "Snare",
    "min": 0,
@@ -2218,12 +2366,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter that velocity changes, e.g. decay or filter cutoff."
   },
   {
    "id": "PAR_VEL_DEST_5",
    "short": "dst",
-   "name": "DstParam",
+   "name": "Vel destination",
    "group": "Velocity",
    "part": "Cymbal",
    "min": 0,
@@ -2231,12 +2380,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter that velocity changes, e.g. decay or filter cutoff."
   },
   {
    "id": "PAR_VEL_DEST_6",
    "short": "dst",
-   "name": "DstParam",
+   "name": "Vel destination",
    "group": "Velocity",
    "part": "Hihat",
    "min": 0,
@@ -2244,12 +2394,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter that velocity changes, e.g. decay or filter cutoff."
   },
   {
    "id": "PAR_WAVE_LFO1",
    "short": "wav",
-   "name": "Waveform",
+   "name": "LFO wave",
    "group": "LFO",
    "part": "Drum 1",
    "min": 0,
@@ -2267,12 +2418,13 @@ export default {
      "xup",
      "xdn"
     ]
-   }
+   },
+   "help": "The LFO's shape: sine, triangle, saw up or down, square, random, exp."
   },
   {
    "id": "PAR_WAVE_LFO2",
    "short": "wav",
-   "name": "Waveform",
+   "name": "LFO wave",
    "group": "LFO",
    "part": "Drum 2",
    "min": 0,
@@ -2290,12 +2442,13 @@ export default {
      "xup",
      "xdn"
     ]
-   }
+   },
+   "help": "The LFO's shape: sine, triangle, saw up or down, square, random, exp."
   },
   {
    "id": "PAR_WAVE_LFO3",
    "short": "wav",
-   "name": "Waveform",
+   "name": "LFO wave",
    "group": "LFO",
    "part": "Drum 3",
    "min": 0,
@@ -2313,12 +2466,13 @@ export default {
      "xup",
      "xdn"
     ]
-   }
+   },
+   "help": "The LFO's shape: sine, triangle, saw up or down, square, random, exp."
   },
   {
    "id": "PAR_WAVE_LFO4",
    "short": "wav",
-   "name": "Waveform",
+   "name": "LFO wave",
    "group": "LFO",
    "part": "Snare",
    "min": 0,
@@ -2336,12 +2490,13 @@ export default {
      "xup",
      "xdn"
     ]
-   }
+   },
+   "help": "The LFO's shape: sine, triangle, saw up or down, square, random, exp."
   },
   {
    "id": "PAR_WAVE_LFO5",
    "short": "wav",
-   "name": "Waveform",
+   "name": "LFO wave",
    "group": "LFO",
    "part": "Cymbal",
    "min": 0,
@@ -2359,12 +2514,13 @@ export default {
      "xup",
      "xdn"
     ]
-   }
+   },
+   "help": "The LFO's shape: sine, triangle, saw up or down, square, random, exp."
   },
   {
    "id": "PAR_WAVE_LFO6",
    "short": "wav",
-   "name": "Waveform",
+   "name": "LFO wave",
    "group": "LFO",
    "part": "Hihat",
    "min": 0,
@@ -2382,12 +2538,13 @@ export default {
      "xup",
      "xdn"
     ]
-   }
+   },
+   "help": "The LFO's shape: sine, triangle, saw up or down, square, random, exp."
   },
   {
    "id": "PAR_VOICE_LFO1",
    "short": "voi",
-   "name": "DstVoice",
+   "name": "LFO voice",
    "group": "LFO",
    "part": "Drum 1",
    "min": 1,
@@ -2395,12 +2552,13 @@ export default {
    "default": 1,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice whose parameter this LFO moves (1-6)."
   },
   {
    "id": "PAR_VOICE_LFO2",
    "short": "voi",
-   "name": "DstVoice",
+   "name": "LFO voice",
    "group": "LFO",
    "part": "Drum 2",
    "min": 1,
@@ -2408,12 +2566,13 @@ export default {
    "default": 1,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice whose parameter this LFO moves (1-6)."
   },
   {
    "id": "PAR_VOICE_LFO3",
    "short": "voi",
-   "name": "DstVoice",
+   "name": "LFO voice",
    "group": "LFO",
    "part": "Drum 3",
    "min": 1,
@@ -2421,12 +2580,13 @@ export default {
    "default": 1,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice whose parameter this LFO moves (1-6)."
   },
   {
    "id": "PAR_VOICE_LFO4",
    "short": "voi",
-   "name": "DstVoice",
+   "name": "LFO voice",
    "group": "LFO",
    "part": "Snare",
    "min": 1,
@@ -2434,12 +2594,13 @@ export default {
    "default": 1,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice whose parameter this LFO moves (1-6)."
   },
   {
    "id": "PAR_VOICE_LFO5",
    "short": "voi",
-   "name": "DstVoice",
+   "name": "LFO voice",
    "group": "LFO",
    "part": "Cymbal",
    "min": 1,
@@ -2447,12 +2608,13 @@ export default {
    "default": 1,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice whose parameter this LFO moves (1-6)."
   },
   {
    "id": "PAR_VOICE_LFO6",
    "short": "voi",
-   "name": "DstVoice",
+   "name": "LFO voice",
    "group": "LFO",
    "part": "Hihat",
    "min": 1,
@@ -2460,12 +2622,13 @@ export default {
    "default": 1,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The voice whose parameter this LFO moves (1-6)."
   },
   {
    "id": "PAR_TARGET_LFO1",
    "short": "dst",
-   "name": "DstParam",
+   "name": "LFO destination",
    "group": "LFO",
    "part": "Drum 1",
    "min": 0,
@@ -2473,12 +2636,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter this LFO moves."
   },
   {
    "id": "PAR_TARGET_LFO2",
    "short": "dst",
-   "name": "DstParam",
+   "name": "LFO destination",
    "group": "LFO",
    "part": "Drum 2",
    "min": 0,
@@ -2486,12 +2650,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter this LFO moves."
   },
   {
    "id": "PAR_TARGET_LFO3",
    "short": "dst",
-   "name": "DstParam",
+   "name": "LFO destination",
    "group": "LFO",
    "part": "Drum 3",
    "min": 0,
@@ -2499,12 +2664,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter this LFO moves."
   },
   {
    "id": "PAR_TARGET_LFO4",
    "short": "dst",
-   "name": "DstParam",
+   "name": "LFO destination",
    "group": "LFO",
    "part": "Snare",
    "min": 0,
@@ -2512,12 +2678,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter this LFO moves."
   },
   {
    "id": "PAR_TARGET_LFO5",
    "short": "dst",
-   "name": "DstParam",
+   "name": "LFO destination",
    "group": "LFO",
    "part": "Cymbal",
    "min": 0,
@@ -2525,12 +2692,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter this LFO moves."
   },
   {
    "id": "PAR_TARGET_LFO6",
    "short": "dst",
-   "name": "DstParam",
+   "name": "LFO destination",
    "group": "LFO",
    "part": "Hihat",
    "min": 0,
@@ -2538,12 +2706,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The parameter this LFO moves."
   },
   {
    "id": "PAR_RETRIGGER_LFO1",
    "short": "rtg",
-   "name": "Retriggr",
+   "name": "LFO retrigger",
    "group": "LFO",
    "part": "Drum 1",
    "min": 0,
@@ -2560,12 +2729,13 @@ export default {
      "v5",
      "v6"
     ]
-   }
+   },
+   "help": "Restarts the LFO when that voice plays: every hit gets the same motion."
   },
   {
    "id": "PAR_RETRIGGER_LFO2",
    "short": "rtg",
-   "name": "Retriggr",
+   "name": "LFO retrigger",
    "group": "LFO",
    "part": "Drum 2",
    "min": 0,
@@ -2582,12 +2752,13 @@ export default {
      "v5",
      "v6"
     ]
-   }
+   },
+   "help": "Restarts the LFO when that voice plays: every hit gets the same motion."
   },
   {
    "id": "PAR_RETRIGGER_LFO3",
    "short": "rtg",
-   "name": "Retriggr",
+   "name": "LFO retrigger",
    "group": "LFO",
    "part": "Drum 3",
    "min": 0,
@@ -2604,12 +2775,13 @@ export default {
      "v5",
      "v6"
     ]
-   }
+   },
+   "help": "Restarts the LFO when that voice plays: every hit gets the same motion."
   },
   {
    "id": "PAR_RETRIGGER_LFO4",
    "short": "rtg",
-   "name": "Retriggr",
+   "name": "LFO retrigger",
    "group": "LFO",
    "part": "Snare",
    "min": 0,
@@ -2626,12 +2798,13 @@ export default {
      "v5",
      "v6"
     ]
-   }
+   },
+   "help": "Restarts the LFO when that voice plays: every hit gets the same motion."
   },
   {
    "id": "PAR_RETRIGGER_LFO5",
    "short": "rtg",
-   "name": "Retriggr",
+   "name": "LFO retrigger",
    "group": "LFO",
    "part": "Cymbal",
    "min": 0,
@@ -2648,12 +2821,13 @@ export default {
      "v5",
      "v6"
     ]
-   }
+   },
+   "help": "Restarts the LFO when that voice plays: every hit gets the same motion."
   },
   {
    "id": "PAR_RETRIGGER_LFO6",
    "short": "rtg",
-   "name": "Retriggr",
+   "name": "LFO retrigger",
    "group": "LFO",
    "part": "Hihat",
    "min": 0,
@@ -2670,12 +2844,13 @@ export default {
      "v5",
      "v6"
     ]
-   }
+   },
+   "help": "Restarts the LFO when that voice plays: every hit gets the same motion."
   },
   {
    "id": "PAR_SYNC_LFO1",
    "short": "snc",
-   "name": "ClockSnc",
+   "name": "LFO clock sync",
    "group": "LFO",
    "part": "Drum 1",
    "min": 0,
@@ -2697,12 +2872,13 @@ export default {
      "16",
      "32"
     ]
-   }
+   },
+   "help": "Locks the LFO to the tempo, as a note length; off: it runs free."
   },
   {
    "id": "PAR_SYNC_LFO2",
    "short": "snc",
-   "name": "ClockSnc",
+   "name": "LFO clock sync",
    "group": "LFO",
    "part": "Drum 2",
    "min": 0,
@@ -2724,12 +2900,13 @@ export default {
      "16",
      "32"
     ]
-   }
+   },
+   "help": "Locks the LFO to the tempo, as a note length; off: it runs free."
   },
   {
    "id": "PAR_SYNC_LFO3",
    "short": "snc",
-   "name": "ClockSnc",
+   "name": "LFO clock sync",
    "group": "LFO",
    "part": "Drum 3",
    "min": 0,
@@ -2751,12 +2928,13 @@ export default {
      "16",
      "32"
     ]
-   }
+   },
+   "help": "Locks the LFO to the tempo, as a note length; off: it runs free."
   },
   {
    "id": "PAR_SYNC_LFO4",
    "short": "snc",
-   "name": "ClockSnc",
+   "name": "LFO clock sync",
    "group": "LFO",
    "part": "Snare",
    "min": 0,
@@ -2778,12 +2956,13 @@ export default {
      "16",
      "32"
     ]
-   }
+   },
+   "help": "Locks the LFO to the tempo, as a note length; off: it runs free."
   },
   {
    "id": "PAR_SYNC_LFO5",
    "short": "snc",
-   "name": "ClockSnc",
+   "name": "LFO clock sync",
    "group": "LFO",
    "part": "Cymbal",
    "min": 0,
@@ -2805,12 +2984,13 @@ export default {
      "16",
      "32"
     ]
-   }
+   },
+   "help": "Locks the LFO to the tempo, as a note length; off: it runs free."
   },
   {
    "id": "PAR_SYNC_LFO6",
    "short": "snc",
-   "name": "ClockSnc",
+   "name": "LFO clock sync",
    "group": "LFO",
    "part": "Hihat",
    "min": 0,
@@ -2832,12 +3012,13 @@ export default {
      "16",
      "32"
     ]
-   }
+   },
+   "help": "Locks the LFO to the tempo, as a note length; off: it runs free."
   },
   {
    "id": "PAR_OFFSET_LFO1",
    "short": "ofs",
-   "name": "Offset",
+   "name": "LFO start phase",
    "group": "LFO",
    "part": "Drum 1",
    "min": 0,
@@ -2845,12 +3026,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Where in its cycle the LFO starts on a retrigger."
   },
   {
    "id": "PAR_OFFSET_LFO2",
    "short": "ofs",
-   "name": "Offset",
+   "name": "LFO start phase",
    "group": "LFO",
    "part": "Drum 2",
    "min": 0,
@@ -2858,12 +3040,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Where in its cycle the LFO starts on a retrigger."
   },
   {
    "id": "PAR_OFFSET_LFO3",
    "short": "ofs",
-   "name": "Offset",
+   "name": "LFO start phase",
    "group": "LFO",
    "part": "Drum 3",
    "min": 0,
@@ -2871,12 +3054,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Where in its cycle the LFO starts on a retrigger."
   },
   {
    "id": "PAR_OFFSET_LFO4",
    "short": "ofs",
-   "name": "Offset",
+   "name": "LFO start phase",
    "group": "LFO",
    "part": "Snare",
    "min": 0,
@@ -2884,12 +3068,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Where in its cycle the LFO starts on a retrigger."
   },
   {
    "id": "PAR_OFFSET_LFO5",
    "short": "ofs",
-   "name": "Offset",
+   "name": "LFO start phase",
    "group": "LFO",
    "part": "Cymbal",
    "min": 0,
@@ -2897,12 +3082,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Where in its cycle the LFO starts on a retrigger."
   },
   {
    "id": "PAR_OFFSET_LFO6",
    "short": "ofs",
-   "name": "Offset",
+   "name": "LFO start phase",
    "group": "LFO",
    "part": "Hihat",
    "min": 0,
@@ -2910,12 +3096,13 @@ export default {
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Where in its cycle the LFO starts on a retrigger."
   },
   {
    "id": "PAR_FILTER_TYPE_1",
    "short": "typ",
-   "name": "Type",
+   "name": "Filter type",
    "group": "Filter",
    "part": "Drum 1",
    "min": 0,
@@ -2933,12 +3120,13 @@ export default {
      "LP2",
      "off"
     ]
-   }
+   },
+   "help": "Low-pass, high-pass, band-pass, notch, peak; off bypasses the filter."
   },
   {
    "id": "PAR_FILTER_TYPE_2",
    "short": "typ",
-   "name": "Type",
+   "name": "Filter type",
    "group": "Filter",
    "part": "Drum 2",
    "min": 0,
@@ -2956,12 +3144,13 @@ export default {
      "LP2",
      "off"
     ]
-   }
+   },
+   "help": "Low-pass, high-pass, band-pass, notch, peak; off bypasses the filter."
   },
   {
    "id": "PAR_FILTER_TYPE_3",
    "short": "typ",
-   "name": "Type",
+   "name": "Filter type",
    "group": "Filter",
    "part": "Drum 3",
    "min": 0,
@@ -2979,12 +3168,13 @@ export default {
      "LP2",
      "off"
     ]
-   }
+   },
+   "help": "Low-pass, high-pass, band-pass, notch, peak; off bypasses the filter."
   },
   {
    "id": "PAR_FILTER_TYPE_4",
    "short": "typ",
-   "name": "Type",
+   "name": "Filter type",
    "group": "Filter",
    "part": "Snare",
    "min": 0,
@@ -3002,12 +3192,13 @@ export default {
      "LP2",
      "off"
     ]
-   }
+   },
+   "help": "Low-pass, high-pass, band-pass, notch, peak; off bypasses the filter."
   },
   {
    "id": "PAR_FILTER_TYPE_5",
    "short": "typ",
-   "name": "Type",
+   "name": "Filter type",
    "group": "Filter",
    "part": "Cymbal",
    "min": 0,
@@ -3025,12 +3216,13 @@ export default {
      "LP2",
      "off"
     ]
-   }
+   },
+   "help": "Low-pass, high-pass, band-pass, notch, peak; off bypasses the filter."
   },
   {
    "id": "PAR_FILTER_TYPE_6",
    "short": "typ",
-   "name": "Type",
+   "name": "Filter type",
    "group": "Filter",
    "part": "Hihat",
    "min": 0,
@@ -3048,91 +3240,98 @@ export default {
      "LP2",
      "off"
     ]
-   }
+   },
+   "help": "Low-pass, high-pass, band-pass, notch, peak; off bypasses the filter."
   },
   {
    "id": "PAR_TRANS1_VOL",
    "short": "vol",
-   "name": "Volume",
-   "group": "Transnt",
+   "name": "Click volume",
+   "group": "Click",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Level of the short click at the start of the hit: the attack's snap."
   },
   {
    "id": "PAR_TRANS2_VOL",
    "short": "vol",
-   "name": "Volume",
-   "group": "Transnt",
+   "name": "Click volume",
+   "group": "Click",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Level of the short click at the start of the hit: the attack's snap."
   },
   {
    "id": "PAR_TRANS3_VOL",
    "short": "vol",
-   "name": "Volume",
-   "group": "Transnt",
+   "name": "Click volume",
+   "group": "Click",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Level of the short click at the start of the hit: the attack's snap."
   },
   {
    "id": "PAR_TRANS4_VOL",
    "short": "vol",
-   "name": "Volume",
-   "group": "Transnt",
+   "name": "Click volume",
+   "group": "Click",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Level of the short click at the start of the hit: the attack's snap."
   },
   {
    "id": "PAR_TRANS5_VOL",
    "short": "vol",
-   "name": "Volume",
-   "group": "Transnt",
+   "name": "Click volume",
+   "group": "Click",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Level of the short click at the start of the hit: the attack's snap."
   },
   {
    "id": "PAR_TRANS6_VOL",
    "short": "vol",
-   "name": "Volume",
-   "group": "Transnt",
+   "name": "Click volume",
+   "group": "Click",
    "part": "Hihat",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Level of the short click at the start of the hit: the attack's snap."
   },
   {
    "id": "PAR_TRANS1_WAVE",
    "short": "wav",
-   "name": "Waveform",
-   "group": "Transnt",
+   "name": "Click sample",
+   "group": "Click",
    "part": "Drum 1",
    "min": 0,
    "max": 13,
@@ -3155,13 +3354,14 @@ export default {
      "Tom",
      "Sp2"
     ]
-   }
+   },
+   "help": "Which click starts the hit: snap, click, tick, kick, rim and others."
   },
   {
    "id": "PAR_TRANS2_WAVE",
    "short": "wav",
-   "name": "Waveform",
-   "group": "Transnt",
+   "name": "Click sample",
+   "group": "Click",
    "part": "Drum 2",
    "min": 0,
    "max": 13,
@@ -3184,13 +3384,14 @@ export default {
      "Tom",
      "Sp2"
     ]
-   }
+   },
+   "help": "Which click starts the hit: snap, click, tick, kick, rim and others."
   },
   {
    "id": "PAR_TRANS3_WAVE",
    "short": "wav",
-   "name": "Waveform",
-   "group": "Transnt",
+   "name": "Click sample",
+   "group": "Click",
    "part": "Drum 3",
    "min": 0,
    "max": 13,
@@ -3213,13 +3414,14 @@ export default {
      "Tom",
      "Sp2"
     ]
-   }
+   },
+   "help": "Which click starts the hit: snap, click, tick, kick, rim and others."
   },
   {
    "id": "PAR_TRANS4_WAVE",
    "short": "wav",
-   "name": "Waveform",
-   "group": "Transnt",
+   "name": "Click sample",
+   "group": "Click",
    "part": "Snare",
    "min": 0,
    "max": 13,
@@ -3242,13 +3444,14 @@ export default {
      "Tom",
      "Sp2"
     ]
-   }
+   },
+   "help": "Which click starts the hit: snap, click, tick, kick, rim and others."
   },
   {
    "id": "PAR_TRANS5_WAVE",
    "short": "wav",
-   "name": "Waveform",
-   "group": "Transnt",
+   "name": "Click sample",
+   "group": "Click",
    "part": "Cymbal",
    "min": 0,
    "max": 13,
@@ -3271,13 +3474,14 @@ export default {
      "Tom",
      "Sp2"
     ]
-   }
+   },
+   "help": "Which click starts the hit: snap, click, tick, kick, rim and others."
   },
   {
    "id": "PAR_TRANS6_WAVE",
    "short": "wav",
-   "name": "Waveform",
-   "group": "Transnt",
+   "name": "Click sample",
+   "group": "Click",
    "part": "Hihat",
    "min": 0,
    "max": 13,
@@ -3300,90 +3504,97 @@ export default {
      "Tom",
      "Sp2"
     ]
-   }
+   },
+   "help": "Which click starts the hit: snap, click, tick, kick, rim and others."
   },
   {
    "id": "PAR_TRANS1_FREQ",
    "short": "frq",
-   "name": "Frequncy",
-   "group": "Transnt",
+   "name": "Click pitch",
+   "group": "Click",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Playback speed of the click: higher is shorter and brighter."
   },
   {
    "id": "PAR_TRANS2_FREQ",
    "short": "frq",
-   "name": "Frequncy",
-   "group": "Transnt",
+   "name": "Click pitch",
+   "group": "Click",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Playback speed of the click: higher is shorter and brighter."
   },
   {
    "id": "PAR_TRANS3_FREQ",
    "short": "frq",
-   "name": "Frequncy",
-   "group": "Transnt",
+   "name": "Click pitch",
+   "group": "Click",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Playback speed of the click: higher is shorter and brighter."
   },
   {
    "id": "PAR_TRANS4_FREQ",
    "short": "frq",
-   "name": "Frequncy",
-   "group": "Transnt",
+   "name": "Click pitch",
+   "group": "Click",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Playback speed of the click: higher is shorter and brighter."
   },
   {
    "id": "PAR_TRANS5_FREQ",
    "short": "frq",
-   "name": "Frequncy",
-   "group": "Transnt",
+   "name": "Click pitch",
+   "group": "Click",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Playback speed of the click: higher is shorter and brighter."
   },
   {
    "id": "PAR_TRANS6_FREQ",
    "short": "frq",
-   "name": "Frequncy",
-   "group": "Transnt",
+   "name": "Click pitch",
+   "group": "Click",
    "part": "Hihat",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Playback speed of the click: higher is shorter and brighter."
   },
   {
    "id": "PAR_AUDIO_OUT1",
    "short": "out",
-   "name": "AudioOut",
+   "name": "Output",
    "group": "Voice",
    "part": "Drum 1",
    "min": 0,
@@ -3400,12 +3611,13 @@ export default {
      "R2",
      "FX"
     ]
-   }
+   },
+   "help": "Where the voice goes: stereo 1 or 2, a single side, or the FX bus."
   },
   {
    "id": "PAR_AUDIO_OUT2",
    "short": "out",
-   "name": "AudioOut",
+   "name": "Output",
    "group": "Voice",
    "part": "Drum 2",
    "min": 0,
@@ -3422,12 +3634,13 @@ export default {
      "R2",
      "FX"
     ]
-   }
+   },
+   "help": "Where the voice goes: stereo 1 or 2, a single side, or the FX bus."
   },
   {
    "id": "PAR_AUDIO_OUT3",
    "short": "out",
-   "name": "AudioOut",
+   "name": "Output",
    "group": "Voice",
    "part": "Drum 3",
    "min": 0,
@@ -3444,12 +3657,13 @@ export default {
      "R2",
      "FX"
     ]
-   }
+   },
+   "help": "Where the voice goes: stereo 1 or 2, a single side, or the FX bus."
   },
   {
    "id": "PAR_AUDIO_OUT4",
    "short": "out",
-   "name": "AudioOut",
+   "name": "Output",
    "group": "Voice",
    "part": "Snare",
    "min": 0,
@@ -3466,12 +3680,13 @@ export default {
      "R2",
      "FX"
     ]
-   }
+   },
+   "help": "Where the voice goes: stereo 1 or 2, a single side, or the FX bus."
   },
   {
    "id": "PAR_AUDIO_OUT5",
    "short": "out",
-   "name": "AudioOut",
+   "name": "Output",
    "group": "Voice",
    "part": "Cymbal",
    "min": 0,
@@ -3488,12 +3703,13 @@ export default {
      "R2",
      "FX"
     ]
-   }
+   },
+   "help": "Where the voice goes: stereo 1 or 2, a single side, or the FX bus."
   },
   {
    "id": "PAR_AUDIO_OUT6",
    "short": "out",
-   "name": "AudioOut",
+   "name": "Output",
    "group": "Voice",
    "part": "Hihat",
    "min": 0,
@@ -3510,7 +3726,8 @@ export default {
      "R2",
      "FX"
     ]
-   }
+   },
+   "help": "Where the voice goes: stereo 1 or 2, a single side, or the FX bus."
   },
   {
    "id": "PAR_UNUSED_1",
@@ -3613,86 +3830,92 @@ export default {
   {
    "id": "PAR_PWM_1",
    "short": "pwm",
-   "name": "PulsWdth",
-   "group": "Oscilltr",
+   "name": "Pulse width",
+   "group": "Oscillator",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The rect wave's duty cycle: thinner or hollower."
   },
   {
    "id": "PAR_PWM_2",
    "short": "pwm",
-   "name": "PulsWdth",
-   "group": "Oscilltr",
+   "name": "Pulse width",
+   "group": "Oscillator",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The rect wave's duty cycle: thinner or hollower."
   },
   {
    "id": "PAR_PWM_3",
    "short": "pwm",
-   "name": "PulsWdth",
-   "group": "Oscilltr",
+   "name": "Pulse width",
+   "group": "Oscillator",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The rect wave's duty cycle: thinner or hollower."
   },
   {
    "id": "PAR_PWM_4",
    "short": "pwm",
-   "name": "PulsWdth",
-   "group": "Oscilltr",
+   "name": "Pulse width",
+   "group": "Oscillator",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The rect wave's duty cycle: thinner or hollower."
   },
   {
    "id": "PAR_PWM_5",
    "short": "pwm",
-   "name": "PulsWdth",
-   "group": "Oscilltr",
+   "name": "Pulse width",
+   "group": "Oscillator",
    "part": "Cymbal",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The rect wave's duty cycle: thinner or hollower."
   },
   {
    "id": "PAR_PWM_6",
    "short": "pwm",
-   "name": "PulsWdth",
-   "group": "Oscilltr",
+   "name": "Pulse width",
+   "group": "Oscillator",
    "part": "Hihat",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The rect wave's duty cycle: thinner or hollower."
   },
   {
    "id": "PAR_FX_TYPE",
    "short": "typ",
-   "name": "Type",
-   "group": "Fx",
+   "name": "FX type",
+   "group": "FX",
    "part": "",
    "min": 0,
    "max": 4,
@@ -3706,13 +3929,14 @@ export default {
      "cmp",
      "del"
     ]
-   }
+   },
+   "help": "The effect (or its variant): drive, ring modulator, compressor, delay."
   },
   {
    "id": "PAR_FX_ROUTING",
    "short": "out",
-   "name": "AudioOut",
-   "group": "Fx",
+   "name": "FX output",
+   "group": "FX",
    "part": "",
    "min": 0,
    "max": 5,
@@ -3727,26 +3951,28 @@ export default {
      "L2",
      "R2"
     ]
-   }
+   },
+   "help": "Where the FX bus goes: stereo output 1 or 2, or a single side."
   },
   {
    "id": "PAR_FX_DRY_WET",
    "short": "d/w",
-   "name": "Dry/Wet",
-   "group": "Fx",
+   "name": "FX dry/wet",
+   "group": "FX",
    "part": "",
    "min": 0,
    "max": 100,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "Balance between the voices sent to the FX bus and the effect."
   },
   {
    "id": "PAR_FX_DIST_TYPE",
    "short": "typ",
-   "name": "Type",
-   "group": "Fx",
+   "name": "FX type",
+   "group": "FX",
    "part": "",
    "min": 0,
    "max": 2,
@@ -3758,65 +3984,70 @@ export default {
      "fld",
      "clp"
     ]
-   }
+   },
+   "help": "The effect (or its variant): drive, ring modulator, compressor, delay."
   },
   {
    "id": "PAR_FX_P1",
    "short": "drv",
-   "name": "Overdriv",
-   "group": "Fx",
+   "name": "FX drive",
+   "group": "FX",
    "part": "Drum 1",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "How hard the effect is driven."
   },
   {
    "id": "PAR_FX_P2",
    "short": "col",
-   "name": "Color",
-   "group": "Fx",
+   "name": "FX color",
+   "group": "FX",
    "part": "Drum 2",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The effect's character (depends on the FX type)."
   },
   {
    "id": "PAR_FX_P3",
    "short": "ton",
-   "name": "Tone",
-   "group": "Fx",
+   "name": "FX tone",
+   "group": "FX",
    "part": "Drum 3",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The effect's brightness."
   },
   {
    "id": "PAR_FX_P4",
    "short": "vol",
-   "name": "Volume",
-   "group": "Fx",
+   "name": "FX volume",
+   "group": "FX",
    "part": "Snare",
    "min": 0,
    "max": 127,
    "default": 0,
    "display": {
     "kind": "raw"
-   }
+   },
+   "help": "The effect's output level."
   },
   {
    "id": "PAR_FX_RATIO",
    "short": "rat",
-   "name": "Ratio",
-   "group": "Fx",
+   "name": "Comp ratio",
+   "group": "FX",
    "part": "",
    "min": 0,
    "max": 5,
@@ -3831,7 +4062,8 @@ export default {
      "6:1",
      "8:1"
     ]
-   }
+   },
+   "help": "How hard the compressor squeezes loud hits: 1:1 none, 8:1 heavy."
   },
   {
    "id": "PAR_FX_WAVE",
@@ -3858,8 +4090,8 @@ export default {
   {
    "id": "PAR_FX_REVERB_TYPE",
    "short": "typ",
-   "name": "Type",
-   "group": "Fx",
+   "name": "FX type",
+   "group": "FX",
    "part": "",
    "min": 0,
    "max": 0,
@@ -3869,13 +4101,14 @@ export default {
     "values": [
      "Plt"
     ]
-   }
+   },
+   "help": "The effect (or its variant): drive, ring modulator, compressor, delay."
   },
   {
    "id": "PAR_FX_DELAY_TYPE",
    "short": "typ",
-   "name": "Type",
-   "group": "Fx",
+   "name": "FX type",
+   "group": "FX",
    "part": "",
    "min": 0,
    "max": 1,
@@ -3886,7 +4119,8 @@ export default {
      "Del",
      "Pp"
     ]
-   }
+   },
+   "help": "The effect (or its variant): drive, ring modulator, compressor, delay."
   },
   {
    "id": "PAR_MORPH_KIT_DEST",

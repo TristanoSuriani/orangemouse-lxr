@@ -13,6 +13,9 @@ import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
 import { DotMatrix } from './kit/dotmatrix.js';
 import { addGuide } from './kit/guide.js';
+import { HelpStrip, describe } from './kit/help.js';
+import lxrRegistry from './registry/lxr.js';
+import { helpLine } from './registry/format.js';
 
 // Button numbers as in enum ButtonNumbers (Core/Inc/buttonHandler.h); each
 // button's LED has the same number in enum LedNumbers (ledHandler.h).
@@ -336,6 +339,38 @@ async function switchOn() {
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
+// ---- the LXR's controls, explained on the help strip -------------------------------
+
+let lxrPots = null;   // from the worklet: the parameters on the pots, their values, the cursor
+
+function describeLxr() {
+  document.querySelectorAll('#pots .pot').forEach((pot, i) => describe(pot, help, () => {
+    if (!lxrPots) return `Pot ${i + 1}: changes the parameter above it on the display.`;
+    const n = lxrPots.params[i];
+    const info = lxrRegistry.params[n];
+    if (!info) return `Pot ${i + 1}: a setting of this page (the display shows its name and value).`;
+    return `Pot ${i + 1} (${info.part ? info.part + ' ' : ''}${info.group}): ${helpLine(info, lxrPots.values[i])}`;
+  }));
+  describe(document.getElementById('encoder'), help, 'Data encoder: turn it to move the cursor on the display, or to change the value. Click (or Enter) switches between the two.');
+  document.querySelectorAll('.fader').forEach((f, i) => describe(f, help, `${FADERS[i]} volume fader.`));
+  const pads = [
+    ...VOICES.map((name, i) => [BUT.VOICE_1 + i, `${name}: selects the voice, to edit its sound or its steps.`]),
+    [BUT.PAGE_UP, 'Page up: the previous bar of a long pattern. Copy + Page up copies the bar into the next.'],
+    [BUT.PAGE_DOWN, 'Page down: the next bar of a long pattern.'],
+    ...SELECT_BUTTONS.map((id, i) => [id, `Select ${i + 1}: a page of the voice (osc, filter, envelopes, LFO...) or, in step edit, a sub-step.`]),
+    [BUT.MODE1, 'Voice: edit sounds; press again for step edit. Shift: step mode.'],
+    [BUT.MODE1 + 1, 'Perf: performance mode; the select buttons choose patterns. Shift: Euklid, the Euclidean generator.'],
+    [BUT.MODE1 + 2, 'Load: kits, patterns, projects from the SD card. Shift: the FX page.'],
+    [BUT.MODE1 + 3, 'Save to the SD card. Shift: the config menu (MIDI and more).'],
+    [BUT.SHIFT, 'Shift: hold it (or the Shift key) for the grey second functions.'],
+    [BUT.COPY, 'Copy: hold it and press the target. Shift: clear.'],
+    [BUT.REC, 'Rec: records what you play into the pattern.'],
+    [BUT.START_STOP, 'Start/stop the LXR\'s sequencer (Space).'],
+    ...SEQ_BUTTONS.map((id, i) => [id, `Step ${i + 1}: switches the step on or off${STEP_SHIFT[i] ? `. Shift: ${STEP_SHIFT[i]}` : ''}.`]),
+  ];
+  for (const [id, text] of pads) if (buttons.has(id)) describe(buttons.get(id), help, text);
+}
+
 function onWorkletMessage(msg) {
   switch (msg.type) {
     case 'ui':
@@ -345,6 +380,10 @@ function onWorkletMessage(msg) {
         devices[0].mini(lcd.toString().split('\n'));
       }
       if (msg.leds) showLeds(msg.leds);
+      if (msg.lxrPots) {
+        lxrPots = msg.lxrPots;
+        help.refresh();
+      }
       if (msg.midi) sendMidiBytes(msg.midi);
       if (msg.log) msg.log.forEach((line) => console.info('[LXR]', line));
       break;
@@ -393,8 +432,14 @@ document.getElementById('resetCard').addEventListener('click', async () => {
   location.reload();
 });
 
+// the studio's help strip, in the top bar: it explains whatever the pointer or
+// the keyboard focus is on, on every device
+const help = new HelpStrip(document.getElementById('help'),
+  'Point at any knob, pad or key to see what it does. Alt+1, Alt+2 switch devices.');
+
 buildPanel();
-const va = createVaDevice({ send });
+describeLxr();
+const va = createVaDevice({ send, help });
 document.getElementById('devices').append(va.el);
 
 // ---- the rack: one device expanded, the others as cards in the top bar ----------
@@ -444,7 +489,7 @@ function showDevice(i) {
 let saved = null;
 try { saved = localStorage.getItem('om.device'); } catch { /* as above */ }
 showDevice(Math.max(0, devices.findIndex((d) => d.id === saved)));
-window.orangeMouseUi = { showDevice, devices: devices.map((d) => d.id) };   // for the browser tests
+window.orangeMouseUi = { showDevice, devices: devices.map((d) => d.id), lxrPots: () => lxrPots };   // for the browser tests
 
 setUpMidi();
 // #preview: the panels without the switch-on overlay and without audio, for

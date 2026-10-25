@@ -171,7 +171,7 @@ kbd {
 
 .row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.controls { justify-content: space-between; row-gap: 14px; }
+.controls { justify-content: space-between; row-gap: 14px; flex-wrap: nowrap; }   /* one row: the page must fit 1280x800 */
 
 .group { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -220,7 +220,8 @@ kbd {
 
 .pad.voice { flex: 1 1 0; min-width: 90px; }
 .pad.small { min-width: 64px; }
-.pad.select { min-width: 46px; }
+.pad.select { min-width: 40px; }
+.controls .pad.mode, #transport .pad { min-width: 52px; }
 .pad.shift .label { color: var(--accent); }
 
 .steps {
@@ -370,7 +371,7 @@ kbd {
 .pot-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; }
 
 /* the help strip: a smaller dot-matrix module under a display */
-.lcd.help-strip { width: auto; }   /* its own size: the dots stay sharp */
+.lcd.help-strip { width: auto; margin-left: auto; }   /* its own size: the dots stay sharp */
 
 /* the keybed: --white-key wide white keys, black keys over their gaps */
 .keybed {

@@ -16,8 +16,10 @@ checks those files and generates, for each engine:
     tools/registry.py            check and generate
     tools/registry.py --check    check, and fail if a generated file is out of date
 
-registry/<engine>_help.json, when present, adds help lines by parameter id or
-by the firmware's text id (one entry helps every voice's parameter of that name).
+registry/<engine>_help.json, when present, adds help lines (and better names)
+by parameter id or by the firmware's text id: one entry helps every voice's
+parameter of that name. An entry is a help string, or {"name": ..., "help": ...};
+"_groups" maps page categories to readable names.
 """
 import json
 import sys
@@ -41,10 +43,19 @@ def load(engine_file):
     help_file = REG / f"{reg['engine']}_help.json"
     if help_file.exists():
         extra = json.loads(help_file.read_text())
+        groups = extra.get("_groups", {})   # readable names for the firmware's page categories
         for p in reg["params"]:
-            h = extra.get(p["id"]) or extra.get(p.get("text", ""))
-            if h and not p.get("help"):
-                p["help"] = h
+            if p.get("group") in groups:
+                p["group"] = groups[p["group"]]
+            e = extra.get(p["id"]) or extra.get(p.get("text", ""))
+            if isinstance(e, str):
+                e = {"help": e}
+            if e:
+                p.setdefault("help", e.get("help", ""))
+                if not p["help"]:
+                    p["help"] = e.get("help", "")
+                if "name" in e:
+                    p["name"] = e["name"]
     return reg
 
 

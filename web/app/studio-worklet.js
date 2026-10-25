@@ -157,6 +157,15 @@ class StudioProcessor extends AudioWorkletProcessor {
       msg.cgram = mem.slice(w.web_lcd_cgram(), w.web_lcd_cgram() + 64);
       msg.lcdOn = lcdVersion !== 0;
     }
+    // what the LXR's pots change now, with the values, for the help strip
+    const pots = new Uint16Array(w.memory.buffer, w.web_lxr_pots(), 6);
+    const lxrPots = { params: Array.from(pots.subarray(0, 4)), cursor: pots[4], page: pots[5] };
+    lxrPots.values = lxrPots.params.map((p) => w.om_web_get_param(0, 0, p));
+    const potsKey = JSON.stringify(lxrPots);
+    if (force || potsKey !== this.lastPots) {
+      this.lastPots = potsKey;
+      msg.lxrPots = lxrPots;
+    }
     if (force || leds[0] !== this.lastLeds[0] || leds[1] !== this.lastLeds[1]) {
       this.lastLeds = leds;
       msg.leds = leds;

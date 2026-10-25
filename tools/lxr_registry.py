@@ -130,6 +130,14 @@ def main():
     # waveforms add the SD card's samples: none in the studio)
     menu_array = {int(k): v for k, v in re.findall(r"case\s+(\d+)\s*:\s*return[^;]*?(\w+)\s*\[0\]\[0\]", menu_c)}
 
+    # the PM63 parameters the display shows as value - 60, not - 63 (the coarse
+    # tunings and modulator frequencies: menu.c's "curParmVal - 60" branch)
+    m = re.search(r"if\s*\(([^{}]*?)\)\s*\{\s*numtostrps\s*\([^,]+,\s*\(\s*int8_t\s*\)\s*\(\s*curParmVal\s*-\s*60", menu_c)
+    names = re.findall(r"parNr\s*==\s*(\w+)", m.group(1)) if m else []
+    center60 = {int(x) if x.isdigit() else par[x] for x in names}
+    if not center60:
+        raise SystemExit("menu.c: the display's 'curParmVal - 60' list was not found")
+
     defaults = {}
     dump = BUILD / "lxr_render"
     out = subprocess.run([str(dump), "--dump-kit"], capture_output=True, text=True, check=True).stdout
@@ -157,7 +165,7 @@ def main():
         if kind == "DTYPE_0B255":
             hi = 255
         elif kind == "DTYPE_PM63":
-            display = {"kind": "bipolar", "center": 63, "scale": 1, "unit": ""}
+            display = {"kind": "bipolar", "center": 60 if idx in center60 else 63, "scale": 1, "unit": ""}
         elif kind in ("DTYPE_ON_OFF", "DTYPE_0b1"):
             hi = 1
             display = {"kind": "enum", "values": ["off", "on"]} if kind == "DTYPE_ON_OFF" else {"kind": "offset", "offset": 1, "unit": "", "signed": False}

@@ -82,7 +82,8 @@ const evaluate = async (expression) => {
 };
 const key = async (code, keyName, down) => cdp('Input.dispatchKeyEvent', { type: down ? 'keyDown' : 'keyUp', code, key: keyName });
 const vaDisplay = () => evaluate(`document.querySelector('.va-lcd').getAttribute('aria-label')`);
-const helpText = () => evaluate(`document.querySelector('.va .help-strip').getAttribute('aria-label')`);
+// the strip's rows joined with spaces, as one line of text
+const helpText = async () => (await evaluate(`document.getElementById('help').getAttribute('aria-label')`)).replace(/\s+/g, ' ');
 const clickPad = (selector) => evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)});
   el.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, pointerId: 1 }));
   el.dispatchEvent(new PointerEvent('pointerup', { button: 0, bubbles: true, pointerId: 1 })); })()`);
@@ -146,6 +147,24 @@ try {
   writeFileSync(join(OUT, 'guide.png'), Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
   await clickPad('.va .pad.guide');
   check(await evaluate(`document.querySelector('.va .guide-card').hidden`), 'pressing ? again closes it');
+
+  console.log('== the LXR explained');
+  await evaluate(`window.orangeMouseUi.showDevice(0)`);
+  await evaluate(`document.querySelector('#pots .pot').dispatchEvent(new PointerEvent('pointerenter'))`);
+  const lxrHelp = await helpText();
+  check(lxrHelp.includes('Pot 1') && lxrHelp.includes('Coarse tune') && lxrHelp.includes(':'),
+    `the help strip explains the LXR's pot 1: "${lxrHelp.replace(/\n/g, ' ')}"`);
+  await evaluate(`document.querySelector('#pots .pot').dispatchEvent(new PointerEvent('pointerleave'))`);
+  // the registry formats the pots' values as the LXR's own display does
+  const lcdValues = (await evaluate(`document.getElementById('lcd').getAttribute('aria-label')`))
+    .split('\n')[1].trim().split(/\s+/);
+  const ours = await evaluate(`(async () => {
+    const reg = (await import('./registry/lxr.js')).default;
+    const { formatShort } = await import('./registry/format.js');
+    const pots = window.orangeMouseUi.lxrPots();
+    return pots.params.map((p, i) => (reg.params[p] ? formatShort(reg.params[p], pots.values[i]).trim() : '?'));
+  })()`);
+  check(JSON.stringify(lcdValues) === JSON.stringify(ours), `the registry shows the pots' values as the LCD does: LCD ${lcdValues.join(' ')}, registry ${ours.join(' ')}`);
 
   console.log('== the LXR plays');
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'note', engine: 0, part: 0, note: 36, velocity: 120, on: true })`);

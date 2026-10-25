@@ -184,7 +184,7 @@
    "default": 31,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -218,7 +218,7 @@
    "default": 41,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -252,7 +252,7 @@
    "default": 58,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -286,7 +286,7 @@
    "default": 45,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -320,7 +320,7 @@
    "default": 127,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -354,7 +354,7 @@
    "default": 50,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -570,7 +570,7 @@
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -587,7 +587,7 @@
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -632,7 +632,7 @@
    "default": 56,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -649,7 +649,7 @@
    "default": 127,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -1338,7 +1338,7 @@
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -1369,7 +1369,7 @@
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },
@@ -1400,7 +1400,7 @@
    "default": 0,
    "display": {
     "kind": "bipolar",
-    "center": 63,
+    "center": 60,
     "scale": 1,
     "unit": ""
    },

@@ -7,7 +7,8 @@
 //   display  row 0: the slot and the page; rows 1-2: the four knobs' labels and
 //            values; row 3: the slot's preset (* once edited)
 //   knobs    the four parameters on the display; double-click: the preset's value
-//   help     the control under the pointer, spelled out
+//   help     the control under the pointer, spelled out on the studio's help
+//            strip (passed in: one strip in the top bar for every device)
 //   pads     8 pages (press again: the page's second half), the 4 slots,
 //            preset back and forward, octave down and up
 //   keybed   plays the slot, as does the computer keyboard while VA has focus
@@ -15,7 +16,7 @@
 import registry from '../registry/va.js';
 import { formatShort, formatValue, helpLine } from '../registry/format.js';
 import { DotMatrix } from '../kit/dotmatrix.js';
-import { HelpStrip, describe } from '../kit/help.js';
+import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed } from '../kit/controls.js';
 import { makeKeybed } from '../kit/keybed.js';
 import { addGuide } from '../kit/guide.js';
@@ -44,7 +45,7 @@ const GUIDE = [
   { title: 'Play', text: 'Keys Z to M play the lower octave, Q to I the upper; or click the keys. OCT - and OCT + (or [ and ]) move both octaves.' },
   { title: 'Shape it', text: 'The eight page pads choose what the four knobs change: oscillators, mixer, filter, the two envelopes, LFO, voice, and output. Press a page again for its second half (1/2 and 2/2 on the display).' },
   { title: 'Turn a knob', text: 'Drag up or scroll. Hold Shift for fine steps. Double-click to go back to the preset\'s value. A * after the preset name means you changed it.' },
-  { title: 'Learn as you go', text: 'Point at any knob or pad: the strip under the knobs says what it does and, for a knob, its value in real units.' },
+  { title: 'Learn as you go', text: 'Point at any knob or pad: the help strip in the top bar says what it does and, for a knob, its value in real units.' },
 ];
 
 // the parameters of each page, in registry order, without the unused ones
@@ -56,7 +57,7 @@ const center = (s, width) => {
   return ' '.repeat(Math.max(0, left)) + s;
 };
 
-export function createVaDevice({ send }) {
+export function createVaDevice({ send, help }) {
   const state = {
     slot: 0,
     page: 0,
@@ -76,7 +77,6 @@ export function createVaDevice({ send }) {
       <div class="display-block">
         <canvas class="lcd va-lcd"></canvas>
         <div class="pots va-knobs"></div>
-        <canvas class="lcd help-strip"></canvas>
       </div>
       <div class="device-pads">
         <div class="group va-pages" aria-label="Pages"></div>
@@ -86,8 +86,6 @@ export function createVaDevice({ send }) {
     </div>`;
   let summary = () => {};   // the rack card's two rows
   const display = new DotMatrix(el.querySelector('.va-lcd'), { cols: 20, rows: 4 });
-  const help = new HelpStrip(el.querySelector('.help-strip'),
-    'Point at a knob or pad to see what it does. Keys Z-M and Q-I play.');
 
   const visible = () => pageParams[state.page].slice(state.half * 4, state.half * 4 + 4);
   const halves = () => Math.ceil(pageParams[state.page].length / 4);
