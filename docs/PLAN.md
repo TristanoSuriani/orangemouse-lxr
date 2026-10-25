@@ -184,6 +184,8 @@ nothing built earlier has to be redone.
 2. **Spikes.** Compile a Plaits engine, the Dexed MSFA core and one `sst-effects` effect to WebAssembly,
    then measure CPU per voice and per effect. The biggest unknown is Surge's SIMD under WebAssembly.
    A spike that fails changes this plan here, not later.
+   **Done 2026-10-25: all three pass** (`spikes/README.md`). Each costs at most a few percent of the
+   audio thread. Native and WebAssembly output match bit for bit (Plaits) or within 1 LSB.
 3. **Native host build.** The whole audio core builds as a Mac command-line tool with the web port's stubs.
 4. **Golden baseline.** Render the LXR presets *before* touching the sample rate.
 5. **The engine interface in C:** `init`, `note_on`, `note_off`, `set_param`, `render(block)` returning
@@ -205,7 +207,9 @@ the tracker leads, or the LXR plays alone on its own sequencer. It plays LXR and
 
 ### Phase 3: the mixer and Surge effects
 
-Per-track stems, sends and the master bus, using the effects that passed the Phase 0 spike.
+Per-track stems, sends and the master bus, using the effects that passed the Phase 0 spike (Reverb2,
+Reverb1, Delay, Phaser, Flanger). sst-effects has no chorus yet, so dub techno's chorus is ported from
+Surge XT or written here.
 
 ### Phase 4: Dexed
 
@@ -243,8 +247,9 @@ Fel-Tracker's suite showed this works: golden hashes, CPU counts and a layout li
 - **Fuzzing.** Random parameter sweeps and random note and MIDI streams, including note-on storms, missing
   note-offs and panics. Every run must pass the health checks.
 - **WebAssembly parity.** The WebAssembly build exposes the same offline render function. Its output must
-  match the native one within a small tolerance, which proves the browser plays what the native tests
-  checked.
+  match the native one, which proves the browser plays what the native tests checked. Native builds use
+  `-ffp-contract=off`, so the match is exact except for 1-LSB differences from the two math libraries.
+  The test allows those 1-LSB differences.
 - **Panel lint, without a browser.** Every panel declaration is checked statically:
   - no overlapping controls and nothing off the panel;
   - every display string fits its cell;

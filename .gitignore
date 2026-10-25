@@ -4,3 +4,7 @@ __pycache__/
 /web/app/lxr.wasm
 /web/.cache/
 /.idea/
+/third_party/*
+!/third_party/fetch.sh
+/spikes/out/
+/spikes/dexed/carts/
