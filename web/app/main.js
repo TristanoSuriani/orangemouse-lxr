@@ -13,6 +13,7 @@ import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
 import { createTrackerDevice } from './devices/tracker.js';
 import { createMixerDevice } from './devices/mixer.js';
+import { createDexedDevice } from './devices/dexed.js';
 import { songMessages } from './tracker/song.js';
 import * as library from './tracker/library.js';
 import { demoSong } from './tracker/demo.js';
@@ -203,12 +204,18 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
-  if (device === 'va' && e.code in KEY_SEMITONES && !e.metaKey && !e.ctrlKey && !e.altKey) {
-    if (!e.repeat) va.noteFromKey(KEY_SEMITONES[e.code], true);
+  if (device === 'dexed' && dexed.handleKey(e, true)) {
+    e.preventDefault();
     return;
   }
-  if (device === 'va' && (e.key === '[' || e.key === ']')) {
-    va.octave(e.key === ']' ? 1 : -1);
+  // the keyboard plays the instrument on show
+  const player = { va, dexed }[device];
+  if (player && e.code in KEY_SEMITONES && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    if (!e.repeat) player.noteFromKey(KEY_SEMITONES[e.code], true);
+    return;
+  }
+  if (player && (e.key === '[' || e.key === ']')) {
+    player.octave(e.key === ']' ? 1 : -1);
     return;
   }
   if (e.key === 'Shift' && !shiftKeyDown) {
@@ -228,8 +235,9 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('keyup', (e) => {
   if (devices[shown]?.id === 'tracker' && tracker.handleKey(e, false)) return;
-  if (e.code in KEY_SEMITONES) {
+  if (e.code in KEY_SEMITONES) {   // released on both, in case the device changed while a key was down
     va.noteFromKey(KEY_SEMITONES[e.code], false);
+    dexed.noteFromKey(KEY_SEMITONES[e.code], false);
     return;
   }
   if (e.key === 'Shift') {
@@ -350,7 +358,7 @@ async function switchOn() {
   }
   await context.resume();
   power.hidden = true;
-  window.orangeMouse = { context, node, va, tracker, mixer };   // for the browser tests (tests/browser/)
+  window.orangeMouse = { context, node, va, tracker, mixer, dexed };   // for the browser tests (tests/browser/)
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
@@ -417,6 +425,9 @@ function onWorkletMessage(msg) {
     case 'vaParams':
       va.onMessage(msg);
       break;
+    case 'dexedNames':
+      dexed.onMessage(msg);
+      break;
   }
 }
 
@@ -463,7 +474,8 @@ const va = createVaDevice({ send, help });
 const tracker = createTrackerDevice({ send, help });
 // the mix is part of the song: its changes go through the tracker, which saves them
 const mixer = createMixerDevice({ send: tracker.send, help, song: tracker.song });
-tracker.onLoad(() => mixer.render());
+const dexed = createDexedDevice({ send: tracker.send, help, song: tracker.song });
+tracker.onLoad(() => { mixer.render(); dexed.render(); });
 // the demo song at once; the song last edited replaces it when the library answers
 tracker.load(demoSong());
 (async () => {
@@ -477,6 +489,7 @@ tracker.load(demoSong());
 })();
 document.getElementById('devices').prepend(tracker.el);
 document.getElementById('devices').append(va.el);
+document.getElementById('devices').append(dexed.el);
 document.getElementById('devices').append(mixer.el);
 
 // ---- the rack: one device expanded, the others as cards in the top bar ----------
@@ -496,6 +509,7 @@ const devices = [
   { id: 'tracker', name: 'TRK', what: 'tracker', el: tracker.el },
   { id: 'lxr', name: 'LXR', what: 'drum machine', el: machine },
   { id: 'va', name: 'VA', what: 'Orange Mouse VA', el: va.el },
+  { id: 'dexed', name: 'DX', what: 'Dexed', el: dexed.el },
   { id: 'mixer', name: 'MIX', what: 'mixer', el: mixer.el },
 ];
 let shown = 0;
@@ -504,7 +518,7 @@ devices.forEach((d, i) => {
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'rack-card';
-  card.innerHTML = `<span class="led"></span><span class="rack-name">${d.name}<small>Alt+${i + 1}</small></span><canvas class="lcd rack-lcd"></canvas>`;
+  card.innerHTML = `<span class="rack-head"><span class="led"></span><span class="rack-name">${d.name}<small>Alt+${i + 1}</small></span></span><canvas class="lcd rack-lcd"></canvas>`;
   card.setAttribute('aria-label', `${d.what} (Alt+${i + 1})`);
   card.addEventListener('click', () => showDevice(i));
   const mini = new DotMatrix(card.querySelector('canvas'), { cols: 16, rows: 2, dot: 2, margin: 5 });
@@ -514,7 +528,8 @@ devices.forEach((d, i) => {
   rack.append(card);
 });
 va.onSummary((rows) => devices[2].mini(rows));
-mixer.onSummary((rows) => devices[3].mini(rows));
+dexed.onSummary((rows) => devices[3].mini(rows));
+mixer.onSummary((rows) => devices[4].mini(rows));
 devices[0].mini(tracker.summary());
 
 function showDevice(i) {

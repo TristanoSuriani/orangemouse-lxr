@@ -52,10 +52,11 @@ echo "== parameter registry"
 { python3 -I tools/lxr_registry.py --check && python3 -I tools/registry.py --check && node tests/registry_test.mjs; } \
   | sed 's/^/   /' || fail=1
 
-echo "== studio, tracker and clock tests"
+echo "== studio, tracker, clock and Dexed tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1
 $BIN/tracker_test | sed 's/^/   /' || fail=1
 $BIN/lxr_sync_test | sed 's/^/   /' || fail=1
+$BIN/dexed_test | sed 's/^/   /' || fail=1
 
 echo "== LXR demo groove"
 $BIN/lxr_render --raw "$OUT/demo.f32" --wav "$OUT/demo.wav" | grep '^hash' > "$OUT/lxr_demo.txt"
@@ -69,7 +70,7 @@ if ! $BIN/lxr_sweep > "$OUT/lxr_params.txt"; then
 fi
 check lxr_params.txt "$OUT/lxr_params.txt"
 
-echo "== studio demo song (LXR + Orange Mouse VA)"
+echo "== studio demo song (LXR, Orange Mouse VA, Dexed, the send effects)"
 $BIN/studio_render --wav "$OUT/studio.wav" | grep '^hash' > "$OUT/studio_demo.txt"
 check studio_demo.txt "$OUT/studio_demo.txt"
 
@@ -86,6 +87,7 @@ if command -v emcmake >/dev/null && command -v node >/dev/null; then
   cmake --build tests/host/build-wasm >/dev/null
   node tests/host/build-wasm/studio_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/tracker_test.js | sed 's/^/   wasm: /' || fail=1
+  node tests/host/build-wasm/dexed_test.js | sed 's/^/   wasm: /' || fail=1
   for tool in lxr_render studio_render; do
     native=$($BIN/$tool | grep '^hash')
     wasm=$(node tests/host/build-wasm/$tool.js | grep '^hash')

@@ -25,6 +25,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const APP = join(ROOT, 'web/app');
@@ -103,6 +104,43 @@ ws.addEventListener('message', (e) => {
   if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') errors.push(msg.params.args.map((a) => a.value ?? a.description).join(' '));
   if (msg.method === 'Log.entryAdded' && msg.params.entry.level === 'error') errors.push(msg.params.entry.text);
 });
+// Two screenshots compared pixel by pixel: how many pixels differ and by how
+// much at most. A few pixels of anti-aliasing on a rounded corner vary from
+// run to run; a real change to a panel touches many more.
+function pngPixels(buf) {
+  let i = 8, width = 0, height = 0, type = 0;
+  const idat = [];
+  while (i < buf.length) {
+    const n = buf.readUInt32BE(i), tag = buf.toString('latin1', i + 4, i + 8);
+    if (tag === 'IHDR') { width = buf.readUInt32BE(i + 8); height = buf.readUInt32BE(i + 12); type = buf[i + 17]; }
+    if (tag === 'IDAT') idat.push(buf.subarray(i + 8, i + 8 + n));
+    i += 12 + n;
+  }
+  const raw = inflateSync(Buffer.concat(idat)), bpp = type === 6 ? 4 : 3, stride = width * bpp;
+  const out = Buffer.alloc(stride * height);
+  for (let y = 0, p = 0; y < height; y++, p += stride + 1) {
+    const f = raw[p], line = out.subarray(y * stride, (y + 1) * stride), prev = y ? out.subarray((y - 1) * stride, y * stride) : null;
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? line[x - bpp] : 0, b = prev ? prev[x] : 0, c = prev && x >= bpp ? prev[x - bpp] : 0;
+      const pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - 2 * c);
+      const pred = [0, a, b, (a + b) >> 1, pa <= pb && pa <= pc ? a : pb <= pc ? b : c][f];
+      line[x] = (raw[p + 1 + x] + pred) & 255;
+    }
+  }
+  return { width, height, bpp, data: out };
+}
+function pngDiff(a, b) {
+  const A = pngPixels(a), B = pngPixels(b);
+  if (A.width !== B.width || A.height !== B.height) return { size: false };
+  let count = 0, worst = 0;
+  for (let i = 0; i < A.width * A.height; i++) {
+    let d = 0;
+    for (let c = 0; c < 3; c++) d = Math.max(d, Math.abs(A.data[i * A.bpp + c] - B.data[i * B.bpp + c]));
+    if (d) { count++; worst = Math.max(worst, d); }
+  }
+  return { size: true, count, worst };
+}
+
 const cdp = (method, params = {}) => new Promise((resolve, reject) => {
   const id = nextId++;
   pending.set(id, (msg) => (msg.error ? reject(new Error(`${method}: ${msg.error.message}`)) : resolve(msg.result)));
@@ -157,6 +195,7 @@ try {
     check(lint.problems.length === 0, `${id}: panel lint over ${lint.controls} controls${lint.problems.length ? ': ' + lint.problems.slice(0, 4).join('; ') : ''}`);
     mkdirSync(OUT, { recursive: true });
     await evaluate(`document.activeElement && document.activeElement.blur()`);
+    await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1, y: 799 });   // no hover in the picture
     await sleep(100);
     const png = Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64');
     writeFileSync(join(OUT, `${id}.png`), png);
@@ -166,8 +205,9 @@ try {
       copyFileSync(join(OUT, `${id}.png`), golden);
       console.log(`   updated tests/golden/screens/${id}.png`);
     } else {
-      check(existsSync(golden) && readFileSync(golden).equals(png),
-        `${id}: looks as in tests/golden/screens/${id}.png${existsSync(golden) ? '' : ' (no golden yet)'} (new: tests/browser/out/${id}.png)`);
+      const diff = existsSync(golden) ? pngDiff(readFileSync(golden), png) : null;
+      check(diff && diff.size && diff.count <= 16 && diff.worst <= 8,
+        `${id}: looks as in tests/golden/screens/${id}.png${diff ? (diff.size ? ` (${diff.count} pixels differ, by up to ${diff.worst})` : ' (another size)') : ' (no golden yet)'} (new: tests/browser/out/${id}.png)`);
     }
   }
   await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('va'))`);
@@ -308,6 +348,27 @@ try {
     const lib = await import('./tracker/library.js');
     return (await lib.load(lib.currentId())).mix; })()`);
   check(savedMix.channels.va2.sendA === 20 && savedMix.buses[0].type === 1, 'the mix saves with the song');
+
+  console.log('== Dexed');
+  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('dexed'))`);
+  const dxText = async () => (await evaluate(`document.querySelector('.dexed-lcd').getAttribute('aria-label')`)).replace(/^Display: /, '');
+  check((await dxText()).includes('SYNPREZFM 01') && (await dxText()).includes('PIANO'), `the bank's sounds are listed: "${(await dxText()).split('\n')[2]}"`);
+  await evaluate(`(() => { const c = document.querySelector('.dexed-lcd'), r = c.getBoundingClientRect();
+    const at = { clientX: r.left + r.width * (12 / 44) + 4, clientY: r.top + r.height * (3.5 / 10) };
+    c.dispatchEvent(new PointerEvent('pointerdown', { ...at, button: 0, bubbles: true })); })()`);
+  check((await evaluate(`window.orangeMouse.tracker.song().dexed[0].program`)) === 9, 'clicking a name chooses that sound (column 2, row 2: #10)');
+  await press('ArrowRight', 'ArrowRight');
+  check((await dxText()).startsWith('DX1 SYNPREZFM 02'), `the right arrow changes the bank: "${(await dxText()).split('\n')[0]}"`);
+  const quiet = await peak(150);
+  await key('KeyZ', 'z', true);
+  const dxPeak = await peak(400);
+  await key('KeyZ', 'z', false);
+  check(dxPeak > 0.01 && dxPeak > quiet, `key Z plays DX1 (peak ${dxPeak.toFixed(3)}, before ${quiet.toFixed(3)})`);
+  await sleep(1200);   // autosave
+  const savedDx = await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    return (await lib.load(lib.currentId())).dexed; })()`);
+  check(savedDx[0].bank === 2 && savedDx[0].program === 9, 'Dexed\'s choice saves with the song');
 
   console.log('== health');
   await sleep(300);

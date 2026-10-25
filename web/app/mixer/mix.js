@@ -9,7 +9,7 @@
 import fxRegistry from '../registry/fx.js';
 
 // The mixer's channels: the engines' stems, in the studio's order (the LXR's
-// seven, then VA's four; web/port/web_studio.c). Keys stay the same when
+// seven, VA's four, Dexed's two; web/port/web_studio.c). Keys stay the same when
 // engines are added, so saved songs keep their mix.
 export const CHANNELS = [
   { key: 'lxr1', short: 'DR1', name: 'Drum 1', engine: 0 },
@@ -23,6 +23,8 @@ export const CHANNELS = [
   { key: 'va2', short: 'VA2', name: 'VA2 Poly', engine: 1 },
   { key: 'va3', short: 'VA3', name: 'VA3 Lead', engine: 1 },
   { key: 'va4', short: 'VA4', name: 'VA4 Noise', engine: 1 },
+  { key: 'dx1', short: 'DX1', name: 'Dexed DX1', engine: 2 },
+  { key: 'dx2', short: 'DX2', name: 'Dexed DX2', engine: 2 },
 ];
 
 // studio.h: the controls, and the targets besides the channels

@@ -37,7 +37,7 @@ three. The LXR and Orange Mouse VA are measured in step 3, with the native host 
    engine's float `Render` and applies the LPG itself, or scales before the conversion.
 4. **Plaits also contains a six-operator DX7 engine** (`six_op`), which reads DX7 patches. Its third bank
    (user data) is empty without a loaded cartridge.
-5. **Dexed's engine needs three shims, all in `spikes/dexed/shim/`.** They replace standard tuning
+5. **Dexed's engine needs three shims, now in `engines/dexed/shim/`.** They replace standard tuning
    (Dexed's `tuning.cc` needs JUCE), MTS-ESP (no microtuning master, ever) and the JUCE memory logger.
    No Dexed file is modified.
 6. **sst-effects has no chorus yet.** `Chorus.h` is an empty placeholder (Surge's chorus hasn't been moved

@@ -26,7 +26,7 @@ import { CHANNELS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage
 
 const COLS = 84;
 const ROWS = 15;
-const W = 6;                 // display columns per strip
+const W = 5;                 // display columns per strip: 16 strips
 const METER_TOP = 2;
 const METER_ROWS = 8;
 const FLOOR_DB = -48;        // the meters' bottom
@@ -160,7 +160,7 @@ export function createMixerDevice({ send, help, song }) {
           const below = (METER_ROWS - 1 - r) * 8;
           cells += BARS[Math.max(0, Math.min(8, dots - below))];
         }
-        rows[r].push(cells + '  ');
+        rows[r].push(cells.padEnd(W));
       }
       let lines;
       if (x.kind === 'channel') {

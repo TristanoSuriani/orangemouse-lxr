@@ -47,6 +47,9 @@ include(${CMAKE_CURRENT_LIST_DIR}/../studio/fx_sources.cmake)
 # the send effects, in C++, apart from the firmware's forced-include header
 add_library(om_fx OBJECT ${om_fx_sources})
 om_fx_configure(om_fx)
+include(${CMAKE_CURRENT_LIST_DIR}/../engines/dexed/dexed_sources.cmake)
+add_library(om_dexed OBJECT ${om_dexed_sources})
+om_dexed_configure(om_dexed)
 
 add_executable(lxr ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources})
 lxr_configure(lxr)
@@ -60,9 +63,10 @@ add_executable(studio
     ${LXR_ROOT}/engines/orangemouse-va/va_engine.c
     port/web_studio.c
     $<TARGET_OBJECTS:om_fx>
+    $<TARGET_OBJECTS:om_dexed>
 )
 lxr_configure(studio)
-target_include_directories(studio PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines/orangemouse-va)
+target_include_directories(studio PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines/orangemouse-va ${LXR_ROOT}/engines/dexed)
 
 # Cortex-M7 semantics for integer division by zero, see port/web_arm_division.c.
 find_package(Python3 REQUIRED COMPONENTS Interpreter)

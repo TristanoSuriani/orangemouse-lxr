@@ -20,7 +20,7 @@
 #include <time.h>
 #include "studio.h"
 
-extern const OmEngineClass om_lxr_engine, om_va_engine;
+extern const OmEngineClass om_lxr_engine, om_va_engine, om_dexed_engine;
 
 void web_log(const char *msg) { fprintf(stderr, "lxr: %s\n", msg); }
 void web_sd_written(uint32_t firstSector, uint32_t count) { (void)firstSector; (void)count; }
@@ -49,7 +49,7 @@ static void writeWav(const char *path, const float *l, const float *r, uint32_t 
 }
 
 // the song, in 16th-note steps
-static void schedule(OmStudio *st, int lxr, int va, float rate, int steps)
+static void schedule(OmStudio *st, int lxr, int va, int dx, float rate, int steps)
 {
 	static const char *drums[7] = {
 		"x...x...x...x...", "......x.......x.", "..........x.....", "....x.......x...",
@@ -80,6 +80,13 @@ static void schedule(OmStudio *st, int lxr, int va, float rate, int steps)
 			om_studio_note_on(st, t, (uint8_t)va, 2, note, 90);
 			om_studio_note_off(st, t + (uint64_t)(1.5 * step), (uint8_t)va, 2, note);
 		}
+		if (s % 8 == 6)   // Dexed: off-beat stabs of the chord, an octave up
+			for (int n = 0; n < 3; n++)
+			{
+				const uint8_t note = (uint8_t)(chords[(s / 16) % 4][n] + 12);
+				om_studio_note_on(st, t, (uint8_t)dx, 0, note, 90);
+				om_studio_note_off(st, t + (uint64_t)step, (uint8_t)dx, 0, note);
+			}
 		if (s % 32 == 0)
 		{
 			om_studio_note_on(st, t, (uint8_t)va, 3, 60, 70);
@@ -104,7 +111,12 @@ int main(int argc, char **argv)
 	OmStudio *st = om_studio_create(rate);
 	const int lxr = om_studio_add_engine(st, &om_lxr_engine);
 	const int va = om_studio_add_engine(st, &om_va_engine);
-	if (lxr < 0 || va < 0) { fprintf(stderr, "cannot create the engines\n"); return 1; }
+	const int dx = om_studio_add_engine(st, &om_dexed_engine);
+	if (lxr < 0 || va < 0 || dx < 0) { fprintf(stderr, "cannot create the engines\n"); return 1; }
+	om_studio_set_param(st, 0, (uint8_t)dx, 0, 0, 1);   // bank: SynprezFM 01
+	om_studio_set_param(st, 0, (uint8_t)dx, 0, 1, 10);  // program 11
+	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)dx, 0), OM_MIX_PAN, 84);
+	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)dx, 0), OM_MIX_SEND_B, 70);
 	om_studio_set_tempo(st, 120.f);
 	for (uint8_t s = 0; s < 4; s++)
 	{
@@ -118,7 +130,7 @@ int main(int argc, char **argv)
 	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)va, 2), OM_MIX_SEND_B, 75);
 
 	const uint32_t blocks = (uint32_t)(seconds * rate / OM_MAX_BLOCK);
-	schedule(st, lxr, va, rate, (int)(seconds * 120.f / 60.f * 4.f));   // all of it: it fits the queues
+	schedule(st, lxr, va, dx, rate, (int)(seconds * 120.f / 60.f * 4.f));   // all of it: it fits the queues
 
 	float *l = malloc(sizeof(float) * OM_MAX_BLOCK * blocks), *r = malloc(sizeof(float) * OM_MAX_BLOCK * blocks);
 	FILE *raw = rawPath ? fopen(rawPath, "wb") : NULL;

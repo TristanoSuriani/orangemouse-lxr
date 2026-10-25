@@ -320,12 +320,14 @@ kbd {
 .brand b { color: var(--accent); font-weight: 600; }
 /* the rack takes the top row; the brand, the dock and the help strip the second */
 .rack { display: flex; gap: 8px; flex: 1 1 100%; order: -1; }
+/* a card: its name over its display, so five fit across */
 .rack-card {
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px 6px 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 5px 6px 6px;
   border: 1px solid var(--panel-edge);
   border-radius: 9px;
   background: linear-gradient(180deg, #2b2e34, var(--panel));
@@ -333,10 +335,11 @@ kbd {
   font: inherit;
   cursor: pointer;
 }
-.rack-card .led { width: 6px; height: 14px; border-radius: 3px; background: var(--led-off); }
+.rack-head { display: flex; align-items: center; gap: 6px; padding-left: 2px; }
+.rack-card .led { width: 10px; height: 4px; border-radius: 2px; background: var(--led-off); }
 .rack-card.lit { border-color: #6b3d17; }
 .rack-card.lit .led { background: var(--led-on); box-shadow: 0 0 8px var(--led-glow); }
-.rack-name { display: flex; flex-direction: column; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; min-width: 34px; }
+.rack-name { display: flex; align-items: baseline; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.1em; }
 .rack-name small { font-size: 9px; font-weight: 400; letter-spacing: 0.04em; color: var(--muted); }
 .lcd.rack-lcd { width: auto; border-width: 3px; border-radius: 4px; }
 .sd-menu { position: relative; }
@@ -441,3 +444,8 @@ kbd {
 .mixer-lcd { width: auto; align-self: center; }
 .device.mixer { padding-top: 16px; padding-bottom: 16px; gap: 12px; }
 .mixer-pads .pad { min-width: 52px; padding-left: 4px; padding-right: 4px; }
+
+/* ---- Dexed ---- */
+.dexed-lcd { width: auto; }
+.device.dexed .device-pads { gap: 12px; }
+.dexed-knobs { gap: 14px; padding: 0; }

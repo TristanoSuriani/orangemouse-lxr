@@ -32,8 +32,8 @@ if [ -z "$ARGS" ] || want dexed; then
   D=$TP/dexed/Source
   mkdir -p "$ROOT/spikes/dexed/carts"
   unzip -o -q -j "$TP/dexed/assets/builtin_pgm.zip" SynprezFM_01.syx SynprezFM_03.syx -d "$ROOT/spikes/dexed/carts"
-  SRC="$D/msfa/dx7note.cc $D/msfa/env.cc $D/msfa/exp2.cc $D/msfa/fm_core.cc $D/msfa/fm_op_kernel.cc $D/msfa/freqlut.cc $D/msfa/lfo.cc $D/msfa/pitchenv.cc $D/msfa/porta.cpp $D/msfa/sin.cc $D/engine/EngineMkI.cpp $ROOT/spikes/dexed/shim/tuning_standard.cc"
-  (cd "$ROOT" && FLAGS="-I$ROOT/spikes/dexed/shim -I$D -I$D/msfa -w" run dexed_spike "$ROOT/spikes/dexed/dexed_spike.cc" $SRC)
+  SRC="$D/msfa/dx7note.cc $D/msfa/env.cc $D/msfa/exp2.cc $D/msfa/fm_core.cc $D/msfa/fm_op_kernel.cc $D/msfa/freqlut.cc $D/msfa/lfo.cc $D/msfa/pitchenv.cc $D/msfa/porta.cpp $D/msfa/sin.cc $D/engine/EngineMkI.cpp $ROOT/engines/dexed/shim/tuning_standard.cc"
+  (cd "$ROOT" && FLAGS="-I$ROOT/engines/dexed/shim -I$D -I$D/msfa -w" run dexed_spike "$ROOT/spikes/dexed/dexed_spike.cc" $SRC)
 fi
 
 if [ -z "$ARGS" ] || want sst; then

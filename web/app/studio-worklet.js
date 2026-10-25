@@ -84,6 +84,7 @@ class StudioProcessor extends AudioWorkletProcessor {
 
     this.port.onmessage = (e) => this.onMessage(e.data);
     this.sendVaPresets();
+    this.sendDexedNames();
     for (let slot = 0; slot < 4; slot++) this.vaSlotsChanged.add(slot);
     // a blank card has just been formatted by the firmware: store all of it
     if (blankCard) this.flushSd(true);
@@ -158,6 +159,18 @@ class StudioProcessor extends AudioWorkletProcessor {
       slots.push(presets);
     }
     this.port.postMessage({ type: 'vaPresets', slots });
+  }
+
+  // Dexed's banks and their programs' names, once.
+  sendDexedNames() {
+    const w = this.wasm;
+    const banks = [];
+    for (let b = 0; b < w.om_web_dexed_banks(); b++) {
+      const programs = [];
+      for (let p = 0; p < 32; p++) programs.push(this.readCString(w.om_web_dexed_program_name(b, p)));
+      banks.push({ name: this.readCString(w.om_web_dexed_bank_name(b)), programs });
+    }
+    this.port.postMessage({ type: 'dexedNames', banks });
   }
 
   // A VA slot's parameters, after a preset load changed them all.

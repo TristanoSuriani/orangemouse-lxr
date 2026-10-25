@@ -243,6 +243,14 @@ Done as follows:
 
 Presets only: a bank browser on a character display, and volume and transpose on soft knobs.
 
+Done as follows: Dexed's engine (msfa and EngineMkI, with the three shims of the spike, now in
+engines/dexed/shim/) plays the 33 cartridges Dexed ships with: 1,056 DX7 sounds, compiled in from
+third_party at build time (tools/dexed_carts.py). Two parts, DX1 and DX2, each with 16 voices, on tracker
+tracks 12 and 13 and on their own mixer strips; Dexed's own voice stealing, LFO and output clipping. The
+device lists a bank's 32 sounds on its display, four columns of names; each part's bank, sound, volume
+and transpose are part of the song. tests/host/dexed_test.c checks every sound, and the native and
+browser renders stay bit for bit the same.
+
 ### Phase 5: Plaits
 
 The genre-picked engines, with presets for each genre.

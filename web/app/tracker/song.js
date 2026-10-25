@@ -22,7 +22,16 @@ export const OFF_NOTE = 0xfe;
 export const ENGINES = [
   { name: 'LXR', parts: ['Drum 1', 'Drum 2', 'Drum 3', 'Snare', 'Cymbal', 'Hihat cl', 'Hihat op'] },
   { name: 'VA', parts: ['VA1 Bass', 'VA2 Poly', 'VA3 Lead', 'VA4 Noise'] },
+  { name: 'Dexed', parts: ['DX1', 'DX2'] },
 ];
+
+// Dexed's parts, as the song keeps them: bank, program, volume, transpose
+// (registry/dexed.json; the studio's engine 2)
+export const DEXED = 2;
+export const newDexed = () => [0, 1].map(() => ({ bank: 1, program: 0, volume: 100, transpose: 24 }));
+const DEXED_FIELDS = ['bank', 'program', 'volume', 'transpose'];
+export const dexedMessage = (part, field, value) =>
+  ({ type: 'param', engine: DEXED, part, param: DEXED_FIELDS.indexOf(field), value });
 
 function defaultTracks() {
   const tracks = [];
@@ -36,7 +45,7 @@ export function newPattern(rows = 64) {
 }
 
 export function newSong() {
-  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix() };
+  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix(), dexed: newDexed() };
 }
 
 export const cellKey = (row, track) => `${row}:${track}`;
@@ -73,6 +82,7 @@ export function songMessages(song) {
     if (t.engine !== null) msgs.push({ type: 'tracker', op: 'route', track: k, engine: t.engine, part: t.part });
     msgs.push({ type: 'tracker', op: 'mute', track: k, on: t.mute }, { type: 'tracker', op: 'solo', track: k, on: t.solo });
   });
+  song.dexed.forEach((part, k) => DEXED_FIELDS.forEach((f) => msgs.push(dexedMessage(k, f, part[f]))));
   return msgs.concat(mixMessages(song.mix));
 }
 

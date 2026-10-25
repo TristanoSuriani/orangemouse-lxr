@@ -91,6 +91,13 @@ om_fx_configure(om_fx)
 target_compile_options(om_fx PRIVATE -ffp-contract=off)
 set(om_fx_objects $<TARGET_OBJECTS:om_fx>)
 
+# Dexed (engines/dexed/)
+include(${LXR_ROOT}/engines/dexed/dexed_sources.cmake)
+add_library(om_dexed OBJECT ${om_dexed_sources})
+om_dexed_configure(om_dexed)
+target_compile_options(om_dexed PRIVATE -ffp-contract=off)
+set(om_fx_objects ${om_fx_objects} $<TARGET_OBJECTS:om_dexed>)
+
 set(lxr_tools lxr_render)
 if(NOT EMSCRIPTEN)
     list(APPEND lxr_tools lxr_sweep)   # it forks
@@ -104,7 +111,9 @@ add_executable(studio_render studio_render.c $<TARGET_OBJECTS:lxr_firmware> $<TA
 add_executable(studio_test studio_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(tracker_test tracker_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(lxr_sync_test lxr_sync_test.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
-foreach(tool studio_render studio_test tracker_test lxr_sync_test)
+add_executable(dexed_test dexed_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
+target_include_directories(dexed_test PRIVATE ${LXR_ROOT}/engines/dexed)
+foreach(tool studio_render studio_test tracker_test lxr_sync_test dexed_test)
     target_include_directories(${tool} PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines ${LXR_ROOT}/generated/registry)
     target_link_libraries(${tool} PRIVATE m)
 endforeach()
@@ -113,7 +122,7 @@ endforeach()
 # show the browser computes what the native tests checked.
 #   emcmake cmake -S tests/host -B tests/host/build-wasm -G Ninja
 if(EMSCRIPTEN)
-    foreach(tool ${lxr_tools} studio_render studio_test tracker_test)
+    foreach(tool ${lxr_tools} studio_render studio_test tracker_test dexed_test)
         target_link_options(${tool} PRIVATE -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1MB -sEXIT_RUNTIME=1)
     endforeach()
 endif()

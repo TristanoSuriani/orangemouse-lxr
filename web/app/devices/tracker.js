@@ -65,7 +65,8 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   let saveTimer = null;
   const send = (m) => {
     sendToWorklet(m);
-    if ((m.type === 'tracker' && m.op !== 'play' && m.op !== 'stop') || m.type === 'mix' || m.type === 'fx') {
+    // (the mixer and Dexed send through here too: their settings are the song's)
+    if ((m.type === 'tracker' && m.op !== 'play' && m.op !== 'stop') || m.type === 'mix' || m.type === 'fx' || m.type === 'param') {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => library.save(song.value), 800);
     }
