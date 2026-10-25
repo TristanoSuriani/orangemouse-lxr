@@ -44,6 +44,10 @@ echo "== host build"
 cmake -S tests/host -B $BIN -G Ninja >/dev/null
 cmake --build $BIN >/dev/null
 
+echo "== the app's JavaScript parses"
+for f in web/app/*.js web/app/*/*.js tests/*.mjs tests/browser/*.mjs; do node --check "$f" || fail=1; done
+echo "   ok"
+
 echo "== parameter registry"
 { python3 -I tools/lxr_registry.py --check && python3 -I tools/registry.py --check && node tests/registry_test.mjs; } \
   | sed 's/^/   /' || fail=1

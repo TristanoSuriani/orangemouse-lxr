@@ -113,7 +113,10 @@ const evaluate = async (expression) => {
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
   return r.result.value;
 };
-const key = async (code, keyName, down) => cdp('Input.dispatchKeyEvent', { type: down ? 'keyDown' : 'keyUp', code, key: keyName });
+const key = async (code, keyName, down, modifiers = 0) => cdp('Input.dispatchKeyEvent', { type: down ? 'keyDown' : 'keyUp', code, key: keyName, modifiers });
+// a key press and release; modifiers: 1 Alt, 2 Ctrl, 4 Meta, 8 Shift
+const press = async (code, keyName, modifiers = 0) => { await key(code, keyName, true, modifiers); await key(code, keyName, false, modifiers); await sleep(30); };
+const trackerRow = async (r) => (await evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`)).split('\n')[2 + r];
 const vaDisplay = () => evaluate(`document.querySelector('.va-lcd').getAttribute('aria-label')`);
 // the strip's rows joined with spaces, as one line of text
 const helpText = async () => (await evaluate(`document.getElementById('help').getAttribute('aria-label')`)).replace(/\s+/g, ' ');
@@ -137,7 +140,7 @@ try {
   console.log('== switch on');
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
-  check(await evaluate('!!window.orangeMouse'), 'the studio started');
+  check(await evaluate('!!window.orangeMouse'), `the studio started${errors.length ? ` (errors: ${errors.slice(0, 3).join(' / ')})` : ''}`);
   check((await evaluate(`document.getElementById('status').textContent`)).includes('SD card'), 'the SD card is ready');
   await sleep(800);
   check((await vaDisplay()).includes('#01'), `the VA display shows a preset: "${(await vaDisplay()).replace(/\n/g, ' | ')}"`);
@@ -196,7 +199,7 @@ try {
   check(await evaluate(`document.querySelector('.va .guide-card').hidden`), 'pressing ? again closes it');
 
   console.log('== the LXR explained');
-  await evaluate(`window.orangeMouseUi.showDevice(0)`);
+  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('lxr'))`);
   await evaluate(`document.querySelector('#pots .pot').dispatchEvent(new PointerEvent('pointerenter'))`);
   const lxrHelp = await helpText();
   check(lxrHelp.includes('Pot 1') && lxrHelp.includes('Coarse tune') && lxrHelp.includes(':'),
@@ -212,6 +215,30 @@ try {
     return pots.params.map((p, i) => (reg.params[p] ? formatShort(reg.params[p], pots.values[i]).trim() : '?'));
   })()`);
   check(JSON.stringify(lcdValues) === JSON.stringify(ours), `the registry shows the pots' values as the LCD does: LCD ${lcdValues.join(' ')}, registry ${ours.join(' ')}`);
+
+  console.log('== the tracker');
+  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('tracker'))`);
+  await press('KeyZ', 'z');
+  check((await trackerRow(0)).startsWith('00') && (await trackerRow(0)).includes('C-4'), `Z writes C-4 on row 00: "${await trackerRow(0)}"`);
+  await press('ArrowUp', 'ArrowUp');
+  await press('KeyC', 'C', 8);
+  check((await trackerRow(0)).includes('C-4²'), `Shift+C stacks a chord: "${await trackerRow(0)}"`);
+  await press('KeyZ', 'z', 4);
+  check((await trackerRow(0)).includes('C-4 ') && !(await trackerRow(0)).includes('²'), `Cmd+Z undoes the chord: "${await trackerRow(0)}"`);
+  await press('KeyC', 'c', 4);
+  await press('ArrowDown', 'ArrowDown');
+  await press('ArrowDown', 'ArrowDown');
+  await press('ArrowDown', 'ArrowDown');
+  await press('ArrowDown', 'ArrowDown');
+  await press('KeyV', 'v', 4);
+  check((await trackerRow(4)).includes('C-4'), `Cmd+C, Cmd+V repeat the cell on row 04: "${await trackerRow(4)}"`);
+  await press('Enter', 'Enter');
+  const loud = await peak(1200);
+  check(loud > 0.02, `Enter loops the pattern and the drum plays (peak ${loud.toFixed(3)})`);
+  check((await evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`)).includes('▶'), 'the display shows it playing');
+  await press('Enter', 'Enter');
+  await sleep(200);
+  check((await evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`)).includes('STOPPED'), 'Enter again stops');
 
   console.log('== the LXR plays');
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'note', engine: 0, part: 0, note: 36, velocity: 120, on: true })`);

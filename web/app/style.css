@@ -424,3 +424,13 @@ kbd {
 .guide-card[hidden] { display: none; }
 .guide-card h3 { margin: 0 0 4px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #8a3d00; }
 .guide-card p { margin: 0; font-size: 14px; line-height: 1.45; max-width: 60ch; }
+
+/* the tracker: its large display, then the knobs and pads in one row */
+.tracker-lcd { width: auto; align-self: center; }
+.tracker-controls { display: flex; gap: 18px; align-items: center; }
+.tracker-controls .pots { gap: 10px; padding: 0; }
+.tracker-controls .pot { width: 44px; height: 44px; }
+.tracker-pads { flex-wrap: nowrap; }
+.tracker-controls .device-head { margin-left: auto; gap: 10px; }
+.device.tracker { padding-top: 16px; padding-bottom: 16px; gap: 12px; }
+.tracker-pads .pad { min-width: 48px; padding-left: 4px; padding-right: 4px; }

@@ -97,6 +97,24 @@ class StudioProcessor extends AudioWorkletProcessor {
         w.om_web_set_param(msg.engine, msg.part, msg.param, msg.value);
         if (msg.engine === VA && msg.param === VA_P_PRESET) this.vaSlotsChanged.add(msg.part);
         break;
+      case 'tracker': this.tracker(msg); break;
+    }
+  }
+
+  // The tracker's song and transport (web/app/tracker/song.js builds these).
+  tracker(msg) {
+    const w = this.wasm;
+    switch (msg.op) {
+      case 'clear': w.om_web_tracker_clear(); break;
+      case 'tempo': w.om_web_tracker_tempo(msg.bpm); break;
+      case 'pattern': w.om_web_tracker_length(msg.p, msg.rows); w.om_web_tracker_pattern_tempo(msg.p, msg.bpm); break;
+      case 'cell': w.om_web_tracker_cell(msg.p, msg.row, msg.track, ...msg.notes, msg.vel, msg.retrig); break;
+      case 'order': w.om_web_tracker_order(msg.position, msg.p); break;
+      case 'route': w.om_web_tracker_route(msg.track, msg.engine, msg.part); break;
+      case 'mute': w.om_web_tracker_mute(msg.track, msg.on ? 1 : 0); break;
+      case 'solo': w.om_web_tracker_solo(msg.track, msg.on ? 1 : 0); break;
+      case 'play': if (msg.mode === 'song') w.om_web_tracker_play_song(msg.from); else w.om_web_tracker_play_pattern(msg.from); break;
+      case 'stop': w.om_web_tracker_stop(); break;
     }
   }
 
@@ -165,6 +183,13 @@ class StudioProcessor extends AudioWorkletProcessor {
     if (force || potsKey !== this.lastPots) {
       this.lastPots = potsKey;
       msg.lxrPots = lxrPots;
+    }
+    // where the tracker plays: playing, pattern, order position, row, tempo
+    const tracker = Array.from(new Float32Array(w.memory.buffer, w.om_web_tracker_state(), 5));
+    const trackerKey = tracker.join(',');
+    if (force || trackerKey !== this.lastTracker) {
+      this.lastTracker = trackerKey;
+      msg.tracker = tracker;
     }
     if (force || leds[0] !== this.lastLeds[0] || leds[1] !== this.lastLeds[1]) {
       this.lastLeds = leds;

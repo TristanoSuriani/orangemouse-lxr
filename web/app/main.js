@@ -11,6 +11,8 @@ import { SdCardStore, SD_SECTORS, SECTOR_SIZE, flushOnHide } from './sdcard.js';
 import { makePad, makeRotary } from './kit/controls.js';
 import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
+import { createTrackerDevice } from './devices/tracker.js';
+import { newSong, songMessages } from './tracker/song.js';
 import { DotMatrix } from './kit/dotmatrix.js';
 import { addGuide } from './kit/guide.js';
 import { HelpStrip, describe } from './kit/help.js';
@@ -190,6 +192,10 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   const device = devices[shown]?.id;
+  if (device === 'tracker' && tracker.handleKey(e, true)) {
+    e.preventDefault();
+    return;
+  }
   if (device === 'va' && e.code in KEY_SEMITONES && !e.metaKey && !e.ctrlKey && !e.altKey) {
     if (!e.repeat) va.noteFromKey(KEY_SEMITONES[e.code], true);
     return;
@@ -214,6 +220,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
+  if (devices[shown]?.id === 'tracker' && tracker.handleKey(e, false)) return;
   if (e.code in KEY_SEMITONES) {
     va.noteFromKey(KEY_SEMITONES[e.code], false);
     return;
@@ -328,6 +335,7 @@ async function switchOn() {
   });
   node.connect(gain).connect(context.destination);
   node.port.onmessage = (e) => onWorkletMessage(e.data);
+  for (const m of songMessages(tracker.song())) send(m);   // the worklet's tracker gets the song
   node.onprocessorerror = () => setStatus('The studio stopped with an error, reload the page.');
 
   for (const [i, input] of document.querySelectorAll('.fader').entries()) {
@@ -335,7 +343,7 @@ async function switchOn() {
   }
   await context.resume();
   power.hidden = true;
-  window.orangeMouse = { context, node, va };   // for the browser tests (tests/browser/)
+  window.orangeMouse = { context, node, va, tracker };   // for the browser tests (tests/browser/)
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
@@ -377,9 +385,13 @@ function onWorkletMessage(msg) {
       if (msg.lcd) {
         lcd.update(msg.lcd, msg.cgram, msg.lcdOn);
         lcd.canvas.setAttribute('aria-label', `Display: ${lcd.toString()}`);
-        devices[0].mini(lcd.toString().split('\n'));
+        devices[1].mini(lcd.toString().split('\n'));
       }
       if (msg.leds) showLeds(msg.leds);
+      if (msg.tracker) {
+        tracker.onState(msg.tracker);
+        devices[0].mini(tracker.summary());
+      }
       if (msg.lxrPots) {
         lxrPots = msg.lxrPots;
         help.refresh();
@@ -440,6 +452,9 @@ const help = new HelpStrip(document.getElementById('help'),
 buildPanel();
 describeLxr();
 const va = createVaDevice({ send, help });
+const tracker = createTrackerDevice({ send, help });
+tracker.load(newSong());
+document.getElementById('devices').prepend(tracker.el);
 document.getElementById('devices').append(va.el);
 
 // ---- the rack: one device expanded, the others as cards in the top bar ----------
@@ -456,6 +471,7 @@ const machine = document.getElementById('machine');
 addGuide(machine, machine.querySelector('.device-head'), LXR_GUIDE, help);
 
 const devices = [
+  { id: 'tracker', name: 'TRK', what: 'tracker', el: tracker.el },
   { id: 'lxr', name: 'LXR', what: 'drum machine', el: machine },
   { id: 'va', name: 'VA', what: 'Orange Mouse VA', el: va.el },
 ];
@@ -474,7 +490,8 @@ devices.forEach((d, i) => {
   d.mini(['', '']);
   rack.append(card);
 });
-va.onSummary((rows) => devices[1].mini(rows));
+va.onSummary((rows) => devices[2].mini(rows));
+devices[0].mini(tracker.summary());
 
 function showDevice(i) {
   if (i < 0 || i >= devices.length) return;
