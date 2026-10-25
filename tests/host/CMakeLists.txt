@@ -24,12 +24,10 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 include(${LXR_ROOT}/web/lxr_sources.cmake)
 
-add_executable(lxr_render
-    ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources}
-    lxr_render.c
-)
-lxr_configure(lxr_render)
-target_compile_options(lxr_render PRIVATE
+# The firmware once, as an object library both tools link.
+add_library(lxr_firmware OBJECT ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources})
+lxr_configure(lxr_firmware)
+target_compile_options(lxr_firmware PRIVATE
     "SHELL:-include ${CMAKE_CURRENT_LIST_DIR}/host_port.h"
     # the browser build has no fused multiply-add; without this, clang fuses on
     # ARM and the samples differ from the browser's (see spikes/README.md)
@@ -38,7 +36,7 @@ target_compile_options(lxr_render PRIVATE
     # weak-symbol macro (FatFs' default get_fattime would clash with fatfs.c)
     -U__weak
 )
-target_compile_definitions(lxr_render PRIVATE "__weak=__attribute__((weak))")
+target_compile_definitions(lxr_firmware PRIVATE "__weak=__attribute__((weak))")
 
 # musl's sinf, cosf, expf, exp and logf, as Emscripten links them into the
 # browser build (musl_rename.h). Found through emcc; without Emscripten the
@@ -59,10 +57,14 @@ if(MUSL_DIR AND EXISTS "${MUSL_DIR}/src/math/sinf.c")
     add_library(musl_math OBJECT ${musl_math_sources})
     target_include_directories(musl_math PRIVATE musl_shim "${MUSL_DIR}/src/internal" "${MUSL_DIR}/src/math")
     target_compile_options(musl_math PRIVATE "SHELL:-include ${CMAKE_CURRENT_LIST_DIR}/musl_rename.h" -ffp-contract=off -w)
-    target_sources(lxr_render PRIVATE $<TARGET_OBJECTS:musl_math>)
-    target_compile_definitions(lxr_render PRIVATE LXR_HOST_MUSL_MATH)
+    target_compile_definitions(lxr_firmware PRIVATE LXR_HOST_MUSL_MATH)
+    set(musl_objects $<TARGET_OBJECTS:musl_math>)
     message(STATUS "libm: musl from ${MUSL_DIR}")
 else()
     message(WARNING "Emscripten not found: the host build uses the system libm and may differ from the browser by a few LSB")
 endif()
-target_link_libraries(lxr_render PRIVATE m)
+
+foreach(tool lxr_render lxr_sweep)
+    add_executable(${tool} ${tool}.c $<TARGET_OBJECTS:lxr_firmware> ${musl_objects})
+    target_link_libraries(${tool} PRIVATE m)
+endforeach()

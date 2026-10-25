@@ -16,10 +16,10 @@
 #include "web_port.h"
 #include "Parameters.h"
 #include "menu/menu.h"
-#include "frontPanelParser_ui.h"
-#include "Soundengine/MIDI/MidiMessages.h"
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "Soundengine/Sequencer/sequencer.h"
+#include "menu/CcNr2Text.h"
+#include "Preset/PresetManager.h"
 
 // voice 0..6 (drum 1-3, snare, cymbal, closed hihat, open hihat)
 WEB_EXPORT void web_test_note_on(uint8_t voice, uint8_t note, uint8_t velocity)
@@ -33,22 +33,72 @@ WEB_EXPORT void web_test_note_off(uint8_t voice)
 	voiceControl_noteOff(voice);
 }
 
-// A sound parameter (enum in Parameters.h, below END_OF_SOUND_PARAMETERS),
-// sent to the sound engine the way the menu sends it.
+// A sound parameter (enum in Parameters.h, below END_OF_SOUND_PARAMETERS) in
+// the kit being edited. Nothing is heard until web_test_load_kit().
 WEB_EXPORT void web_test_set_param(uint16_t param, uint8_t value)
 {
-	if (param >= END_OF_SOUND_PARAMETERS)
-		return;
-	activeParameters[param] = value;
-	if (param < 128)
-		frontPanel_sendData(MIDI_CC, (uint8_t)param, value);
-	else
-		frontPanel_sendData(CC_2, (uint8_t)(param - 128), value);
+	if (param < END_OF_SOUND_PARAMETERS)
+		activeParameters[param] = value;
+}
+
+// Sends the whole kit to the sound engine exactly as loading a kit from the
+// SD card does (preset_sendDrumsetParametersImmediate), modulation targets
+// included.
+WEB_EXPORT void web_test_load_kit(void)
+{
+	preset_sendDrumsetParametersImmediate();
 }
 
 WEB_EXPORT uint16_t web_test_num_sound_params(void)
 {
 	return END_OF_SOUND_PARAMETERS;
+}
+
+// A busier kit than the init kit, so parameters that the init kit leaves idle
+// are heard too: drum 2 and the snare go to the FX bus (delay, half wet), every LFO
+// modulates its own voice's third target, and velocity modulates each voice's
+// second target. Like web_test_set_param, it only edits the kit.
+WEB_EXPORT void web_test_busy_kit(void)
+{
+	web_test_set_param(PAR_AUDIO_OUT2, 6);  // "FX" (outputNames in MenuText.h)
+	web_test_set_param(PAR_AUDIO_OUT4, 6);
+	web_test_set_param(PAR_FX_TYPE, 4);     // "del" (fxNames in MenuText.h)
+	web_test_set_param(PAR_FX_DRY_WET, 64);
+	for (uint8_t i = 0; i < 6; i++)
+	{
+		web_test_set_param((uint16_t)(PAR_VOICE_LFO1 + i), (uint8_t)(i + 1));
+		web_test_set_param((uint16_t)(PAR_TARGET_LFO1 + i), (uint8_t)(modTargetVoiceOffsets[i].start + 2));
+		web_test_set_param((uint16_t)(PAR_FREQ_LFO1 + i), 40);
+		web_test_set_param((uint16_t)(PAR_AMOUNT_LFO1 + i), 100);
+		web_test_set_param((uint16_t)(PAR_VEL_DEST_1 + i), (uint8_t)(modTargetVoiceOffsets[i].start + 1));
+		web_test_set_param((uint16_t)(PAR_VELO_MOD_AMT_1 + i), 100);
+	}
+}
+
+// The range the menu allows for a parameter (as limitPotValue() in menu.c),
+// as min | max << 8. Menu-type parameters report 0..1: every menu has at least
+// two entries, and their entry counts are private to menu.c.
+WEB_EXPORT uint16_t web_test_param_range(uint16_t param)
+{
+	uint8_t min = 0, max = 127;
+	switch (parameter_dtypes[param] & 0xFF)
+	{
+	case DTYPE_0B255:     max = 255; break;
+	case DTYPE_1B16:      min = 1; max = 16; break;
+	case DTYPE_1B64:      min = 1; max = 64; break;
+	case DTYPE_VOICE_LFO: min = 1; max = 6; break;
+	case DTYPE_0B15:      max = 15; break;
+	case DTYPE_ON_OFF:
+	case DTYPE_0b1:
+	case DTYPE_MENU:      max = 1; break;
+	case DTYPE_0B100:     max = 100; break;
+	case DTYPE_AUTOM_TARGET:
+	case DTYPE_TARGET_SELECTION_LFO:
+	case DTYPE_TARGET_SELECTION_VELO:
+		max = (uint8_t)(getNumModTargets() - 1); break;
+	default:              max = 127; break;
+	}
+	return (uint16_t)(min | (max << 8));
 }
 
 // The demo groove the renders and the parity check play: one bar of 16ths at
