@@ -6,20 +6,18 @@ polyphonic, VA3 mono lead and VA4 noises. It is a device of its own in the Orang
 
 ## Status
 
-**Not built right now.** The engine was written inside the LXR firmware. It was taken out on 2026-10-25,
-when Orange Mouse VA became a separate device, and it still depends on LXR internals:
+**Standalone since 2026-10-25** (PLAN.md Phase 0, step 5). The engine no longer depends on the LXR:
+- It keeps its own parameters (`va_setParam`, `va_getParam`).
+- It takes the sample rate in `va_init()` and the tempo in `va_setTempo()`.
+- It renders float output, any number of frames up to `VA_BLOCK`, so notes start on their exact sample.
+- Besides its GATE-timed `va_noteOn`, it has held notes with a note off (`va_noteOnHeld`, `va_noteOff`).
 
-| Dependency | Where | Replaced by (PLAN.md Phase 0, step 5) |
-|---|---|---|
-| Parameters in LXR's `activeParameters` from `PAR_VA1_FIRST` | `VaEngine.c`, `va_slotParams` | The engine's own parameter block, declared in the registry |
-| Tempo from `seq_getBpm()` | `VaEngine.c` (LFO sync) | The tempo passed in by the host |
-| `REAL_FS`, `OUTPUT_DMA_SIZE` from `Soundengine/config.h` | `VaEngine.c`, `VaEngine.h` | Sample rate and block size passed to `init` |
-| `Sequencer/sequencer.h`, `Parameters.h`, `menu/menu.h` | `VaEngine.c` includes | Nothing; they go |
+`va_engine.c` plugs it into the studio (`engines/engine.h`): four parts (the slots) and one stem per slot.
+`tests/host/studio_test.c` checks that a held note sounds until its note off and then releases to silence.
+`tests/host/studio_render.c` plays it in the studio's demo song.
 
-`lxr-integration.patch` is the uncommitted firmware change that wired the engine into the LXR as tracks
-8–11: the sequencer, MIDI channels, buttons and LEDs, the menu pages, the kit file and the mixer. It is kept
-only for reference (the menu pages and parameter ranges are worth reusing for the device's panel); it is
-not meant to be applied again.
+`lxr-integration.patch` is the firmware change that once wired the engine into the LXR as tracks 8–11. It is
+kept only for reference: its menu pages and parameter ranges are worth reusing for the device's panel.
 
 ## The sound
 

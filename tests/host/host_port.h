@@ -15,14 +15,6 @@
 
 #define section(name) used
 
-// The libm functions the firmware calls at run time come from musl, as in the
-// browser build, so both builds compute them identically (musl_rename.h).
-#ifdef LXR_HOST_MUSL_MATH
-#define sinf om_sinf
-#define cosf om_cosf
-#define expf om_expf
-#define exp om_exp
-#define logf om_logf
-#endif
+#include "om_math.h"
 
 #endif /* HOST_PORT_H_ */

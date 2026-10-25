@@ -35,6 +35,9 @@ set(lxr_port_sources
     ${LXR_PORT_DIR}/web_test.c
 )
 
+# The LXR as a studio engine (engines/engine.h).
+set(lxr_engine_sources ${LXR_ROOT}/engines/lxr/lxr_engine.c)
+
 # -ffast-math, as in the firmware's own build. Off (the default here), the native
 # and browser builds compute bit for bit the same samples (see tests/host/README.md).
 option(LXR_FAST_MATH "Compile the firmware with -ffast-math" OFF)
@@ -42,6 +45,7 @@ option(LXR_FAST_MATH "Compile the firmware with -ffast-math" OFF)
 function(lxr_configure target)
     target_include_directories(${target} PRIVATE
         ${LXR_PORT_DIR}
+        ${LXR_ROOT}/engines
         ${LXR_ROOT}/Core/Inc
         ${LXR_ROOT}/Drivers/CMSIS/Include
         ${LXR_ROOT}/Drivers/CMSIS/Device/ST/STM32F7xx/Include

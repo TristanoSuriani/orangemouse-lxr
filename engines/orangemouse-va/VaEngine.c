@@ -40,22 +40,21 @@
  * Public License version 3, with the additional permission and terms in
  * NOTICE.md. See LICENSE and NOTICE.md in the root of the repository.
  */
-#include "Soundengine/DSPAudio/VaEngine.h"
-#include "Soundengine/Sequencer/sequencer.h"
-#include "Parameters.h"
-#include "menu/menu.h"
+#include "VaEngine.h"
 #include <math.h>
 #include <string.h>
 
 #define VA_OS          4                       // oversampling factor
-#define VA_FS          ((float)REAL_FS)
-#define VA_FS_OS       ((float)REAL_FS * VA_OS)
-#define VA_BLOCK       OUTPUT_DMA_SIZE
+#define VA_FS          va_fs                   // the sample rate, set by va_init()
+#define VA_FS_OS       (va_fs * VA_OS)
 #define VA_MAX_NOTES   6                       // polyphony of a slot
 #define VA_MAX_UNISON  7
 #define VA_OUT_SCALE   16000.f                 // full-scale note level in the int16 output
 
 #define VA_PI          3.14159265358979f
+
+static float va_fs = 48000.f;
+static float va_bpm = 120.f;
 #define VA_TWO_PI      6.28318530717959f
 
 // ---- small math helpers ----------------------------------------------------
@@ -682,10 +681,11 @@ typedef struct
 } VaSlot;
 
 static VaSlot va_slot[VA_NUM_SLOTS];
+static uint8_t va_slotParams[VA_NUM_SLOTS][VA_NUM_PARAMS];
 
 static inline uint8_t *va_params(uint8_t slot)
 {
-	return &activeParameters[PAR_VA1_FIRST + slot * VA_NUM_PARAMS];
+	return va_slotParams[slot];
 }
 
 // The pan positions of the unison copies, -1..1, and their detune shape
@@ -700,8 +700,9 @@ static const float va_unisonShape[VA_MAX_UNISON][VA_MAX_UNISON] = {
 	{0.f, -1.f, 1.f, -0.66f, 0.64f, -0.31f, 0.34f},
 };
 
-void va_init(void)
+void va_init(float sampleRate)
 {
+	va_fs = sampleRate;
 	va_blepInit();
 	va_designHalfband(va_hb1, VA_HB1_SIDE);
 	va_designHalfband(va_hb2, VA_HB2_SIDE);
@@ -713,6 +714,12 @@ void va_init(void)
 		for (int v = 0; v < VA_MAX_NOTES; v++)
 			va_slot[s].voice[v].rng = 0x85EBCA6Bu * (uint32_t)(s * VA_MAX_NOTES + v + 1);
 	}
+	va_initKitParameters(&va_slotParams[0][0]);
+}
+
+void va_setTempo(float bpm)
+{
+	va_bpm = bpm >= 20.f ? bpm : 120.f;
 }
 
 // ---- note handling ---------------------------------------------------------------------
@@ -721,13 +728,11 @@ static float va_gateSeconds(uint8_t gate)
 {
 	// GATE: 16 = one sequencer step; 0 = 1/16 step .. 127 = 8 steps
 	const float steps = (float)(gate + 1) / 16.f;
-	uint16_t bpm = seq_getBpm();
-	if (bpm < 20)
-		bpm = 120;
-	return steps * 15.f / (float)bpm;  // a step is a sixteenth
+	return steps * 15.f / va_bpm;  // a step is a sixteenth
 }
 
-static void va_startVoice(VaSlot *sl, VaVoice *v, const uint8_t *p, uint8_t note, float velocity, uint8_t retrigger, uint8_t glide)
+// hold: the note sounds until va_noteOff(), not for the GATE time
+static void va_startVoice(VaSlot *sl, VaVoice *v, const uint8_t *p, uint8_t note, float velocity, uint8_t retrigger, uint8_t glide, uint8_t hold)
 {
 	const uint8_t wasSilent = v->aenv.stage == VA_ENV_IDLE;
 	v->note = note;
@@ -735,7 +740,7 @@ static void va_startVoice(VaSlot *sl, VaVoice *v, const uint8_t *p, uint8_t note
 	if (!glide || wasSilent)
 		v->pitch = v->targetPitch;
 	v->velocity = velocity;
-	v->gateSamples = (uint32_t)(va_gateSeconds(p[VA_P_GATE]) * VA_FS);
+	v->gateSamples = hold ? 0 : (uint32_t)(va_gateSeconds(p[VA_P_GATE]) * VA_FS);
 	v->age = ++sl->age;
 	v->active = 1;
 
@@ -772,7 +777,7 @@ static void va_startVoice(VaSlot *sl, VaVoice *v, const uint8_t *p, uint8_t note
 		sl->lfoSh = va_randf(&sl->rng);
 }
 
-void va_noteOn(uint8_t slot, uint8_t note, uint8_t velocity)
+static void va_noteStart(uint8_t slot, uint8_t note, uint8_t velocity, uint8_t hold)
 {
 	if (slot >= VA_NUM_SLOTS)
 		return;
@@ -809,7 +814,7 @@ void va_noteOn(uint8_t slot, uint8_t note, uint8_t velocity)
 				if (sl->voice[i].age < pick->age)
 					pick = &sl->voice[i];
 		}
-		va_startVoice(sl, pick, p, note, vel, 1, 0);
+		va_startVoice(sl, pick, p, note, vel, 1, 0, hold);
 		return;
 	}
 
@@ -818,7 +823,34 @@ void va_noteOn(uint8_t slot, uint8_t note, uint8_t velocity)
 	VaVoice *v = &sl->voice[0];
 	const uint8_t held = v->active && v->aenv.stage != VA_ENV_RELEASE && v->aenv.stage != VA_ENV_IDLE;
 	const uint8_t legato = p[VA_P_MODE] == VA_MODE_LEGATO && held;
-	va_startVoice(sl, v, p, note, vel, !legato, p[VA_P_GLIDE] > 0);
+	va_startVoice(sl, v, p, note, vel, !legato, p[VA_P_GLIDE] > 0, hold);
+}
+
+void va_noteOn(uint8_t slot, uint8_t note, uint8_t velocity)
+{
+	va_noteStart(slot, note, velocity, 0);
+}
+
+void va_noteOnHeld(uint8_t slot, uint8_t note, uint8_t velocity)
+{
+	va_noteStart(slot, note, velocity, 1);
+}
+
+void va_noteOff(uint8_t slot, uint8_t note)
+{
+	if (slot >= VA_NUM_SLOTS)
+		return;
+	for (int i = 0; i < VA_MAX_NOTES; i++)
+	{
+		VaVoice *v = &va_slot[slot].voice[i];
+		if (v->active && v->note == note && v->aenv.stage != VA_ENV_IDLE)
+		{
+			v->aenv.stage = VA_ENV_RELEASE;
+			v->fenv.stage = VA_ENV_RELEASE;
+			v->gateSamples = 0;
+			v->active = 0;
+		}
+	}
 }
 
 void va_allNotesOff(uint8_t slot)
@@ -938,8 +970,8 @@ static inline float va_lfoShape(uint8_t wave, float phase, float sh)
 	}
 }
 
-// Renders one voice for a block into the oversampled stereo sums.
-static void va_renderVoice(VaSlot *sl, VaVoice *v, const VaBlock *b, const float *lfo, float *sumL, float *sumR)
+// Renders one voice for a block of `frames` samples into the oversampled stereo sums.
+static void va_renderVoice(VaSlot *sl, VaVoice *v, const VaBlock *b, const float *lfo, float *sumL, float *sumR, uint32_t frames)
 {
 	const uint8_t stereo = b->unison > 1 && b->width > 0.f;
 	const uint8_t nu = b->unison;
@@ -959,7 +991,7 @@ static void va_renderVoice(VaSlot *sl, VaVoice *v, const VaBlock *b, const float
 	v->drift *= 0.995f;
 	const float drift = v->drift * b->slop * 4.f;   // cents
 
-	for (int i = 0; i < VA_BLOCK; i++)
+	for (uint32_t i = 0; i < frames; i++)
 	{
 		// ---- control rate: once per output sample ----
 		if (v->gateSamples > 0 && --v->gateSamples == 0)
@@ -1063,9 +1095,9 @@ static void va_renderVoice(VaSlot *sl, VaVoice *v, const VaBlock *b, const float
 	}
 }
 
-uint8_t va_render(uint8_t slot, int16_t *left, int16_t *right)
+uint8_t va_render(uint8_t slot, float *left, float *right, uint32_t frames)
 {
-	if (slot >= VA_NUM_SLOTS)
+	if (slot >= VA_NUM_SLOTS || frames > VA_BLOCK)
 		return 0;
 	VaSlot *sl = &va_slot[slot];
 	const uint8_t *p = va_params(slot);
@@ -1086,7 +1118,7 @@ uint8_t va_render(uint8_t slot, int16_t *left, int16_t *right)
 
 	// the slot's LFO, at the sample rate
 	float lfo[VA_BLOCK];
-	for (int i = 0; i < VA_BLOCK; i++)
+	for (uint32_t i = 0; i < frames; i++)
 	{
 		const float prev = sl->lfoPhase;
 		sl->lfoPhase += b.lfoInc;
@@ -1104,7 +1136,7 @@ uint8_t va_render(uint8_t slot, int16_t *left, int16_t *right)
 	memset(sumR, 0, sizeof(sumR));
 	for (int i = 0; i < VA_MAX_NOTES; i++)
 		if (sl->voice[i].aenv.stage != VA_ENV_IDLE)
-			va_renderVoice(sl, &sl->voice[i], &b, lfo, sumL, sumR);
+			va_renderVoice(sl, &sl->voice[i], &b, lfo, sumL, sumR, frames);
 
 	// down to the sample rate, then the output high-pass (one pole, 8 Hz .. 4 kHz)
 	const float hpHz = 8.f * va_exp2((float)p[VA_P_HPF] * (9.f / 127.f));
@@ -1115,10 +1147,10 @@ uint8_t va_render(uint8_t slot, int16_t *left, int16_t *right)
 	for (int c = 0; c < 2; c++)
 	{
 		const float *in = c ? sumR : sumL;
-		for (int i = 0; i < VA_BLOCK * 2; i++)
+		for (uint32_t i = 0; i < frames * 2; i++)
 			half[c][i] = va_halfband(&sl->hb1[c], va_hb1, VA_HB1_SIDE, in[2 * i], in[2 * i + 1]);
-		int16_t *out = c ? right : left;
-		for (int i = 0; i < VA_BLOCK; i++)
+		float *out = c ? right : left;
+		for (uint32_t i = 0; i < frames; i++)
 		{
 			const float x = va_halfband(&sl->hb2[c], va_hb2, VA_HB2_SIDE, half[c][2 * i], half[c][2 * i + 1]);
 			// one-pole high-pass: y = x - lowpass(x)
@@ -1128,7 +1160,7 @@ uint8_t va_render(uint8_t slot, int16_t *left, int16_t *right)
 			const float lim = 32000.f;
 			if (y > 0.75f * lim || y < -0.75f * lim)
 				y = lim * va_tanh(y / lim);
-			out[i] = (int16_t)y;
+			out[i] = y * (1.f / 32768.f);
 		}
 	}
 	if (sounding)
@@ -1137,6 +1169,19 @@ uint8_t va_render(uint8_t slot, int16_t *left, int16_t *right)
 }
 
 // ---- parameters and presets ----------------------------------------------------------------
+
+void va_setParam(uint8_t slot, uint8_t paramIdx, uint8_t value)
+{
+	if (slot >= VA_NUM_SLOTS || paramIdx >= VA_NUM_PARAMS)
+		return;
+	va_slotParams[slot][paramIdx] = value;
+	va_paramChanged(slot, paramIdx);
+}
+
+uint8_t va_getParam(uint8_t slot, uint8_t paramIdx)
+{
+	return slot < VA_NUM_SLOTS && paramIdx < VA_NUM_PARAMS ? va_slotParams[slot][paramIdx] : 0;
+}
 
 void va_paramChanged(uint8_t slot, uint8_t paramIdx)
 {

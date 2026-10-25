@@ -58,6 +58,25 @@ the demo hash and 1,346 of the 1,354 sweep cases.
 When a change to the sound is intended, accept it with `UPDATE_GOLDEN=1 tests/run.sh`, and commit the new
 golden files in their own commit so the diff shows exactly which renders changed.
 
+## The studio (`studio_test`, `studio_render`)
+
+PLAN.md Phase 0, step 5. The studio core (`studio/`) and the engine interface (`engines/engine.h`) are
+compiled with the LXR (`engines/lxr/lxr_engine.c`) and Orange Mouse VA (`engines/orangemouse-va/`).
+
+`studio_test` checks the router and mixer with a mock engine whose output is 1.0 while a note is held:
+- An event lands on its exact frame in an engine that renders any length, and at the start of its 64-frame
+  block in the LXR.
+- Events scheduled out of order still play in order, and a late event plays at the next render.
+- The queue refuses events when it's full, and refuses unknown engines and parts.
+- Level, balance and tempo reach the engines.
+- A VA note sounds until its note off, then releases to silence.
+
+`studio_render` plays the demo song: the LXR groove plus VA bass, chords, lead and a noise swell. Its hash
+is in `tests/golden/studio_demo.txt`, and its CPU budget in `tests/golden/studio_cpu.txt`.
+
+The same tools are also built with Emscripten (`tests/host/build-wasm`) and run under node. `tests/run.sh`
+requires their hashes to equal the native ones, which they do bit for bit.
+
 ## The same samples in both builds
 
 The two builds produce bit-for-bit identical output. Four things were needed for that:

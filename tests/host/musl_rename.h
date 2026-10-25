@@ -7,8 +7,8 @@
  * host computes them identically. macOS libm rounds some results differently,
  * which made 0.4 % of samples differ by up to 2 LSB between the two builds.
  *
- * They are renamed om_* so they cannot clash with the system libm; host_port.h
- * points the firmware's calls at them. musl is MIT licensed.
+ * They are renamed om_* so they cannot clash with the system libm; om_math.h
+ * points the engines' calls at them. musl is MIT licensed.
  */
 #ifndef MUSL_RENAME_H_
 #define MUSL_RENAME_H_
@@ -20,5 +20,8 @@
 #define expf om_expf
 #define exp om_exp
 #define logf om_logf
+#define exp2f om_exp2f
+#define powf om_powf
+#define sin om_sin
 
 #endif /* MUSL_RENAME_H_ */

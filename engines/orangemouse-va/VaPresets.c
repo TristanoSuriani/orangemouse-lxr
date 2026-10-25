@@ -29,7 +29,7 @@
  * Public License version 3, with the additional permission and terms in
  * NOTICE.md. See LICENSE and NOTICE.md in the root of the repository.
  */
-#include "Soundengine/DSPAudio/VaEngine.h"
+#include "VaEngine.h"
 
 #define NELEM(a) (sizeof(a) / sizeof((a)[0]))
 

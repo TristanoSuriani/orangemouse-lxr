@@ -1,0 +1,7 @@
+/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/CMakeFiles/lxr_firmware.dir
+/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/CMakeFiles/om_core.dir
+/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/CMakeFiles/lxr_render.dir
+/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/CMakeFiles/studio_render.dir
+/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/CMakeFiles/studio_test.dir
+/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/CMakeFiles/edit_cache.dir
+/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/CMakeFiles/rebuild_cache.dir

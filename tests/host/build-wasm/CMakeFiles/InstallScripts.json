@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/tristanosuriani/IdeaProjects/personal/orangemouse-lxr/tests/host/build-wasm/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

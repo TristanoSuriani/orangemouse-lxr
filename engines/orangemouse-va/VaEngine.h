@@ -1,32 +1,31 @@
 /*
  * VaEngine.h
  *
- * The virtual analogue engine behind the four VA tracks (VA1 mono bass, VA2
- * poly, VA3 mono lead, VA4 noises). Each slot is a complete synthesizer: two
+ * Orange Mouse VA: a virtual analogue synthesizer with four slots (VA1 mono
+ * bass, VA2 poly, VA3 mono lead, VA4 noises). Each slot is a complete synthesizer: two
  * oscillators, a sub-oscillator and noise, a nonlinear zero-delay filter,
  * two envelopes, an LFO, unison and glide. Every note runs at VA_OS times
  * the sample rate and each slot is brought down with a cascade of halfband
  * FIR decimators.
  *
- * A slot's parameters are VA_NUM_PARAMS consecutive entries of
- * activeParameters, starting at PAR_VA1_FIRST + slot * VA_NUM_PARAMS
- * (Parameters.h); the engine reads them every block.
+ * Each slot keeps its VA_NUM_PARAMS parameters (enum VaParam); the engine
+ * reads them every block. The studio drives it through engines/engine.h
+ * (va_engine.c); this is its own API.
  *
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
  *
- * This file is part of the LXR firmware. It is licensed under the GNU General
- * Public License version 3, with the additional permission and terms in
- * NOTICE.md. See LICENSE and NOTICE.md in the root of the repository.
+ * Written for the LXR firmware, now part of Orange Mouse. It is licensed under
+ * the GNU General Public License version 3, with the additional permission and
+ * terms in NOTICE.md. See LICENSE and NOTICE.md in the root of the repository.
  */
 #ifndef VAENGINE_H_
 #define VAENGINE_H_
 
 #include <stdint.h>
-#include "Soundengine/config.h"
 
 #define VA_NUM_SLOTS    4
-#define VA_FIRST_TRACK  7     // the VA slots are tracks 7..10, after the seven drum voices
+#define VA_BLOCK        64    // the most samples va_render() renders at once
 
 // The parameters of one slot, in menu order (8 sub-pages, see menuPages.h).
 enum VaParam
@@ -70,19 +69,29 @@ typedef struct
 extern const VaPreset * const va_presets[VA_NUM_SLOTS];
 extern const uint8_t va_numPresets[VA_NUM_SLOTS];
 
-void va_init(void);
+// sets the sample rate (Hz), builds the tables and loads every slot's first preset
+void va_init(float sampleRate);
+// the tempo (BPM) the GATE time follows
+void va_setTempo(float bpm);
 // note on for a slot (0..3); the note lasts for the slot's GATE time
 void va_noteOn(uint8_t slot, uint8_t note, uint8_t velocity);
+// note on for a slot; the note lasts until va_noteOff()
+void va_noteOnHeld(uint8_t slot, uint8_t note, uint8_t velocity);
+// releases a slot's notes of that pitch
+void va_noteOff(uint8_t slot, uint8_t note);
 // all notes of a slot (or of all slots for 0xff) released
 void va_allNotesOff(uint8_t slot);
+// a slot's parameter (paramIdx: enum VaParam); setting VA_P_PRESET loads that preset
+void va_setParam(uint8_t slot, uint8_t paramIdx, uint8_t value);
+uint8_t va_getParam(uint8_t slot, uint8_t paramIdx);
 // a slot's parameter changed (paramIdx: enum VaParam)
 void va_paramChanged(uint8_t slot, uint8_t paramIdx);
 // copies preset presetNr of the slot's preset list into the slot's parameters
 void va_loadPreset(uint8_t slot, uint8_t presetNr);
 // the default sound of every slot (its first preset) and mix settings
 void va_initKitParameters(uint8_t *params);
-// renders one block of OUTPUT_DMA_SIZE samples of a slot, stereo, int16
-// scaled; returns 0 if the slot is silent (and the buffers are untouched)
-uint8_t va_render(uint8_t slot, int16_t *left, int16_t *right);
+// renders up to VA_BLOCK samples of a slot, stereo, full scale = 1.0;
+// returns 0 if the slot is silent (and the buffers are untouched)
+uint8_t va_render(uint8_t slot, float *left, float *right, uint32_t frames);
 
 #endif /* VAENGINE_H_ */
