@@ -33,6 +33,22 @@
 
 //-----------------------------------------------------------------------
 INDTCMZ uint8_t mixer_audioRouting[6];
+
+// The browser build's studio takes each voice as its own channel (a stem):
+// web/port/web_lxr_stems.c taps every voice's block before routing, and the
+// FX bus's output on its own.
+#ifdef LXR_VOICE_STEMS
+void web_voice_stem(uint8_t voice, const int16_t *data);
+void web_stems_before_fx(int16_t *out, int16_t *out2);
+void web_stems_after_fx(const int16_t *out, const int16_t *out2);
+#define VOICE_STEM(voice, data) web_voice_stem(voice, data)
+#define STEMS_BEFORE_FX(out, out2) web_stems_before_fx(out, out2)
+#define STEMS_AFTER_FX(out, out2) web_stems_after_fx(out, out2)
+#else
+#define VOICE_STEM(voice, data)
+#define STEMS_BEFORE_FX(out, out2)
+#define STEMS_AFTER_FX(out, out2)
+#endif
 //-----------------------------------------------------------------------
 #if USE_DECIMATOR
 INDTCMZ float mixer_decimation_rate[7];		/**<sets the sample rate decimation. 0..1 = full rate*/
@@ -602,6 +618,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	calcDrumVoiceSyncBlock(0, sampleData,OUTPUT_DMA_SIZE);
 	//decimate voice
 	mixer_decimateBlock(0,sampleData);
+	VOICE_STEM(0, sampleData);
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[0],squareRootLut[127-voiceArray[0].pan] ,squareRootLut[voiceArray[0].pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -627,6 +644,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	calcDrumVoiceSyncBlock(1, sampleData,OUTPUT_DMA_SIZE);
 	//decimate voice
 	mixer_decimateBlock(1,sampleData);
+	VOICE_STEM(1, sampleData);
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[1],squareRootLut[127-voiceArray[1].pan] ,squareRootLut[voiceArray[1].pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -647,6 +665,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	calcDrumVoiceSyncBlock(2, sampleData,OUTPUT_DMA_SIZE);
 	//decimate voice
 	mixer_decimateBlock(2,sampleData);
+	VOICE_STEM(2, sampleData);
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[2],squareRootLut[127-voiceArray[2].pan] ,squareRootLut[voiceArray[2].pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -666,6 +685,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	Snare_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
 	//decimate voice
 	mixer_decimateBlock(3,sampleData);
+	VOICE_STEM(3, sampleData);
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[3],squareRootLut[127-snareVoice.pan], squareRootLut[snareVoice.pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -681,6 +701,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	Cymbal_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
 	//decimate voice
 	mixer_decimateBlock(4,sampleData);
+	VOICE_STEM(4, sampleData);
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[4],squareRootLut[127-cymbalVoice.pan],	squareRootLut[cymbalVoice.pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -697,6 +718,7 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 	HiHat_calcSyncBlock(sampleData,OUTPUT_DMA_SIZE);
 	//decimate voice
 	mixer_decimateBlock(5,sampleData);
+	VOICE_STEM(5, sampleData);
 	//copy to selected dma buffer
 #if USE_SQRT_LUT
 	mixer_addDataToOutput(mixer_audioRouting[5],squareRootLut[127-hatVoice.pan],squareRootLut[hatVoice.pan], sampleData,&output[pos],&output[pos+1],&output2[pos],&output2[pos+1], fxBusData);
@@ -709,7 +731,9 @@ IN_ITCM_RAM void mixer_calcNextSampleBlock(int16_t* output,int16_t* output2)
 #endif
 
 #endif
+	STEMS_BEFORE_FX(output, output2);
 	FxBus_process(fxBusData,  &output[pos],&output[pos+1],&output2[pos],&output2[pos+1], OUTPUT_DMA_SIZE);
+	STEMS_AFTER_FX(output, output2);
 /*
 	if(activeParameters[UNUSED_PAR_GLO_SAT])
 	{

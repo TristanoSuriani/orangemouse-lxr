@@ -107,7 +107,15 @@ int main(int argc, char **argv)
 	if (lxr < 0 || va < 0) { fprintf(stderr, "cannot create the engines\n"); return 1; }
 	om_studio_set_tempo(st, 120.f);
 	for (uint8_t s = 0; s < 4; s++)
-		om_studio_set_stem(st, (uint8_t)va, s, 0.5f, s == 1 ? -0.3f : s == 2 ? 0.3f : 0.f);
+	{
+		const uint8_t c = (uint8_t)om_studio_channel(st, (uint8_t)va, s);
+		om_studio_mix(st, c, OM_MIX_LEVEL, 79);   // -6 dB
+		om_studio_mix(st, c, OM_MIX_PAN, s == 1 ? 45 : s == 2 ? 83 : 64);
+	}
+	// the send effects: the snare and VA's poly into the hall, the lead into the delay
+	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)lxr, 3), OM_MIX_SEND_A, 70);
+	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)va, 1), OM_MIX_SEND_A, 80);
+	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)va, 2), OM_MIX_SEND_B, 75);
 
 	const uint32_t blocks = (uint32_t)(seconds * rate / OM_MAX_BLOCK);
 	schedule(st, lxr, va, rate, (int)(seconds * 120.f / 60.f * 4.f));   // all of it: it fits the queues

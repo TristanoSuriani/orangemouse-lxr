@@ -8,6 +8,8 @@
 // A cell is null (empty) or { notes: [up to 4 MIDI notes], off: true (a note
 // off), vel: 1..127 (0: 100), retrig: 0 or 2..8 }.
 
+import { newMix, mixMessages } from '../mixer/mix.js';
+
 export const TRACKS = 16;
 export const PATTERNS = 64;
 export const MAX_ROWS = 128;
@@ -34,7 +36,7 @@ export function newPattern(rows = 64) {
 }
 
 export function newSong() {
-  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks() };
+  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix() };
 }
 
 export const cellKey = (row, track) => `${row}:${track}`;
@@ -53,7 +55,7 @@ function cellMessage(p, row, track, cell) {
   return { type: 'tracker', op: 'cell', p, row, track, notes, vel: cell?.vel ?? 0, retrig: cell?.retrig ?? 0 };
 }
 
-// Every message that makes the worklet's tracker a copy of the song.
+// Every message that makes the worklet's tracker and mixer a copy of the song.
 export function songMessages(song) {
   const msgs = [{ type: 'tracker', op: 'clear' }, { type: 'tracker', op: 'tempo', bpm: song.bpm }];
   song.patterns.forEach((pat, p) => {
@@ -71,7 +73,7 @@ export function songMessages(song) {
     if (t.engine !== null) msgs.push({ type: 'tracker', op: 'route', track: k, engine: t.engine, part: t.part });
     msgs.push({ type: 'tracker', op: 'mute', track: k, on: t.mute }, { type: 'tracker', op: 'solo', track: k, on: t.solo });
   });
-  return msgs;
+  return msgs.concat(mixMessages(song.mix));
 }
 
 // ---- editing, with undo ----

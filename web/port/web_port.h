@@ -46,6 +46,11 @@ void web_encoder_setButton(uint8_t pressed);
 // web_sdcard.c
 extern uint8_t *web_sdImage;
 extern uint32_t web_sdSectors;
+
+// web_lxr_stems.c: each voice, and the FX bus, as a stem (the studio turns it on)
+#define WEB_LXR_STEMS 7
+extern uint8_t web_lxr_stems_on;
+extern float web_lxrStems[WEB_LXR_STEMS][2][64];
 extern uint8_t web_sdPresent;
 
 // implemented in JavaScript (see app/lxr-worklet.js)

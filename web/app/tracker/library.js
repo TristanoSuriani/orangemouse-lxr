@@ -7,6 +7,7 @@
 // version still load (migrate()).
 
 import { TRACKS, newSong, newPattern } from './song.js';
+import { migrateMix } from '../mixer/mix.js';
 
 const DB_NAME = 'orange-mouse';
 const STORE = 'songs';
@@ -40,6 +41,7 @@ export function migrate(raw) {
   s.order = (raw.order?.length ? raw.order : [0]).filter((p) => p < s.patterns.length);
   if (!s.order.length) s.order = [0];
   s.tracks = base.tracks.map((t, k) => ({ ...t, ...(raw.tracks?.[k] ?? {}) })).slice(0, TRACKS);
+  s.mix = migrateMix(raw.mix);
   return s;
 }
 

@@ -310,14 +310,16 @@ kbd {
   width: min(1100px, 100%);
   display: flex;
   align-items: center;
-  gap: 14px;
+  justify-content: space-between;
+  gap: 10px 14px;
   flex-wrap: wrap;
   font-size: 13px;
   color: var(--muted);
 }
 .brand { font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text); }
 .brand b { color: var(--accent); font-weight: 600; }
-.rack { display: flex; gap: 8px; flex: 1 1 auto; }
+/* the rack takes the top row; the brand, the dock and the help strip the second */
+.rack { display: flex; gap: 8px; flex: 1 1 100%; order: -1; }
 .rack-card {
   position: relative;
   display: flex;
@@ -434,3 +436,8 @@ kbd {
 .tracker-controls .device-head { margin-left: auto; gap: 10px; }
 .device.tracker { padding-top: 16px; padding-bottom: 16px; gap: 12px; }
 .tracker-pads .pad { min-width: 48px; padding-left: 4px; padding-right: 4px; }
+
+/* ---- the mixer ---- */
+.mixer-lcd { width: auto; align-self: center; }
+.device.mixer { padding-top: 16px; padding-bottom: 16px; gap: 12px; }
+.mixer-pads .pad { min-width: 52px; padding-left: 4px; padding-right: 4px; }

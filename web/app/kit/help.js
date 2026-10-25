@@ -45,8 +45,17 @@ export class HelpStrip {
     this.refresh();
   }
 
+  // A short message (the studio's status: "SD card loaded") shown instead of
+  // the idle text for a few seconds.
+  note(text, seconds = 6) {
+    this.noteText = text;
+    clearTimeout(this.noteTimer);
+    this.noteTimer = setTimeout(() => { this.noteText = null; this.refresh(); }, seconds * 1000);
+    this.refresh();
+  }
+
   refresh() {
-    const text = this.source ? this.source() : this.idleText;
+    const text = this.source ? this.source() : this.noteText ?? this.idleText;
     const rows = wrap(text);
     for (let r = 0; r < ROWS; r++) this.display.line(r, rows[r] ?? '');
     this.display.draw();

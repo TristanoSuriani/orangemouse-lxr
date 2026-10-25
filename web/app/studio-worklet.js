@@ -35,6 +35,28 @@ class StudioProcessor extends AudioWorkletProcessor {
         web_midi_out: (byte) => this.midiOut.push(byte),
         emscripten_notify_memory_growth: () => {},
       },
+      // the C++ runtime of the send effects links stdio and the clock, which a
+      // standalone module imports; output goes to the log, the clock is 0
+      wasi_snapshot_preview1: {
+        fd_write: (fd, iovs, count, written) => {
+          const view = new DataView(this.wasm.memory.buffer);
+          let total = 0, text = '';
+          for (let i = 0; i < count; i++) {
+            const ptr = view.getUint32(iovs + i * 8, true), len = view.getUint32(iovs + i * 8 + 4, true);
+            text += String.fromCharCode(...new Uint8Array(this.wasm.memory.buffer, ptr, len));
+            total += len;
+          }
+          if (text.trim()) this.logLines.push(text.trim());
+          view.setUint32(written, total, true);
+          return 0;
+        },
+        fd_close: () => 0,
+        fd_seek: () => 70,   // ESPIPE
+        clock_time_get: (id, precision, out) => {
+          new DataView(this.wasm.memory.buffer).setBigUint64(out, 0n, true);
+          return 0;
+        },
+      },
     };
     this.wasm = new WebAssembly.Instance(new WebAssembly.Module(wasm), imports).exports;
     this.wasm._initialize();
@@ -98,6 +120,8 @@ class StudioProcessor extends AudioWorkletProcessor {
         if (msg.engine === VA && msg.param === VA_P_PRESET) this.vaSlotsChanged.add(msg.part);
         break;
       case 'tracker': this.tracker(msg); break;
+      case 'mix': w.om_web_mix(msg.target, msg.param, msg.value); break;
+      case 'fx': w.om_web_fx(msg.bus, msg.param, msg.value); break;
     }
   }
 
@@ -191,6 +215,8 @@ class StudioProcessor extends AudioWorkletProcessor {
       this.lastTracker = trackerKey;
       msg.tracker = tracker;
     }
+    // the mixer's meters: the peaks since the last time (studio.h om_studio_meters)
+    msg.meters = Array.from(new Float32Array(w.memory.buffer, w.om_web_meters(), w.om_web_channels() + 5));
     if (force || leds[0] !== this.lastLeds[0] || leds[1] !== this.lastLeds[1]) {
       this.lastLeds = leds;
       msg.leds = leds;

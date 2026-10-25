@@ -36,9 +36,28 @@ function withUnit(text, unit) {
   return unit ? `${text} ${unit}` : text;
 }
 
+// a fader's byte (registry/mix.json): 100 is 0 dB, gain = (v / 100)^3
+export function faderDb(v) {
+  return v === 0 ? -Infinity : 60 * Math.log10(v / 100);
+}
+
+function faderText(v, unit) {
+  const db = faderDb(v);
+  if (db === -Infinity) return 'off';
+  const s = signed(db, Math.abs(db) < 9.95 ? 1 : 0);
+  return unit ? `${s} dB` : s;
+}
+
+function panText(v) {
+  const x = Math.round(((v - 64) / 63) * 100);
+  return x === 0 ? 'C' : x < 0 ? `L${Math.min(100, -x)}` : `R${Math.min(100, x)}`;
+}
+
 export function formatValue(param, v) {
   const d = param.display;
   switch (d.kind) {
+    case 'fader': return faderText(v, true);
+    case 'pan': return panText(v) === 'C' ? 'center' : panText(v);
     case 'raw': return String(v);
     case 'percent': return `${Math.round(((v - param.min) / (param.max - param.min)) * 100)} %`;
     case 'bipolar': return withUnit(signed((v - d.center) * d.scale, d.digits ?? 0), d.unit);
@@ -73,6 +92,8 @@ export function formatShort(param, v) {
   const physical = (x) => (d.unit === 'Hz' ? hz(x) : d.unit === 's' ? sec(x) : fixed(x, 1));
   const unit = { st: 'st', ct: 'c', '%': '%' }[d.unit] ?? '';
   switch (d.kind) {
+    case 'fader': return faderText(v, false);
+    case 'pan': return panText(v);
     case 'percent': return `${Math.round(((v - param.min) / (param.max - param.min)) * 100)}%`;
     case 'bipolar': return cut(signed((v - d.center) * d.scale, d.digits ?? 0) + unit);
     case 'exp': return cut(physical(d.base * 2 ** ((v * d.octaves) / 127)));

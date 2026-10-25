@@ -141,7 +141,7 @@ try {
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
   check(await evaluate('!!window.orangeMouse'), `the studio started${errors.length ? ` (errors: ${errors.slice(0, 3).join(' / ')})` : ''}`);
-  check((await evaluate(`document.getElementById('status').textContent`)).includes('SD card'), 'the SD card is ready');
+  check((await evaluate(`document.getElementById('help').getAttribute('aria-label')`)).includes('SD card'), 'the SD card is ready (the help strip says so)');
   await sleep(800);
   check((await vaDisplay()).includes('#01'), `the VA display shows a preset: "${(await vaDisplay()).replace(/\n/g, ' | ')}"`);
 
@@ -272,6 +272,42 @@ try {
   console.log('== the LXR plays');
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'note', engine: 0, part: 0, note: 36, velocity: 120, on: true })`);
   check((await peak(300)) > 0.02, 'an LXR drum 1 hit makes sound');
+
+  console.log('== the mixer');
+  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('mixer'))`);
+  const mixText = () => evaluate(`document.querySelector('.mixer-lcd').getAttribute('aria-label')`);
+  const mixRow = async (r) => (await mixText()).replace(/^Display: /, '').split('\n')[r] ?? '';
+  const mixOf = (path) => evaluate(`window.orangeMouse.tracker.song().mix.${path}`);
+  check((await mixRow(1)).includes('DR1') && (await mixRow(1)).includes('OUT'), `the strips are named: "${await mixRow(1)}"`);
+  // the demo song, so every strip has something to show
+  await evaluate(`(async () => { const { demoSong } = await import('./tracker/demo.js'); window.orangeMouse.tracker.load(demoSong()); })()`);
+  await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'pattern', from: 1 })`);
+  let moved = false;   // the song's one kick, on row 0: the meters rise, then fall back
+  for (let i = 0; i < 20 && !moved; i++, await sleep(50)) moved = /[▁▂▃▄▅▆▇█]/.test((await mixText()).split('\n').slice(2, 10).join(''));
+  check(moved, 'the meters move while the song plays');
+  const shot = async (name) => writeFileSync(join(OUT, name), Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+  await shot('mixer-playing.png');   // to look at, not compared
+  await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
+  for (let i = 0; i < 8; i++) await press('ArrowRight', 'ArrowRight');
+  check((await mixRow(0)).startsWith('VA2 POLY'), `the arrows choose a strip: "${await mixRow(0)}"`);
+  await evaluate(`document.querySelectorAll('.mixer-knobs .pot')[2].focus()`);
+  for (let i = 0; i < 5; i++) await press('ArrowUp', 'ArrowUp');
+  check((await mixOf('channels.va2.sendA')) === 20 && (await mixRow(0)).includes('A -'), `knob 3 turns send A up: ${await mixOf('channels.va2.sendA')}, "${await mixRow(0)}"`);
+  await evaluate(`document.activeElement.blur()`);
+  await press('KeyM', 'm');
+  check((await mixOf('channels.va2.mute')) === 1 && (await mixRow(0)).includes('MUTED'), 'M mutes the strip');
+  await press('KeyM', 'm');
+  await clickPad('.mixer-pads .pad:nth-child(5)');   // FX A
+  check((await mixRow(0)).startsWith('SEND A  HALL'), `FX A shows the hall: "${await mixRow(0)}"`);
+  await shot('mixer-fx.png');
+  await clickPad('.mixer-pads .pad:nth-child(8)');   // TYPE +
+  check((await mixOf('buses[0].type')) === 2 && (await mixRow(0)).startsWith('SEND A  ROOM'), 'TYPE + makes it a room');
+  await clickPad('.mixer-pads .pad:nth-child(7)');   // TYPE -
+  await sleep(1200);   // autosave
+  const savedMix = await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    return (await lib.load(lib.currentId())).mix; })()`);
+  check(savedMix.channels.va2.sendA === 20 && savedMix.buses[0].type === 1, 'the mix saves with the song');
 
   console.log('== health');
   await sleep(300);

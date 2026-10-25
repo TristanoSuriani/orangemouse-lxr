@@ -10,17 +10,24 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const wasm = readFileSync(fileURLToPath(new URL('../web/app/studio.wasm', import.meta.url)));
+let failures = 0;
+const check = (ok, msg) => { if (!ok) { failures++; console.log('FAIL ' + msg); } };
+
+// the imports web/app/studio-worklet.js provides: the module may ask for no others
+const module = new WebAssembly.Module(wasm);
+const worklet = readFileSync(fileURLToPath(new URL('../web/app/studio-worklet.js', import.meta.url)), 'utf8');
+for (const { module: from, name } of WebAssembly.Module.imports(module)) {
+  check(new RegExp(`\\b${name}: \\(`).test(worklet), `studio.wasm imports ${from}.${name}, which the worklet does not provide`);
+}
+
 let memory;
-const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm), {
+const instance = new WebAssembly.Instance(module, {
   env: { web_log: () => {}, web_sd_written: () => {}, web_midi_out: () => {}, emscripten_notify_memory_growth: () => {} },
   wasi_snapshot_preview1: new Proxy({}, { get: () => () => 0 }),
 });
 const w = instance.exports;
 memory = w.memory;
 w._initialize();
-
-let failures = 0;
-const check = (ok, msg) => { if (!ok) { failures++; console.log('FAIL ' + msg); } };
 const cString = (ptr) => {
   const b = new Uint8Array(memory.buffer, ptr);
   return new TextDecoder().decode(b.subarray(0, b.indexOf(0)));

@@ -12,6 +12,7 @@ import { makePad, makeRotary } from './kit/controls.js';
 import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
 import { createTrackerDevice } from './devices/tracker.js';
+import { createMixerDevice } from './devices/mixer.js';
 import { songMessages } from './tracker/song.js';
 import * as library from './tracker/library.js';
 import { demoSong } from './tracker/demo.js';
@@ -43,7 +44,6 @@ const POT_DEGREES_PER_PIXEL = 1.5;
 const ENCODER_PIXELS_PER_DETENT = 12;
 
 const lcd = new Lcd(document.getElementById('lcd'));
-const status = document.getElementById('status');
 const buttons = new Map();     // button number -> element
 let node = null;               // AudioWorkletNode, once switched on
 let turnEncoder = null;        // turns the encoder by n detents
@@ -53,8 +53,9 @@ function send(msg) {
   node?.port.postMessage(msg);
 }
 
+// the studio's status, on the help strip for a moment
 function setStatus(text) {
-  status.textContent = text;
+  help.note(text);
 }
 
 // ---- controls -------------------------------------------------------------------
@@ -195,6 +196,10 @@ window.addEventListener('keydown', (e) => {
   }
   const device = devices[shown]?.id;
   if (device === 'tracker' && tracker.handleKey(e, true)) {
+    e.preventDefault();
+    return;
+  }
+  if (device === 'mixer' && mixer.handleKey(e, true)) {
     e.preventDefault();
     return;
   }
@@ -345,7 +350,7 @@ async function switchOn() {
   }
   await context.resume();
   power.hidden = true;
-  window.orangeMouse = { context, node, va, tracker };   // for the browser tests (tests/browser/)
+  window.orangeMouse = { context, node, va, tracker, mixer };   // for the browser tests (tests/browser/)
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
@@ -394,6 +399,7 @@ function onWorkletMessage(msg) {
         tracker.onState(msg.tracker);
         devices[0].mini(tracker.summary());
       }
+      if (msg.meters) mixer.onMeters(msg.meters);
       if (msg.lxrPots) {
         lxrPots = msg.lxrPots;
         help.refresh();
@@ -455,6 +461,9 @@ buildPanel();
 describeLxr();
 const va = createVaDevice({ send, help });
 const tracker = createTrackerDevice({ send, help });
+// the mix is part of the song: its changes go through the tracker, which saves them
+const mixer = createMixerDevice({ send: tracker.send, help, song: tracker.song });
+tracker.onLoad(() => mixer.render());
 // the demo song at once; the song last edited replaces it when the library answers
 tracker.load(demoSong());
 (async () => {
@@ -468,6 +477,7 @@ tracker.load(demoSong());
 })();
 document.getElementById('devices').prepend(tracker.el);
 document.getElementById('devices').append(va.el);
+document.getElementById('devices').append(mixer.el);
 
 // ---- the rack: one device expanded, the others as cards in the top bar ----------
 
@@ -486,6 +496,7 @@ const devices = [
   { id: 'tracker', name: 'TRK', what: 'tracker', el: tracker.el },
   { id: 'lxr', name: 'LXR', what: 'drum machine', el: machine },
   { id: 'va', name: 'VA', what: 'Orange Mouse VA', el: va.el },
+  { id: 'mixer', name: 'MIX', what: 'mixer', el: mixer.el },
 ];
 let shown = 0;
 const rack = document.getElementById('rack');
@@ -503,6 +514,7 @@ devices.forEach((d, i) => {
   rack.append(card);
 });
 va.onSummary((rows) => devices[2].mini(rows));
+mixer.onSummary((rows) => devices[3].mini(rows));
 devices[0].mini(tracker.summary());
 
 function showDevice(i) {

@@ -223,6 +223,22 @@ Per-track stems, sends and the master bus, using the effects that passed the Pha
 Reverb1, Delay, Phaser, Flanger). sst-effects has no chorus yet, so dub techno's chorus is ported from
 Surge XT or written here.
 
+Done as follows:
+
+- **Channels are stems.** Every engine stem is a channel: the LXR's six voices and its own FX bus
+  (web/port/web_lxr_stems.c taps each voice before the firmware's output routing), and VA's four slots.
+  Each has level, pan, two sends, mute and solo. Gains glide over one block when they change.
+- **Two send buses**, each with any of six effects: Surge's Reverb2 ("hall"), Reverb1 ("room"), Delay
+  (its times are tempo divisions that follow the tracker), Phaser and Flanger, and a chorus written here
+  (studio/fx.cpp). Bus A starts as a hall, B as a delay. registry/fx.json describes the effects'
+  settings, with musical defaults and ranges; its `map` says how each byte becomes the Surge value, and
+  tools/registry.py checks that each display matches its map.
+- **The master** has a level and a lookahead limiter (-0.2 dBFS, 64 frames = OM_STUDIO_LATENCY).
+- **The mix is part of the song** (song.mix), so it saves and loads with it.
+- **Parity holds.** Surge's effects run on our own configuration with a seeded random generator, and the
+  native and browser renders of the demo song, effects included, are still bit for bit the same.
+- **Not yet:** effects as inserts on a channel, and an EQ.
+
 ### Phase 4: Dexed
 
 Presets only: a bank browser on a character display, and volume and transpose on soft knobs.

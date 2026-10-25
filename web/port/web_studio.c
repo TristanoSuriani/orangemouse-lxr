@@ -31,8 +31,8 @@ WEB_EXPORT int om_web_init(float rate, uint32_t seed)
 		return -1;
 	if (om_studio_add_engine(studio, &om_lxr_engine) != 0 || om_studio_add_engine(studio, &om_va_engine) != 1)
 		return -2;
-	for (uint8_t s = 0; s < VA_NUM_SLOTS; s++)
-		om_studio_set_stem(studio, 1, s, 0.5f, 0.f);
+	for (uint8_t s = 0; s < VA_NUM_SLOTS; s++)   // -6 dB: VA's slots are loud next to the LXR
+		om_studio_mix(studio, (uint8_t)om_studio_channel(studio, 1, s), OM_MIX_LEVEL, 79);
 	tracker = om_tracker_create(studio, rate);
 	if (!tracker)
 		return -3;
@@ -81,9 +81,21 @@ WEB_EXPORT void om_web_set_tempo(float bpm)
 	om_studio_set_tempo(studio, bpm);
 }
 
-WEB_EXPORT void om_web_set_stem(uint8_t engine, uint8_t stem, float level, float balance)
+// ---- the mixer (studio.h, registry/mix.json and fx.json) ----
+
+static float meters[OM_MAX_CHANNELS + 5];
+
+WEB_EXPORT int om_web_channels(void) { return om_studio_channels(studio); }
+WEB_EXPORT int om_web_channel(uint8_t engine, uint8_t stem) { return om_studio_channel(studio, engine, stem); }
+WEB_EXPORT void om_web_mix(uint8_t target, uint8_t param, uint8_t value) { om_studio_mix(studio, target, param, value); }
+WEB_EXPORT uint8_t om_web_mix_value(uint8_t target, uint8_t param) { return om_studio_mix_value(studio, target, param); }
+WEB_EXPORT void om_web_fx(uint8_t bus, uint16_t param, uint8_t value) { om_studio_fx(studio, bus, param, value); }
+WEB_EXPORT uint8_t om_web_fx_value(uint8_t bus, uint16_t param) { return om_studio_fx_value(studio, bus, param); }
+// the peaks since the last call (om_studio_meters): channels, buses, master L/R, limiter gain
+WEB_EXPORT float *om_web_meters(void)
 {
-	om_studio_set_stem(studio, engine, stem, level, balance);
+	om_studio_meters(studio, meters, OM_MAX_CHANNELS + 5);
+	return meters;
 }
 
 // Orange Mouse VA's preset banks, for the panel: how many a slot has, a

@@ -34,6 +34,7 @@ set(lxr_port_sources
     ${LXR_PORT_DIR}/web_sdcard.c
     ${LXR_PORT_DIR}/web_test.c
     ${LXR_PORT_DIR}/web_lxr_ui.c
+    ${LXR_PORT_DIR}/web_lxr_stems.c
 )
 
 # The LXR as a studio engine (engines/engine.h).
@@ -64,6 +65,7 @@ function(lxr_configure target)
     target_compile_definitions(${target} PRIVATE
         STM32F765xx
         USE_HAL_DRIVER
+        LXR_VOICE_STEMS
         # the hardware runs at 44140 Hz (its I2S prescaler cannot make 44100);
         # the studio runs at exactly 44100, and the LXR is tuned for that
         "REAL_FS=44100.f"

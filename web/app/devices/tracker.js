@@ -65,7 +65,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   let saveTimer = null;
   const send = (m) => {
     sendToWorklet(m);
-    if (m.type === 'tracker' && m.op !== 'play' && m.op !== 'stop') {
+    if ((m.type === 'tracker' && m.op !== 'play' && m.op !== 'stop') || m.type === 'mix' || m.type === 'fx') {
       clearTimeout(saveTimer);
       saveTimer = setTimeout(() => library.save(song.value), 800);
     }
@@ -626,7 +626,9 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
     state.anchor = null;
     for (const m of songMessages(s)) send(m);
     render();
+    loadListeners.forEach((fn) => fn(s));
   }
+  const loadListeners = [];
 
   function onState(tracker) {
     const playedRow = tracker[3] !== state.playing[3] || tracker[0] !== state.playing[0];
@@ -635,7 +637,8 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   }
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
-  return { el, load, onState, handleKey, song: () => song.value, summary: () => [
+  // send: changes to the song (the mixer's too) go through it, so they save
+  return { el, load, onState, handleKey, send, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
     song.value.name.toUpperCase(),
     `PAT ${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
   ] };

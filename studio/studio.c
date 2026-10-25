@@ -9,9 +9,11 @@
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
  */
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include "studio.h"
+#include "fx.h"
 
 enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK };
 
@@ -28,9 +30,34 @@ typedef struct
 	void *self;
 	Event queue[OM_MAX_EVENTS];   // sorted by frame, oldest first, from head
 	uint32_t head, count;
-	float level[OM_MAX_STEMS], balance[OM_MAX_STEMS];
 	float buf[2 * OM_MAX_STEMS][OM_MAX_BLOCK];
 } Engine;
+
+// gains: where they are, and where they go during the next block
+typedef struct
+{
+	float now, to;
+} Gain;
+
+typedef struct
+{
+	uint8_t engine, stem;
+	uint8_t value[OM_MIX_SOLO + 1];
+	Gain left, right, sendA, sendB;
+	float peak;
+} Channel;
+
+#define LOOKAHEAD OM_STUDIO_LATENCY   // frames: 1.5 ms at 44.1 kHz
+#define LIMIT     0.977f         // -0.2 dBFS
+
+typedef struct
+{
+	OmFx *fx;
+	uint8_t type, ret;
+	Gain gain;
+	float buf[2][OM_MAX_BLOCK];
+	float peak;
+} Bus;
 
 struct OmStudio
 {
@@ -38,16 +65,50 @@ struct OmStudio
 	uint64_t frame;
 	uint8_t engines;
 	Engine engine[OM_MAX_ENGINES];
+
+	uint8_t channels;
+	Channel channel[OM_MAX_CHANNELS];
+	Bus bus[2];
+	uint8_t masterLevel;
+	Gain master;
+	// the limiter
+	float delay[2][LOOKAHEAD];
+	uint32_t delayPos, holdLeft;
+	float hold, env, release;
+	float peakL, peakR, lowestGain;
 };
+
+// a fader's byte as a gain: 100 is 0 dB (registry/mix.json "fader")
+static float fader(uint8_t v)
+{
+	const float x = v / 100.f;
+	return x * x * x;
+}
 
 OmStudio *om_studio_create(float sampleRate)
 {
 	OmStudio *st = calloc(1, sizeof(OmStudio));
-	if (st)
+	if (!st)
+		return NULL;
+	st->rate = sampleRate;
+	st->bpm = 120.f;
+	const uint8_t types[2] = {OM_FX_HALL, OM_FX_DELAY};
+	for (int b = 0; b < 2; b++)
 	{
-		st->rate = sampleRate;
-		st->bpm = 120.f;
+		st->bus[b].fx = om_fx_create(sampleRate);
+		if (!st->bus[b].fx)
+		{
+			om_studio_destroy(st);
+			return NULL;
+		}
+		om_studio_mix(st, OM_MIX_BUS_A + b, OM_MIX_FX_TYPE, types[b]);
+		om_studio_mix(st, OM_MIX_BUS_A + b, OM_MIX_RETURN, 100);
+		st->bus[b].gain.now = st->bus[b].gain.to;
 	}
+	om_studio_mix(st, OM_MIX_MASTER, OM_MIX_LEVEL, 100);
+	st->master.now = st->master.to;
+	st->hold = st->env = st->lowestGain = 1.f;
+	st->release = 1.f - expf(-1.f / (0.15f * sampleRate));   // 150 ms
 	return st;
 }
 
@@ -57,13 +118,15 @@ void om_studio_destroy(OmStudio *st)
 		return;
 	for (int e = 0; e < st->engines; e++)
 		st->engine[e].cls->destroy(st->engine[e].self);
+	for (int b = 0; b < 2; b++)
+		om_fx_destroy(st->bus[b].fx);
 	free(st);
 }
 
 int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 {
 	if (st->engines >= OM_MAX_ENGINES || cls->stems > OM_MAX_STEMS ||
-	    (cls->block && cls->block != OM_MAX_BLOCK))
+	    (cls->block && cls->block != OM_MAX_BLOCK) || st->channels + cls->stems > OM_MAX_CHANNELS)
 		return -1;
 	void *self = cls->create(st->rate);
 	if (!self)
@@ -72,8 +135,18 @@ int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 	memset(en, 0, sizeof(*en));
 	en->cls = cls;
 	en->self = self;
-	for (int s = 0; s < OM_MAX_STEMS; s++)
-		en->level[s] = 1.f;
+	for (uint8_t s = 0; s < cls->stems; s++)
+	{
+		const uint8_t c = st->channels++;
+		Channel *ch = &st->channel[c];
+		memset(ch, 0, sizeof(*ch));
+		ch->engine = st->engines;
+		ch->stem = s;
+		om_studio_mix(st, c, OM_MIX_LEVEL, 100);
+		om_studio_mix(st, c, OM_MIX_PAN, 64);
+		ch->left.now = ch->left.to;
+		ch->right.now = ch->right.to;
+	}
 	cls->set_tempo(self, st->bpm);
 	return st->engines++;
 }
@@ -83,6 +156,8 @@ void om_studio_set_tempo(OmStudio *st, float bpm)
 	st->bpm = bpm;
 	for (int e = 0; e < st->engines; e++)
 		st->engine[e].cls->set_tempo(st->engine[e].self, bpm);
+	for (int b = 0; b < 2; b++)
+		om_fx_set_tempo(st->bus[b].fx, bpm);
 }
 
 float om_studio_tempo(const OmStudio *st)
@@ -148,12 +223,170 @@ void om_studio_clock(OmStudio *st, uint64_t frame, uint8_t event)
 			push(st, e, (Event){.frame = frame, .type = EV_CLOCK, .note = event});
 }
 
-void om_studio_set_stem(OmStudio *st, uint8_t engine, uint8_t stem, float level, float balance)
+// ---- the mixer ----
+
+uint8_t om_studio_channels(const OmStudio *st)
 {
-	if (engine >= st->engines || stem >= OM_MAX_STEMS)
+	return st->channels;
+}
+
+int om_studio_channel(const OmStudio *st, uint8_t engine, uint8_t stem)
+{
+	for (int c = 0; c < st->channels; c++)
+		if (st->channel[c].engine == engine && st->channel[c].stem == stem)
+			return c;
+	return -1;
+}
+
+// Where every channel's gains go, after a change (solo affects them all).
+static void retarget(OmStudio *st)
+{
+	uint8_t anySolo = 0;
+	for (int c = 0; c < st->channels; c++)
+		anySolo |= st->channel[c].value[OM_MIX_SOLO];
+	for (int c = 0; c < st->channels; c++)
+	{
+		Channel *ch = &st->channel[c];
+		const uint8_t *v = ch->value;
+		const float level = v[OM_MIX_MUTE] || (anySolo && !v[OM_MIX_SOLO]) ? 0.f : fader(v[OM_MIX_LEVEL]);
+		// balance: the far side is turned down, the near side stays
+		float b = (v[OM_MIX_PAN] - 64) / 63.f;
+		b = b < -1.f ? -1.f : b > 1.f ? 1.f : b;
+		ch->left.to = level * (b > 0.f ? 1.f - b : 1.f);
+		ch->right.to = level * (b < 0.f ? 1.f + b : 1.f);
+		ch->sendA.to = level * fader(v[OM_MIX_SEND_A]);   // after the fader, before the pan
+		ch->sendB.to = level * fader(v[OM_MIX_SEND_B]);
+	}
+}
+
+void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
+{
+	if (target == OM_MIX_MASTER)
+	{
+		if (param == OM_MIX_LEVEL)
+		{
+			st->masterLevel = value > 127 ? 127 : value;
+			st->master.to = fader(st->masterLevel);
+		}
 		return;
-	st->engine[engine].level[stem] = level;
-	st->engine[engine].balance[stem] = balance < -1.f ? -1.f : balance > 1.f ? 1.f : balance;
+	}
+	if (target == OM_MIX_BUS_A || target == OM_MIX_BUS_B)
+	{
+		Bus *bus = &st->bus[target - OM_MIX_BUS_A];
+		if (param == OM_MIX_FX_TYPE && value < OM_FX_TYPES)
+		{
+			om_fx_set_tempo(bus->fx, st->bpm);
+			bus->type = om_fx_set_type(bus->fx, value) == 0 ? value : OM_FX_OFF;
+		}
+		else if (param == OM_MIX_RETURN)
+		{
+			bus->ret = value > 127 ? 127 : value;
+			bus->gain.to = fader(bus->ret);
+		}
+		return;
+	}
+	if (target >= st->channels || param > OM_MIX_SOLO)
+		return;
+	const uint8_t max = param >= OM_MIX_MUTE ? 1 : 127;
+	st->channel[target].value[param] = value > max ? max : value;
+	retarget(st);
+}
+
+uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param)
+{
+	if (target == OM_MIX_MASTER)
+		return param == OM_MIX_LEVEL ? st->masterLevel : 0;
+	if (target == OM_MIX_BUS_A || target == OM_MIX_BUS_B)
+	{
+		const Bus *bus = &st->bus[target - OM_MIX_BUS_A];
+		return param == OM_MIX_FX_TYPE ? bus->type : param == OM_MIX_RETURN ? bus->ret : 0;
+	}
+	return target < st->channels && param <= OM_MIX_SOLO ? st->channel[target].value[param] : 0;
+}
+
+void om_studio_fx(OmStudio *st, uint8_t bus, uint16_t param, uint8_t value)
+{
+	if (bus < 2)
+		om_fx_set_param(st->bus[bus].fx, param, value);
+}
+
+uint8_t om_studio_fx_value(const OmStudio *st, uint8_t bus, uint16_t param)
+{
+	return bus < 2 ? om_fx_param(st->bus[bus].fx, param) : 0;
+}
+
+uint32_t om_studio_meters(OmStudio *st, float *out, uint32_t max)
+{
+	uint32_t n = 0;
+	for (int c = 0; c < st->channels && n < max; c++, n++)
+	{
+		out[n] = st->channel[c].peak;
+		st->channel[c].peak = 0.f;
+	}
+	for (int b = 0; b < 2 && n < max; b++, n++)
+	{
+		out[n] = st->bus[b].peak;
+		st->bus[b].peak = 0.f;
+	}
+	const float master[3] = {st->peakL, st->peakR, st->lowestGain};
+	for (int i = 0; i < 3 && n < max; i++, n++)
+		out[n] = master[i];
+	st->peakL = st->peakR = 0.f;
+	st->lowestGain = 1.f;
+	return n;
+}
+
+// Adds src * gain (moving from gain->now to gain->to over the block) to dst.
+static float addRamped(float *dst, const float *src, Gain *g)
+{
+	float peak = 0.f;
+	const float step = (g->to - g->now) / OM_MAX_BLOCK;
+	if (g->now == 0.f && step == 0.f)
+		return 0.f;
+	for (int i = 0; i < OM_MAX_BLOCK; i++)
+	{
+		const float x = src[i] * (g->now + step * (i + 1));
+		dst[i] += x;
+		peak = fmaxf(peak, fabsf(x));
+	}
+	g->now = g->to;
+	return peak;
+}
+
+// The master: its level, then the limiter (LOOKAHEAD frames late).
+static void master(OmStudio *st, float *l, float *r)
+{
+	const float step = (st->master.to - st->master.now) / OM_MAX_BLOCK;
+	const float attack = 1.f - expf(-5.f / LOOKAHEAD);   // within the lookahead
+	for (int i = 0; i < OM_MAX_BLOCK; i++)
+	{
+		const float g = st->master.now + step * (i + 1);
+		const float xl = l[i] * g, xr = r[i] * g;
+		st->peakL = fmaxf(st->peakL, fabsf(xl));
+		st->peakR = fmaxf(st->peakR, fabsf(xr));
+		// the gain this frame needs, held for as long as it is in the delay
+		const float peak = fmaxf(fabsf(xl), fabsf(xr));
+		const float need = peak > LIMIT ? LIMIT / peak : 1.f;
+		if (need <= st->hold)
+		{
+			st->hold = need;
+			st->holdLeft = LOOKAHEAD;
+		}
+		else if (st->holdLeft)
+			st->holdLeft--;
+		else
+			st->hold = need;
+		st->env += (st->hold - st->env) * (st->hold < st->env ? attack : st->release);
+		st->lowestGain = fminf(st->lowestGain, st->env);
+		// out: the frame from LOOKAHEAD frames ago
+		const float dl = st->delay[0][st->delayPos], dr = st->delay[1][st->delayPos];
+		st->delay[0][st->delayPos] = xl;
+		st->delay[1][st->delayPos] = xr;
+		st->delayPos = (st->delayPos + 1) % LOOKAHEAD;
+		l[i] = fmaxf(-LIMIT, fminf(LIMIT, dl * st->env));
+		r[i] = fmaxf(-LIMIT, fminf(LIMIT, dr * st->env));
+	}
+	st->master.now = st->master.to;
 }
 
 // Applies the engine's queued events up to (not including) frame `until`.
@@ -208,24 +441,32 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 		float *l = left + done, *r = right + done;
 		memset(l, 0, OM_MAX_BLOCK * sizeof(float));
 		memset(r, 0, OM_MAX_BLOCK * sizeof(float));
+		for (int b = 0; b < 2; b++)
+			memset(st->bus[b].buf, 0, sizeof(st->bus[b].buf));
 		for (int e = 0; e < st->engines; e++)
+			renderEngine(&st->engine[e], st->frame);
+		for (int c = 0; c < st->channels; c++)
 		{
-			Engine *en = &st->engine[e];
-			renderEngine(en, st->frame);
-			for (int s = 0; s < en->cls->stems; s++)
-			{
-				// balance: the far side is turned down, the near side stays
-				const float b = en->balance[s];
-				const float gl = en->level[s] * (b > 0.f ? 1.f - b : 1.f);
-				const float gr = en->level[s] * (b < 0.f ? 1.f + b : 1.f);
-				const float *sl = en->buf[2 * s], *sr = en->buf[2 * s + 1];
-				for (int i = 0; i < OM_MAX_BLOCK; i++)
-				{
-					l[i] += sl[i] * gl;
-					r[i] += sr[i] * gr;
-				}
-			}
+			Channel *ch = &st->channel[c];
+			const Engine *en = &st->engine[ch->engine];
+			const float *sl = en->buf[2 * ch->stem], *sr = en->buf[2 * ch->stem + 1];
+			Gain a = ch->sendA, b = ch->sendB;   // both sides of a send ramp alike
+			addRamped(st->bus[0].buf[0], sl, &ch->sendA);
+			addRamped(st->bus[0].buf[1], sr, &a);
+			addRamped(st->bus[1].buf[0], sl, &ch->sendB);
+			addRamped(st->bus[1].buf[1], sr, &b);
+			ch->peak = fmaxf(ch->peak, fmaxf(addRamped(l, sl, &ch->left), addRamped(r, sr, &ch->right)));
 		}
+		for (int b = 0; b < 2; b++)
+		{
+			Bus *bus = &st->bus[b];
+			if (bus->type == OM_FX_OFF)
+				continue;
+			om_fx_process(bus->fx, bus->buf[0], bus->buf[1], OM_MAX_BLOCK);
+			Gain g = bus->gain;
+			bus->peak = fmaxf(bus->peak, fmaxf(addRamped(l, bus->buf[0], &bus->gain), addRamped(r, bus->buf[1], &g)));
+		}
+		master(st, l, r);
 		st->frame += OM_MAX_BLOCK;
 	}
 }

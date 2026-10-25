@@ -4,8 +4,9 @@
  * The LXR in the studio (engines/engine.h): the whole firmware, booted as in
  * the browser (web/port/), so its menus, kits and own sequencer all work.
  * Seven parts (the drum voices: drum 1-3, snare, cymbal, closed and open
- * hihat), two stems (the LXR's stereo outputs 1 and 2). It renders in its
- * own 64-frame blocks, as on the hardware.
+ * hihat), seven stems: each voice (the hihats share one) and the LXR's own
+ * FX bus (web/port/web_lxr_stems.c). It renders in its own 64-frame blocks,
+ * as on the hardware.
  *
  * Its own sequencer follows the studio's clock while the tracker plays, as
  * it follows MIDI clock on the hardware; when the tracker stops, it runs on
@@ -35,7 +36,7 @@ void web_boot(float rate, uint32_t seed);
 float *web_render(void);
 
 #define LXR_PARTS  7
-#define LXR_STEMS  2
+#define LXR_STEMS  WEB_LXR_STEMS
 #define LXR_SD_SECTORS 32768   // a 16 MB card
 
 static uint8_t lxr_created;
@@ -56,6 +57,7 @@ static void *lxrCreate(float sampleRate)
 	if (!web_sdSectors)
 		web_sd_alloc(LXR_SD_SECTORS);   // empty: formatted on boot, as on first use in the browser
 	web_boot(sampleRate, lxr_seed);
+	web_lxr_stems_on = 1;
 	return &lxr_created;
 }
 
@@ -63,6 +65,7 @@ static void lxrDestroy(void *self)
 {
 	(void)self;
 	voiceControl_noteOff(0xff);
+	web_lxr_stems_on = 0;
 	lxr_created = 0;
 }
 
@@ -169,9 +172,10 @@ static void lxrRender(void *self, float *const *stems, uint32_t frames)
 {
 	(void)self;
 	(void)frames;  // always OUTPUT_DMA_SIZE (the class's block)
-	const float *out = web_render();   // planar: out 1 L, out 1 R, out 2 L, out 2 R
-	for (int c = 0; c < 2 * LXR_STEMS; c++)
-		memcpy(stems[c], out + c * OUTPUT_DMA_SIZE, OUTPUT_DMA_SIZE * sizeof(float));
+	web_render();
+	for (int s = 0; s < LXR_STEMS; s++)
+		for (int c = 0; c < 2; c++)
+			memcpy(stems[2 * s + c], web_lxrStems[s][c], OUTPUT_DMA_SIZE * sizeof(float));
 }
 
 const OmEngineClass om_lxr_engine = {

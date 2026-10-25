@@ -16,7 +16,7 @@ file(READ "${LXR_ROOT}/CMakeLists.txt" lxr_top_cmake)
 string(REGEX MATCH "project\\(LXR_V2_STM32F765[ \t\r\n]+VERSION ([0-9.]+)" _ "${lxr_top_cmake}")
 set(LXR_VERSION "${CMAKE_MATCH_1}")
 
-project(LXR_V2_Web VERSION ${LXR_VERSION} LANGUAGES C)
+project(LXR_V2_Web VERSION ${LXR_VERSION} LANGUAGES C CXX)
 
 if(NOT EMSCRIPTEN)
     message(FATAL_ERROR "Configure the web build with Emscripten: emcmake cmake -S web -B web/build -G Ninja")
@@ -32,15 +32,22 @@ set(CMAKE_C_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_FLAGS_DEBUG   "-O2 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_DEBUG   "-O2 -g")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 include(${CMAKE_CURRENT_LIST_DIR}/lxr_sources.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../studio/fx_sources.cmake)
 
 # Two modules, both standalone without Emscripten's JavaScript runtime: the
 # AudioWorklet instantiates them directly.
-#   studio.wasm  the studio (studio/): the LXR and Orange Mouse VA, mixed;
-#                the app runs it (app/studio-worklet.js)
+#   studio.wasm  the studio (studio/): the LXR and Orange Mouse VA, mixed,
+#                with the send effects; the app runs it (app/studio-worklet.js)
 #   lxr.wasm     the LXR firmware alone, as before; tests/host/parity.mjs
 #                compares it with the native build
+# the send effects, in C++, apart from the firmware's forced-include header
+add_library(om_fx OBJECT ${om_fx_sources})
+om_fx_configure(om_fx)
+
 add_executable(lxr ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources})
 lxr_configure(lxr)
 
@@ -52,6 +59,7 @@ add_executable(studio
     ${LXR_ROOT}/engines/orangemouse-va/VaPresets.c
     ${LXR_ROOT}/engines/orangemouse-va/va_engine.c
     port/web_studio.c
+    $<TARGET_OBJECTS:om_fx>
 )
 lxr_configure(studio)
 target_include_directories(studio PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines/orangemouse-va)

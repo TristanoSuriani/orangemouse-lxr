@@ -39,6 +39,7 @@ FEATURES = [
     "--enable-nontrapping-float-to-int",
     "--enable-reference-types",
     "--enable-sign-ext",
+    "--enable-simd",   # the send effects (sst-effects, via SIMDE)
 ]
 
 

@@ -165,6 +165,8 @@ static uint8_t audible(const OmTracker *t, uint8_t k)
 // Plays one row of the current pattern at `frame`.
 static void playRow(OmTracker *t, uint8_t row, uint64_t frame, double length)
 {
+	if (om_studio_tempo(t->studio) != tempoOf(t, t->current))   // the engines and the delay follow
+		om_studio_set_tempo(t->studio, tempoOf(t, t->current));
 	for (int j = 0; j < 6; j++)   // the clock: 24 ticks a beat
 		om_studio_clock(t->studio, frame + (uint64_t)(j * length / 6), OM_CLOCK_TICK);
 	for (uint8_t k = 0; k < OM_TRACKS; k++)

@@ -9,6 +9,7 @@
  *     lands on every beat, in time with the tracker's rows;
  *   - when the tracker stops, the LXR stops too, and plays on its own clock
  *     again afterwards (its own Start).
+ * And its stems: each voice is its own mixer channel.
  * Exit code 0 when every check passes.
  *
  * Copyright (C) 2026 Erica Synths
@@ -115,10 +116,29 @@ int main(void)
 	CHECK(after < 0.01f, "the LXR kept playing after the tracker stopped (peak %g)", after);
 
 	// on its own again: its Start button plays it on its own clock
-	pressButton(33);   // Start
+	pressButton(33);   // Start/Stop: starts it
 	run(blocks, 0);
 	const int alone = onsets(0, blocks, hits, 64);
 	CHECK(alone >= 6, "the LXR alone played %d kicks in 4 s", alone);
+
+	// each voice on its own channel: drum 1-3, snare, cymbal, hihat (open and closed), FX bus
+	pressButton(33);   // Start/Stop: stops it
+	run(800, -1);
+	CHECK(om_studio_channels(st) == 7, "the LXR has %d channels, not 7", om_studio_channels(st));
+	const uint8_t channelOf[7] = {0, 1, 2, 3, 4, 5, 5};
+	for (uint8_t part = 0; part < 7; part++)
+	{
+		float m[16];
+		om_studio_meters(st, m, 16);   // reset
+		om_studio_note_on(st, om_studio_frame(st), 0, part, 60, 120);
+		run(100, -1);
+		om_studio_meters(st, m, 16);
+		int others = 0;
+		for (int c = 0; c < 7; c++)
+			if (c != channelOf[part] && m[c] > 0.001f) { others++; printf("  voice %d: channel %d at %g\n", part + 1, c, m[c]); }
+		CHECK(m[channelOf[part]] > 0.01f && others == 0, "voice %d: its channel %g, %d other channels sound", part + 1, m[channelOf[part]], others);
+		run(800, -1);
+	}
 
 	if (failures)
 	{

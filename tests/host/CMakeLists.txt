@@ -12,7 +12,7 @@ cmake_minimum_required(VERSION 3.21)
 #   tests/host/build/lxr_render --wav out.wav
 
 get_filename_component(LXR_ROOT "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
-project(LXR_Host LANGUAGES C)
+project(LXR_Host LANGUAGES C CXX)
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (Debug or Release)" FORCE)
@@ -83,6 +83,14 @@ target_compile_options(om_core PRIVATE
     "SHELL:-include ${CMAKE_CURRENT_LIST_DIR}/om_math.h" -ffp-contract=off -Wall)
 target_compile_definitions(om_core PRIVATE ${musl_math_definition})
 
+# The send effects: Surge XT's (sst-effects, header-only; third_party/fetch.sh)
+# and the chorus, in C++.
+include(${LXR_ROOT}/studio/fx_sources.cmake)
+add_library(om_fx OBJECT ${om_fx_sources})
+om_fx_configure(om_fx)
+target_compile_options(om_fx PRIVATE -ffp-contract=off)
+set(om_fx_objects $<TARGET_OBJECTS:om_fx>)
+
 set(lxr_tools lxr_render)
 if(NOT EMSCRIPTEN)
     list(APPEND lxr_tools lxr_sweep)   # it forks
@@ -92,12 +100,12 @@ foreach(tool ${lxr_tools})
     target_include_directories(${tool} PRIVATE ${LXR_ROOT}/engines)
     target_link_libraries(${tool} PRIVATE m)
 endforeach()
-add_executable(studio_render studio_render.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${musl_objects})
-add_executable(studio_test studio_test.c $<TARGET_OBJECTS:om_core> ${musl_objects})
-add_executable(tracker_test tracker_test.c $<TARGET_OBJECTS:om_core> ${musl_objects})
-add_executable(lxr_sync_test lxr_sync_test.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${musl_objects})
+add_executable(studio_render studio_render.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
+add_executable(studio_test studio_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
+add_executable(tracker_test tracker_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
+add_executable(lxr_sync_test lxr_sync_test.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 foreach(tool studio_render studio_test tracker_test lxr_sync_test)
-    target_include_directories(${tool} PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines)
+    target_include_directories(${tool} PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines ${LXR_ROOT}/generated/registry)
     target_link_libraries(${tool} PRIVATE m)
 endforeach()
 

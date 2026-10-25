@@ -12,7 +12,9 @@
 //   d.draw();
 //
 // Besides ASCII the displays draw a few glyphs of their own: ² ³ ⁴ (a chord's
-// notes), · (an empty cell) and ▶ (playing).
+// notes), · (an empty cell), ▶ (playing), the bars of a meter, filled from
+// the bottom (▁ ▂ ▃ ▄ ▅ ▆ ▇ █: 1 to 8 dot rows, so stacked cells join up),
+// and a horizontal bar (▏ ▎ ▍ ▌ ■: 1 to 5 dot columns).
 
 import { FONT } from './font5x7.js';
 
@@ -23,6 +25,9 @@ const EXTRA = {
   '⁴': [0x0a, 0x0a, 0x0e, 0x02, 0x02, 0x00, 0x00],
   '·': [0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00],
   '▶': [0x10, 0x18, 0x1c, 0x1e, 0x1c, 0x18, 0x10],
+  // 8 rows: these use the gap row too
+  ...Object.fromEntries([...'▁▂▃▄▅▆▇█'].map((ch, i) => [ch, Array.from({ length: 8 }, (_, r) => (r >= 7 - i ? 0x1f : 0))])),
+  ...Object.fromEntries([...'▏▎▍▌■'].map((ch, i) => [ch, [0, 0x1f >> (4 - i) << (4 - i), 0x1f >> (4 - i) << (4 - i), 0x1f >> (4 - i) << (4 - i), 0x1f >> (4 - i) << (4 - i), 0x1f >> (4 - i) << (4 - i), 0]])),
 };
 
 export class DotMatrix {
@@ -75,7 +80,7 @@ export class DotMatrix {
     const rows = new Array(8).fill(0);
     const extra = EXTRA[String.fromCharCode(code)];
     if (extra) {
-      extra.forEach((bits, r) => { rows[r] = bits; });
+      extra.forEach((bits, r) => { rows[r] = bits & 0x1f; });
     } else if (code >= 0x20 && code < 0x80) {
       const base = (code - 0x20) * 5;
       for (let c = 0; c < 5; c++) {

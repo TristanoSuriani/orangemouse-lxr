@@ -25,4 +25,16 @@ typedef struct
 	uint8_t flags;
 } OmParamInfo;
 
+// How a byte becomes a foreign engine's own parameter value (registry "map";
+// the send effects): linearly from lo (at min) to hi (at max), a tempo
+// division, or read by the engine's own code.
+enum { OM_MAP_LINEAR, OM_MAP_SYNC, OM_MAP_OWN };
+
+typedef struct
+{
+	uint8_t kind;
+	int8_t index;   // the foreign parameter; -1: none
+	float lo, hi;
+} OmParamMap;
+
 #endif /* OM_PARAM_INFO_H_ */

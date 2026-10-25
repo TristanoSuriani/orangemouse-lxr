@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "studio.h"
+#include "fx.h"
+#include "om_registry_fx.h"
 
 extern const OmEngineClass om_va_engine;
 
@@ -30,10 +32,12 @@ static void mockNoteOff(void *self, uint8_t part, uint8_t note) { (void)part; (v
 static void mockParam(void *self, uint8_t part, uint16_t param, uint8_t value) { (void)self; (void)part; (void)param; (void)value; }
 static uint8_t mockGetParam(void *self, uint8_t part, uint16_t param) { (void)self; (void)part; (void)param; return 0; }
 static void mockTempo(void *self, float bpm) { ((Mock *)self)->tempo = bpm; }
+#define MOCK 0.5f            // what a held mock note outputs (times mockGain)
+static float mockGain = 1.f;
 static void mockRender(void *self, float *const *stems, uint32_t frames)
 {
 	for (uint32_t i = 0; i < frames; i++)
-		stems[0][i] = stems[1][i] = ((Mock *)self)->held ? 1.f : 0.f;
+		stems[0][i] = stems[1][i] = ((Mock *)self)->held ? MOCK * mockGain : 0.f;
 }
 
 static OmEngineClass mockClass(uint16_t block)
@@ -43,13 +47,22 @@ static OmEngineClass mockClass(uint16_t block)
 		.set_param = mockParam, .get_param = mockGetParam, .set_tempo = mockTempo, .render = mockRender};
 }
 
-// the first frame at or after `from` where the left channel is (or isn't) 1.0
+// the first frame at or after `from` where the left channel is (or isn't) a
+// held note, counted from when it was made (the output is OM_STUDIO_LATENCY late)
 static int firstFrame(const float *x, int n, int from, int on)
 {
-	for (int i = from; i < n; i++)
-		if ((x[i] == 1.f) == on)
-			return i;
+	for (int i = from + OM_STUDIO_LATENCY; i < n; i++)
+		if ((x[i] == MOCK) == on)
+			return i - OM_STUDIO_LATENCY;
 	return -1;
+}
+
+static float peakOf(const float *x, int from, int to)
+{
+	float p = 0.f;
+	for (int i = from; i < to; i++)
+		p = fmaxf(p, fabsf(x[i]));
+	return p;
 }
 
 int main(void)
@@ -89,8 +102,8 @@ int main(void)
 		CHECK(firstFrame(l, 1024, 0, 1) == 300 && firstFrame(l, 1024, 300, 0) == 700,
 		      "out-of-order events: on at %d, off at %d", firstFrame(l, 1024, 0, 1), firstFrame(l, 1024, 300, 0));
 		om_studio_note_on(st, 10, 0, 0, 60, 100);   // already in the past
-		om_studio_render(st, l, r, 64);
-		CHECK(l[0] == 1.f, "a late event did not play at the start of the next render");
+		om_studio_render(st, l, r, 64 + OM_STUDIO_LATENCY);
+		CHECK(l[OM_STUDIO_LATENCY] == MOCK, "a late event did not play at the start of the next render");
 		om_studio_destroy(st);
 	}
 	{   // the queue refuses events beyond OM_MAX_EVENTS, and unknown engines and parts
@@ -105,16 +118,121 @@ int main(void)
 		CHECK(om_studio_note_on(st, 0, 0, 1, 60, 100) == -1, "an unknown part was accepted");
 		om_studio_destroy(st);
 	}
-	{   // the mixer: level and balance; the tempo reaches the engines
+	{   // the mixer: pan; the tempo reaches the engines
 		const OmEngineClass cls = mockClass(0);
 		OmStudio *st = om_studio_create(48000.f);
 		om_studio_add_engine(st, &cls);
-		om_studio_set_stem(st, 0, 0, 0.5f, 1.f);
+		CHECK(om_studio_channels(st) == 1 && om_studio_channel(st, 0, 0) == 0, "one engine, one stem: one channel");
+		om_studio_mix(st, 0, OM_MIX_PAN, 127);
 		om_studio_set_tempo(st, 133.f);
 		om_studio_note_on(st, 0, 0, 0, 60, 100);
-		om_studio_render(st, l, r, 64);
-		CHECK(l[10] == 0.f && r[10] == 0.5f, "balance right at level 0.5: L %g R %g", l[10], r[10]);
+		om_studio_render(st, l, r, 256);
+		CHECK(l[200] == 0.f && r[200] == MOCK, "panned right: L %g R %g", l[200], r[200]);
 		CHECK(om_studio_tempo(st) == 133.f, "tempo %g", om_studio_tempo(st));
+		om_studio_destroy(st);
+	}
+	{   // level: 100 is 0 dB, a change glides over one block; mute and solo
+		const OmEngineClass cls = mockClass(0);
+		OmStudio *st = om_studio_create(48000.f);
+		om_studio_add_engine(st, &cls);
+		om_studio_add_engine(st, &cls);
+		om_studio_note_on(st, 0, 0, 0, 60, 100);
+		om_studio_render(st, l, r, 256);
+		CHECK(l[200] == MOCK, "level 100 is not 0 dB: %g", l[200]);
+		om_studio_mix(st, 0, OM_MIX_LEVEL, 50);   // (0.5)^3
+		om_studio_render(st, l, r, 256);
+		int jumps = 0;
+		for (int i = 1; i < 256; i++)
+			jumps += fabsf(l[i] - l[i - 1]) > MOCK / 32.f;
+		CHECK(jumps == 0 && fabsf(l[200] - MOCK * 0.125f) < 1e-6f, "the level glides to 1/8: %d jumps, then %g", jumps, l[200]);
+		om_studio_note_on(st, om_studio_frame(st), 1, 0, 60, 100);
+		om_studio_mix(st, 0, OM_MIX_LEVEL, 100);
+		om_studio_mix(st, 1, OM_MIX_MUTE, 1);
+		om_studio_render(st, l, r, 256);
+		CHECK(l[200] == MOCK, "a muted channel sounds: %g", l[200]);
+		om_studio_mix(st, 1, OM_MIX_MUTE, 0);
+		om_studio_mix(st, 1, OM_MIX_SOLO, 1);
+		om_studio_render(st, l, r, 256);
+		CHECK(l[200] == MOCK, "with channel 2 soloed, channel 1 still sounds: %g", l[200]);
+		om_studio_mix(st, 1, OM_MIX_SOLO, 0);
+		om_studio_render(st, l, r, 256);
+		CHECK(fabsf(l[200] - 0.977f) < 1e-3f, "both channels (1.0) are limited to -0.2 dBFS: %g", l[200]);
+		om_studio_destroy(st);
+	}
+	{   // the limiter: a hot mix never goes over -0.2 dBFS, and the meters say it worked
+		const OmEngineClass cls = mockClass(0);
+		OmStudio *st = om_studio_create(48000.f);
+		om_studio_add_engine(st, &cls);
+		om_studio_mix(st, 0, OM_MIX_LEVEL, 127);   // +6 dB
+		mockGain = 6.f;                             // 3.0, +15 dB more
+		om_studio_note_on(st, 0, 0, 0, 60, 100);
+		om_studio_render(st, l, r, N);
+		const float top = fmaxf(peakOf(l, 0, N), peakOf(r, 0, N));
+		CHECK(top <= 0.977f, "the limiter let %g through", top);
+		CHECK(fabsf(l[N - 1] - 0.977f) < 0.001f, "the limited level settles at %g", l[N - 1]);
+		float m[8];
+		const uint32_t n = om_studio_meters(st, m, 8);
+		CHECK(n == 6 && m[0] > 6.f && m[3] > 6.f && m[5] < 0.16f, "meters: %u values, channel %g, master %g, limiter %g", n, m[0], m[3], m[5]);
+		mockGain = 1.f;
+		om_studio_destroy(st);
+	}
+	{   // every effect, at its defaults and with every knob at its minimum and its
+		// maximum: a burst of noise in, then silence; the output must be finite,
+		// must not run away, and must sound
+		const char *names[OM_FX_TYPES] = {"off", "hall", "room", "delay", "chorus", "phaser", "flanger"};
+		static float fl[OM_FX_BLOCK], fr[OM_FX_BLOCK];
+		for (uint8_t type = OM_FX_HALL; type < OM_FX_TYPES; type++)
+			for (int setting = 0; setting < 3; setting++)
+			{
+				OmFx *fx = om_fx_create(44100.f);
+				for (uint16_t p = 0; p < OM_FX_PARAMS && setting; p++)
+					om_fx_set_param(fx, p, setting == 1 ? om_fx_params[p].min : om_fx_params[p].max);
+				CHECK(om_fx_set_type(fx, type) == 0, "%s cannot be created", names[type]);
+				uint32_t seed = 1;
+				float peak = 0.f, energy = 0.f;
+				int bad = 0;
+				for (int b = 0; b < 44100 * 3 / OM_FX_BLOCK; b++)
+				{
+					for (int i = 0; i < OM_FX_BLOCK; i++)
+					{
+						seed = seed * 1664525u + 1013904223u;
+						const float x = b < 44100 / 10 / OM_FX_BLOCK ? ((seed >> 9) * (1.f / 4194304.f) - 1.f) * 0.5f : 0.f;
+						seed = seed * 1664525u + 1013904223u;   // the right side: its own noise
+						fl[i] = x;
+						fr[i] = x ? ((seed >> 9) * (1.f / 4194304.f) - 1.f) * 0.5f : 0.f;
+					}
+					om_fx_process(fx, fl, fr, OM_FX_BLOCK);
+					for (int i = 0; i < OM_FX_BLOCK; i++)
+					{
+						bad += !isfinite(fl[i]) || !isfinite(fr[i]);
+						peak = fmaxf(peak, fmaxf(fabsf(fl[i]), fabsf(fr[i])));
+						energy += fl[i] * fl[i] + fr[i] * fr[i];
+					}
+				}
+				const char *at[3] = {"defaults", "all minimum", "all maximum"};
+				CHECK(bad == 0 && peak < 8.f, "%s at %s: %d bad samples, peak %g", names[type], at[setting], bad, peak);
+				CHECK(energy > 1e-3f, "%s at %s is silent (energy %g)", names[type], at[setting], energy);
+				om_fx_destroy(fx);
+			}
+	}
+	{   // the delay bus: echoes on the tempo (1/8 dotted at 120 BPM is 0.375 s)
+		const OmEngineClass cls = mockClass(0);
+		const float rate = 48000.f;
+		OmStudio *st = om_studio_create(rate);
+		om_studio_add_engine(st, &cls);
+		om_studio_set_tempo(st, 120.f);
+		om_studio_fx(st, 1, OM_FX_DELAY_LEFT, 8);   // 1/8 dotted (the default)
+		om_studio_fx(st, 1, OM_FX_DELAY_RIGHT, 8);
+		om_studio_fx(st, 1, OM_FX_DELAY_FEEDBACK, 0);
+		om_studio_fx(st, 1, OM_FX_DELAY_DEPTH, 0);
+		om_studio_mix(st, 0, OM_MIX_SEND_B, 100);
+		om_studio_note_on(st, 0, 0, 0, 60, 100);
+		om_studio_note_off(st, 480, 0, 0, 60);   // a 10 ms burst
+		static float el[48000], er[48000];
+		om_studio_render(st, el, er, 48000);
+		const int echo = (int)(0.375f * rate) + OM_STUDIO_LATENCY;
+		const float gap = peakOf(el, 480 + OM_STUDIO_LATENCY + 64, echo - 200), at = peakOf(el, echo, echo + 480);
+		CHECK(gap < 0.01f && at > 0.1f, "the echo: %g before 0.375 s, %g at it", gap, at);
 		om_studio_destroy(st);
 	}
 	{   // Orange Mouse VA: a held note sounds until its note off, then releases to silence

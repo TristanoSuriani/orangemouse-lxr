@@ -35,7 +35,7 @@ NAME_MAX = 16       # one LCD row
 HELP_MAX = 90       # the help strip under a display
 SHORT_VALUE_MAX = 5 # a value in a display column
 KINDS = {"raw", "percent", "bipolar", "exp", "off_exp", "enum", "offset", "affine",
-         "curve", "steps", "preset", "note"}
+         "curve", "steps", "preset", "note", "fader", "pan"}
 
 
 def load(engine_file):
@@ -87,6 +87,16 @@ def check(reg):
             if len(shorts) != len(d.get("values", [])) or any(len(x) > SHORT_VALUE_MAX for x in shorts):
                 errors.append(f"{where}: needs a short name of at most {SHORT_VALUE_MAX} characters for every value"
                               " (display.short)")
+        m = p.get("map")
+        if m and "sst" in m and not m.get("sync") and d.get("kind") == "exp":
+            # the map is linear in a log2 quantity: the display must say the same
+            if d.get("unit") == "Hz" and m["hi"] - m["lo"] > 12:   # semitones from A4
+                base, octaves = 440 * 2 ** (m["lo"] / 12), (m["hi"] - m["lo"]) / 12
+            else:                                          # log2 seconds or log2 Hz
+                base, octaves = 2 ** m["lo"], m["hi"] - m["lo"]
+            if abs(d["base"] / base - 1) > 1e-4 or abs(d["octaves"] - octaves) > 1e-4:
+                errors.append(f"{where}: display base {d['base']}, octaves {d['octaves']} do not match"
+                              f" the map ({base:g}, {octaves:g})")
         h = p.get("help", "")
         if len(h) > HELP_MAX:
             errors.append(f"{where}: help is {len(h)} characters, more than {HELP_MAX}")
@@ -120,7 +130,16 @@ def gen_c(reg):
         flags = "OM_PARAM_UNUSED" if p.get("unused") else "0"
         lines.append(f'\t{{{c_string(p["id"])}, {c_string(p["short"])}, {c_string(p["name"])}, '
                      f'{p["min"]}, {p["max"]}, {p["default"]}, {flags}}},')
-    lines += ["};", "", f"#endif /* OM_REGISTRY_{e.upper()}_H_ */", ""]
+    lines.append("};")
+    if any("map" in p for p in reg["params"]):
+        # how each byte becomes the effect's own value (registry/fx.json "map")
+        lines += ["", f"static const OmParamMap om_{e}_map[OM_{e.upper()}_NUM_PARAMS] = {{"]
+        for p in reg["params"]:
+            m = p["map"]
+            kind = "OM_MAP_SYNC" if m.get("sync") else "OM_MAP_OWN" if m.get("own") else "OM_MAP_LINEAR"
+            lines.append(f'\t{{{kind}, {m.get("sst", -1)}, {float(m.get("lo", 0))}f, {float(m.get("hi", 0))}f}},')
+        lines.append("};")
+    lines += ["", f"#endif /* OM_REGISTRY_{e.upper()}_H_ */", ""]
     return "\n".join(lines)
 
 
