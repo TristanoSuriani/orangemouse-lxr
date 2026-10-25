@@ -7,8 +7,11 @@
 //   - nothing throws or logs an error, and the worklet keeps running;
 //   - a VA key makes sound, and the LXR plays too;
 //   - the VA panel follows its pads (page, preset) on its display;
-//   - the help strip explains the control under the pointer.
-// Writes a screenshot to tests/browser/out/studio.png.
+//   - the help strip explains the control under the pointer;
+//   - the ? pad opens and closes the device's guide card;
+//   - in a 1280x800 window, every device fits without scrolling (one is
+//     expanded at a time; the others are cards in the top bar).
+// Writes screenshots to tests/browser/out/ (<device>.png, guide.png).
 //
 //   node tests/browser/smoke.mjs        (needs Google Chrome and web/app/studio.wasm)
 
@@ -42,7 +45,7 @@ const url = `http://127.0.0.1:${server.address().port}/index.html`;
 // ---- Chrome, and a DevTools session on one page ----
 const profile = mkdtempSync(join(tmpdir(), 'om-chrome-'));
 const chrome = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
-  '--autoplay-policy=no-user-gesture-required', '--window-size=1280,1250', '--hide-scrollbars', 'about:blank'],
+  '--autoplay-policy=no-user-gesture-required', '--window-size=1280,800', '--hide-scrollbars', 'about:blank'],
   { stdio: ['ignore', 'ignore', 'pipe'] });
 const wsUrl = await new Promise((resolve, reject) => {
   let err = '';
@@ -105,6 +108,19 @@ try {
   await sleep(800);
   check((await vaDisplay()).includes('#01'), `the VA display shows a preset: "${(await vaDisplay()).replace(/\n/g, ' | ')}"`);
 
+  console.log('== one device at a time, each fits 1280x800');
+  for (const id of await evaluate('window.orangeMouseUi.devices')) {
+    await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf(${JSON.stringify(id)}))`);
+    await sleep(200);
+    const size = await evaluate(`({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight,
+      vw: innerWidth, vh: innerHeight, visible: [...document.querySelectorAll('.device')].filter((d) => !d.hidden).length })`);
+    check(size.visible === 1, `${id}: one device expanded (${size.visible})`);
+    check(size.w <= size.vw && size.h <= size.vh, `${id}: fits without scrolling (${size.w}x${size.h} in ${size.vw}x${size.vh})`);
+    mkdirSync(OUT, { recursive: true });
+    writeFileSync(join(OUT, `${id}.png`), Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+  }
+  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('va'))`);
+
   console.log('== VA plays');
   const silent = await peak(300);
   await key('KeyZ', 'z', true);
@@ -139,9 +155,6 @@ try {
   await sleep(300);
   check(errors.length === 0, errors.length ? `errors: ${errors.slice(0, 3).join(' / ')}` : 'no errors or exceptions');
 
-  mkdirSync(OUT, { recursive: true });
-  const shot = await cdp('Page.captureScreenshot', { format: 'png' });
-  writeFileSync(join(OUT, 'studio.png'), Buffer.from(shot.data, 'base64'));
 } catch (e) {
   check(false, e.message);
 } finally {

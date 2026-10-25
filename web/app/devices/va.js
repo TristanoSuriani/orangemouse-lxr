@@ -84,6 +84,7 @@ export function createVaDevice({ send }) {
         <div class="group va-nav"></div>
       </div>
     </div>`;
+  let summary = () => {};   // the rack card's two rows
   const display = new DotMatrix(el.querySelector('.va-lcd'), { cols: 20, rows: 4 });
   const help = new HelpStrip(el.querySelector('.help-strip'),
     'Point at a knob or pad to see what it does. Keys Z-M and Q-I play.');
@@ -116,6 +117,7 @@ export function createVaDevice({ send }) {
     const n = state.params[state.slot][VA_P_PRESET] + 1;
     display.line(3, pr ? `#${String(n).padStart(2, '0')} ${pr.name.toUpperCase()}${edited() ? ' *' : ''}` : '');
     display.draw();
+    summary([slot, pr ? `#${String(n).padStart(2, '0')} ${pr.name.toUpperCase()}` : '']);
     help.refresh();
     pagePads.forEach((pad, i) => setLed(pad, i === state.page));
     slotPads.forEach((pad, i) => setLed(pad, i === state.slot));
@@ -252,5 +254,5 @@ export function createVaDevice({ send }) {
 
   addGuide(el, el.querySelector('.device-head'), GUIDE);
   render();
-  return { el, onMessage, noteFromKey, octave };
+  return { el, onMessage, noteFromKey, octave, onSummary: (fn) => { summary = fn; render(); } };
 }

@@ -9,8 +9,28 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="studio" id="devices">
-  <main class="machine" id="machine" aria-label="LXR drum machine">
+  <header class="topbar">
+    <div class="brand">Orange <b>Mouse</b></div>
+    <nav class="rack" id="rack" aria-label="Devices: Alt+1 to Alt+9, or Alt+arrows"></nav>
+    <div class="dock">
+      <label class="dock-item">Vol <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8"></label>
+      <label class="dock-item">MIDI in <select id="midiIn"><option value="">None</option></select></label>
+      <label class="dock-item">out <select id="midiOut"><option value="">None</option></select></label>
+      <details class="sd-menu">
+        <summary class="dock-button">SD card</summary>
+        <div class="sd-items">
+          <button class="dock-button" id="exportCard" type="button">Export</button>
+          <label class="dock-button">Import <input type="file" id="importCard" accept=".img,.bin" hidden></label>
+          <button class="dock-button" id="resetCard" type="button">Erase</button>
+        </div>
+      </details>
+      <span class="dock-status" id="status"></span>
+    </div>
+  </header>
+
+  <div class="stage" id="devices">
+  <main class="machine device" id="machine" aria-label="LXR drum machine">
+    <header class="device-head"><h2><b>LXR</b></h2><span class="caption">drum machine · 7 voices</span><span class="spacer"></span></header>
     <section class="top">
       <div class="display-block">
         <canvas id="lcd" class="lcd" width="400" height="92" aria-label="Display"></canvas>
@@ -37,78 +57,6 @@
     <section class="row steps" id="steps"></section>
   </main>
   </div>
-
-  <aside class="dock">
-    <label class="dock-item">Volume <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8"></label>
-    <label class="dock-item">MIDI in <select id="midiIn"><option value="">None</option></select></label>
-    <label class="dock-item">MIDI out <select id="midiOut"><option value="">None</option></select></label>
-    <button class="dock-button" id="exportCard" type="button">Export SD card</button>
-    <label class="dock-button">Import SD card <input type="file" id="importCard" accept=".img,.bin" hidden></label>
-    <button class="dock-button" id="resetCard" type="button">Erase SD card</button>
-    <span class="dock-status" id="status"></span>
-  </aside>
-
-  <p class="help">
-    Hold a button: click and hold, or <kbd>Alt</kbd>-click to latch it (click again to release).
-    Keyboard: <kbd>Shift</kbd> = Shift, <kbd>Space</kbd> = Start/Stop, <kbd>←</kbd>/<kbd>→</kbd> turn the encoder,
-    <kbd>Enter</kbd> pushes it. Pots and the encoder turn by dragging up/down or scrolling.
-    <kbd>Z</kbd>–<kbd>M</kbd> and <kbd>Q</kbd>–<kbd>I</kbd> play the selected VA slot; <kbd>[</kbd> <kbd>]</kbd> change its octave.
-  </p>
-
-  <details class="guide" id="guide">
-    <summary>How to use the LXR</summary>
-
-    <h3>Your first beat</h3>
-    <ol>
-      <li><b>Drum 1</b> is selected after switch-on.</li>
-      <li>Click step buttons <b>1, 5, 9, 13</b>. Their LEDs light: a four-on-the-floor kick.</li>
-      <li>Press <kbd>Space</kbd> (or <b>Start</b>). A moving LED shows the playhead.</li>
-      <li>Click <b>Snare</b>, then steps <b>5</b> and <b>13</b>. Click <b>Hihat cl</b>, then every odd step.</li>
-      <li>Balance the voices with the faders.</li>
-    </ol>
-
-    <h3>Shaping the sound</h3>
-    <ul>
-      <li>The display's top row names four parameters, the bottom row shows their values. A <code>&gt;</code> at
-        the end means the page has more parameters.</li>
-      <li>The <b>four pots</b> below the display change those four parameters.</li>
-      <li>The <b>data encoder</b> moves the cursor (the selected parameter is in capitals) or changes its
-        value; push it to switch between the two.</li>
-      <li>In Voice mode, <b>select buttons 1–8</b> switch between the voice's pages (oscillator, filter,
-        envelopes, modulation, LFO…).</li>
-      <li>A <b>voice button</b> opens that voice for editing.</li>
-    </ul>
-
-    <h3>Modes</h3>
-    <div class="table-wrap">
-      <table>
-        <tr><th>Button</th><th>Alone</th><th>With Shift</th></tr>
-        <tr><td>Voice</td><td>Edit sounds; press again for step edit</td><td>Step</td></tr>
-        <tr><td>Perf</td><td>Performance: select buttons choose the pattern</td><td>Euklid (Euclidean pattern generator)</td></tr>
-        <tr><td>Load</td><td>Load a kit, pattern or project</td><td>FX</td></tr>
-        <tr><td>Save</td><td>Save</td><td>Config menu (MIDI settings and more)</td></tr>
-      </table>
-    </div>
-    <ul>
-      <li><b>Step edit</b> (press Voice while a voice page is shown): click a step to edit its own settings (velocity, probability,
-        note). The 8 select buttons are its sub-steps, for flams and rolls.</li>
-      <li><b>Shift + step button</b> selects the function printed under steps 8–16: Kit, Morph, Song, Project,
-        Config, Reload, Last (step, the pattern length), FX, Pattern.</li>
-      <li><b>Page ▲/▼</b> switch bars in patterns longer than 16 steps. Hold <b>Copy</b> while pressing
-        Page ▲ to copy the current bar into the next one.</li>
-    </ul>
-
-    <h3>Holding two buttons with a mouse</h3>
-    <p>For Shift, hold the <kbd>Shift</kbd> key and click. For any other button, such as Copy,
-      <kbd>Alt</kbd>-click it to latch it down, click the second button, then click the latched one to release it.</p>
-
-    <h3>Saving</h3>
-    <p>The firmware autosaves the kit and pattern 2 seconds after the last edit, but not while the sequencer runs:
-      stop it before closing the tab. Use <b>Save</b> for named projects and <b>Export SD card</b> for a backup.</p>
-
-    <p class="note">This guide was worked out from the firmware source. For details, see the LXR-02 manual from
-      Erica Synths: this panel works like the hardware.</p>
-  </details>
 
   <div class="power" id="power">
     <button type="button" id="powerButton">Switch on</button>

@@ -11,6 +11,8 @@ import { SdCardStore, SD_SECTORS, SECTOR_SIZE, flushOnHide } from './sdcard.js';
 import { makePad, makeRotary } from './kit/controls.js';
 import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
+import { DotMatrix } from './kit/dotmatrix.js';
+import { addGuide } from './kit/guide.js';
 
 // Button numbers as in enum ButtonNumbers (Core/Inc/buttonHandler.h); each
 // button's LED has the same number in enum LedNumbers (ledHandler.h).
@@ -173,11 +175,23 @@ function pressFromKeyboard(id, down) {
 
 window.addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
-  if (e.code in KEY_SEMITONES && !e.metaKey && !e.ctrlKey && !e.altKey) {
+  // Alt+1..9 shows a device, Alt+left/right the previous or next one
+  if (e.altKey && /^Digit[1-9]$/.test(e.code)) {
+    e.preventDefault();
+    showDevice(Number(e.code.slice(5)) - 1);
+    return;
+  }
+  if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    showDevice((shown + (e.key === 'ArrowRight' ? 1 : devices.length - 1)) % devices.length);
+    return;
+  }
+  const device = devices[shown]?.id;
+  if (device === 'va' && e.code in KEY_SEMITONES && !e.metaKey && !e.ctrlKey && !e.altKey) {
     if (!e.repeat) va.noteFromKey(KEY_SEMITONES[e.code], true);
     return;
   }
-  if (e.key === '[' || e.key === ']') {
+  if (device === 'va' && (e.key === '[' || e.key === ']')) {
     va.octave(e.key === ']' ? 1 : -1);
     return;
   }
@@ -187,10 +201,10 @@ window.addEventListener('keydown', (e) => {
   } else if (e.key === ' ' && !e.repeat) {
     e.preventDefault();
     pressFromKeyboard(BUT.START_STOP, true);
-  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+  } else if (device === 'lxr' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
     e.preventDefault();
     turnEncoder?.(e.key === 'ArrowRight' ? 1 : -1);
-  } else if (e.key === 'Enter' && !e.repeat) {
+  } else if (device === 'lxr' && e.key === 'Enter' && !e.repeat) {
     e.preventDefault();
     pushEncoder();
   }
@@ -328,6 +342,7 @@ function onWorkletMessage(msg) {
       if (msg.lcd) {
         lcd.update(msg.lcd, msg.cgram, msg.lcdOn);
         lcd.canvas.setAttribute('aria-label', `Display: ${lcd.toString()}`);
+        devices[0].mini(lcd.toString().split('\n'));
       }
       if (msg.leds) showLeds(msg.leds);
       if (msg.midi) sendMidiBytes(msg.midi);
@@ -381,6 +396,56 @@ document.getElementById('resetCard').addEventListener('click', async () => {
 buildPanel();
 const va = createVaDevice({ send });
 document.getElementById('devices').append(va.el);
+
+// ---- the rack: one device expanded, the others as cards in the top bar ----------
+
+const LXR_GUIDE = [
+  { title: 'Your first beat', text: 'Drum 1 is selected after switch-on. Click steps 1, 5, 9, 13: their LEDs light, a four-on-the-floor kick. Press Space (or Start). Click Snare, then steps 5 and 13; Hihat cl, then every odd step. Balance the voices with the faders.' },
+  { title: 'Shape the sound', text: 'The display\'s top row names four parameters, the bottom row shows their values; a &gt; means the page has more. The four pots change them. The data encoder moves the cursor or changes the value; push it (click, or Enter) to switch. Select buttons 1-8 switch the voice\'s pages. A voice button opens that voice.' },
+  { title: 'Modes', text: 'Voice: edit sounds; press again for step edit (Shift: Step). Perf: performance, the select buttons choose the pattern (Shift: Euklid, the Euclidean generator). Load (Shift: FX). Save (Shift: the config menu, MIDI settings and more).' },
+  { title: 'Steps and bars', text: 'In step edit, click a step to edit its velocity, probability and note; the select buttons are its sub-steps, for flams and rolls. Shift + a step button selects the function printed under steps 8-16. Page up/down switch bars; hold Copy while pressing Page up to copy the bar into the next.' },
+  { title: 'Two buttons with a mouse', text: 'Hold the Shift key and click for Shift. For any other button, such as Copy, Alt-click it to latch it down, click the second button, then click the latched one to release it.' },
+  { title: 'Keys and saving', text: 'Space starts and stops; arrow keys turn the encoder, Enter pushes it. The LXR autosaves the kit and pattern 2 s after the last edit, but not while it plays: stop before closing the tab. SD card (top bar) exports a backup.' },
+];
+const machine = document.getElementById('machine');
+addGuide(machine, machine.querySelector('.device-head'), LXR_GUIDE);
+
+const devices = [
+  { id: 'lxr', name: 'LXR', what: 'drum machine', el: machine },
+  { id: 'va', name: 'VA', what: 'Orange Mouse VA', el: va.el },
+];
+let shown = 0;
+const rack = document.getElementById('rack');
+devices.forEach((d, i) => {
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'rack-card';
+  card.innerHTML = `<span class="led"></span><span class="rack-name">${d.name}<small>Alt+${i + 1}</small></span><canvas class="lcd rack-lcd"></canvas>`;
+  card.setAttribute('aria-label', `${d.what} (Alt+${i + 1})`);
+  card.addEventListener('click', () => showDevice(i));
+  const mini = new DotMatrix(card.querySelector('canvas'), { cols: 16, rows: 2, dot: 2, margin: 5 });
+  d.card = card;
+  d.mini = (rows) => { mini.line(0, rows[0] ?? ''); mini.line(1, rows[1] ?? ''); mini.draw(); };
+  d.mini(['', '']);
+  rack.append(card);
+});
+va.onSummary((rows) => devices[1].mini(rows));
+
+function showDevice(i) {
+  if (i < 0 || i >= devices.length) return;
+  shown = i;
+  devices.forEach((d, j) => {
+    d.el.hidden = j !== i;
+    d.card.classList.toggle('lit', j === i);
+    d.card.setAttribute('aria-current', j === i ? 'true' : 'false');
+  });
+  try { localStorage.setItem('om.device', devices[i].id); } catch { /* storage unavailable: start on the LXR next time */ }
+}
+let saved = null;
+try { saved = localStorage.getItem('om.device'); } catch { /* as above */ }
+showDevice(Math.max(0, devices.findIndex((d) => d.id === saved)));
+window.orangeMouseUi = { showDevice, devices: devices.map((d) => d.id) };   // for the browser tests
+
 setUpMidi();
 // #preview: the panels without the switch-on overlay and without audio, for
 // screenshots (tests) and for looking around

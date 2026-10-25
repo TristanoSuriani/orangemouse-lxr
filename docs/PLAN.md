@@ -105,13 +105,12 @@ the shared design tokens, and nothing gets a style of its own:
 **Layout: the whole studio fits on one page.** Desktop screens are the target (1280×800 and up); phones are
 not a priority.
 
-- **No scrolling.** Every device is always on screen, at least in its compact form: its display, its four
-  soft knobs and its main pads.
-- **One device in focus.** The focused device opens to its full panel and takes the computer keyboard; the
-  others stay compact around it. The tracker's display stays the largest in the room.
-- **Moving between devices.** Click a device, use ⌘1…⌘6 (Tracker, LXR, VA, Plaits, Dexed, Mixer), or
-  Ctrl+Tab for the next. The focused device's name lights on a strip of device buttons, so you always know
-  where the keys go.
+- **One device expanded at a time** (decided 2026-10-25, after two expanded panels overflowed a 16"
+  MacBook Pro). The others are cards in the top bar: name, a small dot-matrix display mirroring the device,
+  and an LED on the expanded one. The expanded device takes the computer keyboard.
+- **No scrolling.** The browser test checks, for every device, that the page fits a 1280×800 window.
+- **Moving between devices.** Click a card, or use Alt+1…Alt+9 (in the cards' order) and Alt+←/→. ⌘1 and
+  Ctrl+Tab belong to the browser and cannot be taken reliably.
 - **Playing only the LXR.** Turning the tracker off hands the clock to the LXR's own sequencer. The LXR then
   plays alone, exactly as the hardware does, and the other devices still answer MIDI.
 
