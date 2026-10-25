@@ -16,7 +16,7 @@
   <!-- Audio thread boundary -->
   <rect x="330" y="30" width="1040" height="790" rx="18" fill="#f8f9fa" stroke="#868e96" stroke-width="2" stroke-dasharray="10 6"/>
   <text x="350" y="58" font-size="17" font-weight="700" fill="#495057">AudioWorklet: one WASM module, one audio thread</text>
-  <text x="350" y="80" font-size="14" fill="#495057">48 kHz · 128-frame blocks (≈2.7 ms per block)</text>
+  <text x="350" y="80" font-size="14" fill="#495057">44.1 kHz · 128-frame blocks (≈2.9 ms per block)</text>
 
   <!-- Tracker -->
   <rect x="690" y="100" width="320" height="70" rx="14" fill="#228be6" stroke="#1e1e1e" stroke-width="3"/>
@@ -109,9 +109,9 @@
   <text x="50" y="550" font-size="13" fill="#1e1e1e">2. All engines in one worklet.</text>
   <text x="66" y="568" font-size="13" fill="#1e1e1e">Split into Workers + ring</text>
   <text x="66" y="586" font-size="13" fill="#1e1e1e">buffers only if CPU runs out.</text>
-  <text x="50" y="616" font-size="13" fill="#1e1e1e">3. Everything at 48 kHz.</text>
-  <text x="66" y="634" font-size="13" fill="#1e1e1e">LXR's REAL_FS changes</text>
-  <text x="66" y="652" font-size="13" fill="#1e1e1e">from 44140 to 48000.</text>
+  <text x="50" y="616" font-size="13" fill="#1e1e1e">3. Everything at 44.1 kHz.</text>
+  <text x="66" y="634" font-size="13" fill="#1e1e1e">The LXR keeps its rate;</text>
+  <text x="66" y="652" font-size="13" fill="#1e1e1e">Plaits gets pitch-corrected.</text>
   <text x="50" y="682" font-size="13" fill="#1e1e1e">4. Engines output dry.</text>
   <text x="66" y="700" font-size="13" fill="#1e1e1e">All effects live in the</text>
   <text x="66" y="718" font-size="13" fill="#1e1e1e">Audio Composer.</text>

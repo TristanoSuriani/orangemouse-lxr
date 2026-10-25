@@ -190,7 +190,17 @@ nothing built earlier has to be redone.
 4. **Golden baseline.** Render the LXR presets *before* touching the sample rate.
 5. **The engine interface in C:** `init`, `note_on`, `note_off`, `set_param`, `render(block)` returning
    stereo stems. LXR and VA are wrapped first. Then the router and the mixer skeleton.
-6. **Move to 48 kHz.** Change LXR's `REAL_FS` and re-baseline the renders on purpose.
+6. **The studio's sample rate.** ~~Move to 48 kHz~~. **Decided 2026-10-25: the studio runs at 44.1 kHz.**
+   - Much of the LXR's DSP works in fractions of the sample rate: the filter cutoff is a fraction of
+     Nyquist, the transients advance one sample per sample, and the delay buffer is a fixed number of
+     samples. At 48 kHz its filters would sit 1.5 semitones higher and its transients and envelopes would
+     run 9 % faster, unless the whole firmware were audited.
+   - VA, Dexed and the Surge effects take the rate as a parameter.
+   - Plaits is the only engine designed for 48 kHz. Its adapter corrects its pitch (+1.47 semitones), or
+     resamples that one voice (Phase 5).
+   - The browser converts 44.1 kHz to the sound card's rate.
+   - `REAL_FS` (44140 on the hardware, whose clock cannot make 44100) is 44100 in our builds, so the LXR
+     is in tune with the other engines. That moved its pitch by 1.6 cents and was re-baselined on purpose.
 7. **The parameter registry format** and its generator for C and JS.
 
 ### Phase 1: the UI kit, on Orange Mouse VA

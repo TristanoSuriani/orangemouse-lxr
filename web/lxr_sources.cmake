@@ -62,6 +62,9 @@ function(lxr_configure target)
     target_compile_definitions(${target} PRIVATE
         STM32F765xx
         USE_HAL_DRIVER
+        # the hardware runs at 44140 Hz (its I2S prescaler cannot make 44100);
+        # the studio runs at exactly 44100, and the LXR is tuned for that
+        "REAL_FS=44100.f"
         "FIRMWARE_VERSION=\" ${PROJECT_VERSION}\""
     )
 
