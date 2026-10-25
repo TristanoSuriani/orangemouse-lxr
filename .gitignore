@@ -8,3 +8,5 @@ __pycache__/
 !/third_party/fetch.sh
 /spikes/out/
 /spikes/dexed/carts/
+/tests/host/build/
+/tests/host/out/

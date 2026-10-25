@@ -33,69 +33,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_C_FLAGS_DEBUG   "-O2 -g")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
-# Firmware sources that run unchanged. The hardware-specific files left out
-# here are replaced by the port (port/): startup, clocks and interrupts
-# (main.c, stm32f7xx_it.c, ...), the LCD and encoder drivers, the I2S codec
-# driver, USB-MIDI and the SD card driver.
-file(GLOB_RECURSE lxr_core_sources CONFIGURE_DEPENDS "${LXR_ROOT}/Core/Src/*.c")
-list(FILTER lxr_core_sources EXCLUDE REGEX
-    "/Core/Src/(main|stm32f7xx_it|stm32f7xx_hal_msp|system_stm32f7xx|syscalls|sysmem|delay|flash_if|lcd|encoder)\\.c$")
-list(FILTER lxr_core_sources EXCLUDE REGEX
-    "/Soundengine/(AudioCodecManager|cs4344_cs5343|USB/usb_manager)\\.c$")
-
-set(lxr_fatfs_sources
-    ${LXR_ROOT}/Middlewares/Third_Party/FatFs/src/diskio.c
-    ${LXR_ROOT}/Middlewares/Third_Party/FatFs/src/ff.c
-    ${LXR_ROOT}/Middlewares/Third_Party/FatFs/src/ff_gen_drv.c
-    ${LXR_ROOT}/FATFS/App/fatfs.c
-)
-
-set(lxr_port_sources
-    port/web_arm_division.c
-    port/web_encoder.c
-    port/web_hal.c
-    port/web_io_stubs.c
-    port/web_lcd.c
-    port/web_main.c
-    port/web_sdcard.c
-)
+include(${CMAKE_CURRENT_LIST_DIR}/lxr_sources.cmake)
 
 add_executable(lxr ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources})
-
-target_include_directories(lxr PRIVATE
-    port
-    ${LXR_ROOT}/Core/Inc
-    ${LXR_ROOT}/Drivers/CMSIS/Include
-    ${LXR_ROOT}/Drivers/CMSIS/Device/ST/STM32F7xx/Include
-    ${LXR_ROOT}/Drivers/STM32F7xx_HAL_Driver/Inc
-    ${LXR_ROOT}/Middlewares/Third_Party/FatFs/src
-    ${LXR_ROOT}/FATFS/App
-    ${LXR_ROOT}/FATFS/Target
-    ${LXR_ROOT}/Middlewares/JS/STM32_USB_Device_Library/Core/Inc
-    ${LXR_ROOT}/Middlewares/JS/STM32_USB_Device_Library/Class/CDC/Inc
-    ${LXR_ROOT}/USB_DEVICE_MIDI/App
-    ${LXR_ROOT}/USB_DEVICE_MIDI/Target
-)
-
-target_compile_definitions(lxr PRIVATE
-    STM32F765xx
-    USE_HAL_DRIVER
-    "FIRMWARE_VERSION=\" ${PROJECT_VERSION}\""
-)
-
-target_compile_options(lxr PRIVATE
-    -include ${CMAKE_CURRENT_LIST_DIR}/port/lxr_web_port.h
-    -ffast-math
-    # The firmware is written for arm-none-eabi-gcc and an MCU; these
-    # warnings are about that code, not about the port.
-    -Wno-implicit-function-declaration
-    -Wno-int-conversion
-    -Wno-incompatible-pointer-types
-    -Wno-pointer-to-int-cast
-    -Wno-int-to-pointer-cast
-    -w
-)
-set_source_files_properties(${lxr_port_sources} PROPERTIES COMPILE_OPTIONS "-Wall;-Wno-unused-function")
+lxr_configure(lxr)
 
 # A standalone module without Emscripten's JavaScript runtime: the
 # AudioWorklet instantiates it directly (see app/lxr-worklet.js).

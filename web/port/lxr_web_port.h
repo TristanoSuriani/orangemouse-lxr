@@ -39,19 +39,19 @@ extern uint8_t web_periph_ahb2[WEB_PERIPH_AHB2_SIZE];
 extern uint8_t web_periph_core[WEB_PERIPH_CORE_SIZE];
 
 #undef PERIPH_BASE
-#define PERIPH_BASE ((uint32_t)(uintptr_t)web_periph)
+#define PERIPH_BASE ((uintptr_t)web_periph)
 #undef AHB2PERIPH_BASE
-#define AHB2PERIPH_BASE ((uint32_t)(uintptr_t)web_periph_ahb2)
+#define AHB2PERIPH_BASE ((uintptr_t)web_periph_ahb2)
 
 // Core peripherals, all relative to 0xE0000000.
 #undef SCS_BASE
-#define SCS_BASE ((uint32_t)(uintptr_t)web_periph_core + 0xE000u)
+#define SCS_BASE ((uintptr_t)web_periph_core + 0xE000u)
 #undef CoreDebug_BASE
-#define CoreDebug_BASE ((uint32_t)(uintptr_t)web_periph_core + 0xEDF0u)
+#define CoreDebug_BASE ((uintptr_t)web_periph_core + 0xEDF0u)
 #undef ITM_BASE
-#define ITM_BASE ((uint32_t)(uintptr_t)web_periph_core + 0x0000u)
+#define ITM_BASE ((uintptr_t)web_periph_core + 0x0000u)
 #undef DWT_BASE
-#define DWT_BASE ((uint32_t)(uintptr_t)web_periph_core + 0x1000u)
+#define DWT_BASE ((uintptr_t)web_periph_core + 0x1000u)
 
 // Every access to DWT advances the cycle counter, so the firmware's
 // DWT-based busy waits and LCD timeouts finish.
