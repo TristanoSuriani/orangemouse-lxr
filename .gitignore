@@ -11,3 +11,4 @@ __pycache__/
 /tests/host/build/
 /tests/host/out/
 .cache/
+/tests/host/build*/
