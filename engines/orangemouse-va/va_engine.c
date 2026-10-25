@@ -13,6 +13,7 @@
 #include <string.h>
 #include "engine.h"
 #include "VaEngine.h"
+#include "om_registry_va.h"
 
 static uint8_t va_created;
 
@@ -47,8 +48,10 @@ static void vaNoteOff(void *self, uint8_t part, uint8_t note)
 static void vaSetParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 {
 	(void)self;
-	if (param < VA_NUM_PARAMS)
-		va_setParam(part, (uint8_t)param, value);
+	if (param >= OM_VA_NUM_PARAMS)
+		return;
+	const OmParamInfo *info = &om_va_params[param];
+	va_setParam(part, (uint8_t)param, value < info->min ? info->min : value > info->max ? info->max : value);
 }
 
 static void vaSetTempo(void *self, float bpm)
@@ -73,6 +76,8 @@ const OmEngineClass om_va_engine = {
 	.parts = VA_NUM_SLOTS,
 	.stems = VA_NUM_SLOTS,
 	.block = 0,
+	.params = om_va_params,
+	.numParams = OM_VA_NUM_PARAMS,
 	.create = vaCreate,
 	.destroy = vaDestroy,
 	.note_on = vaNoteOn,

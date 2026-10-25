@@ -1,10 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 # Orange Mouse tests (PLAN.md, "Testing"). Run from anywhere:
 #   tests/run.sh                    check everything against tests/golden/
 #   UPDATE_GOLDEN=1 tests/run.sh    accept the current sound and CPU as the new golden files
 # Needs cmake, ninja and a C compiler; the WebAssembly parity checks also
 # need Emscripten (source emsdk_env.sh) and node.
-set -e
+set -e -o pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 OUT=tests/host/out
@@ -43,6 +43,10 @@ cpu() {  # name, command...: best of 3 us/block against the golden budget (+25 %
 echo "== host build"
 cmake -S tests/host -B $BIN -G Ninja >/dev/null
 cmake --build $BIN >/dev/null
+
+echo "== parameter registry"
+{ python3 -I tools/lxr_registry.py --check && python3 -I tools/registry.py --check && node tests/registry_test.mjs; } \
+  | sed 's/^/   /' || fail=1
 
 echo "== studio unit tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1

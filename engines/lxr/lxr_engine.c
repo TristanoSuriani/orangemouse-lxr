@@ -22,6 +22,7 @@
 #include "Soundengine/MIDI/MidiParser.h"
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "Soundengine/Sequencer/sequencer.h"
+#include "om_registry_lxr.h"
 
 // web/port/web_main.c and web_sdcard.c
 uint8_t *web_sd_alloc(uint32_t sectors);
@@ -74,8 +75,10 @@ static void lxrSetParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 {
 	(void)self;
 	(void)part;
-	if (param >= END_OF_SOUND_PARAMETERS)
+	if (param >= OM_LXR_NUM_PARAMS)
 		return;
+	const OmParamInfo *info = &om_lxr_params[param];
+	value = value < info->min ? info->min : value > info->max ? info->max : value;
 	activeParameters[param] = value;
 
 	if (param >= PAR_VEL_DEST_1 && param < PAR_VEL_DEST_1 + 6)
@@ -132,6 +135,8 @@ const OmEngineClass om_lxr_engine = {
 	.parts = LXR_PARTS,
 	.stems = LXR_STEMS,
 	.block = OUTPUT_DMA_SIZE,
+	.params = om_lxr_params,
+	.numParams = OM_LXR_NUM_PARAMS,
 	.create = lxrCreate,
 	.destroy = lxrDestroy,
 	.note_on = lxrNoteOn,

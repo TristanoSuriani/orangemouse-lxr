@@ -201,7 +201,10 @@ nothing built earlier has to be redone.
    - The browser converts 44.1 kHz to the sound card's rate.
    - `REAL_FS` (44140 on the hardware, whose clock cannot make 44100) is 44100 in our builds, so the LXR
      is in tune with the other engines. That moved its pitch by 1.6 cents and was re-baselined on purpose.
-7. **The parameter registry format** and its generator for C and JS.
+7. **The parameter registry format** and its generator for C and JS. **Done 2026-10-25** (`registry/README.md`):
+   - VA's 49 parameters are written by hand, each with a help line.
+   - The LXR's 247 are extracted from the firmware's own tables and checked against it. Their help lines
+     are Phase 1.3's glossary.
 
 ### Phase 1: the UI kit, on Orange Mouse VA
 

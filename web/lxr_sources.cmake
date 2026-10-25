@@ -46,6 +46,7 @@ function(lxr_configure target)
     target_include_directories(${target} PRIVATE
         ${LXR_PORT_DIR}
         ${LXR_ROOT}/engines
+        ${LXR_ROOT}/generated/registry
         ${LXR_ROOT}/Core/Inc
         ${LXR_ROOT}/Drivers/CMSIS/Include
         ${LXR_ROOT}/Drivers/CMSIS/Device/ST/STM32F7xx/Include

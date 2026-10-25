@@ -27,6 +27,9 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include "engine.h"
+
+extern const OmEngineClass om_lxr_engine;   // its params: the registry's ranges (registry/lxr.json)
 
 void web_log(const char *msg) { (void)msg; }
 void web_sd_written(uint32_t firstSector, uint32_t count) { (void)firstSector; (void)count; }
@@ -38,8 +41,6 @@ float *web_render(void);
 int web_block_size(void);
 void web_test_demo_block(uint32_t block, float rate);
 void web_test_set_param(uint16_t param, uint8_t value);
-uint16_t web_test_num_sound_params(void);
-uint16_t web_test_param_range(uint16_t param);
 void web_test_busy_kit(void);
 void web_test_load_kit(void);
 
@@ -103,7 +104,7 @@ int main(int argc, char **argv)
 	web_boot(rate, 1);
 
 	// the cases: the base, then min, middle and max of every sound parameter
-	const int np = web_test_num_sound_params();
+	const int np = om_lxr_engine.numParams;
 	Case *cases = malloc(sizeof(Case) * 2 * (1 + 3 * np));
 	int nc = 0;
 	for (int busy = 0; busy < 2; busy++)
@@ -112,8 +113,8 @@ int main(int argc, char **argv)
 		for (int p = 0; p < np; p++)
 		{
 			if (only >= -1 && p != only) continue;
-			const uint16_t r = web_test_param_range((uint16_t)p);
-			const int lo = r & 0xFF, hi = r >> 8, mid = (lo + hi) / 2;
+			const OmParamInfo *info = &om_lxr_engine.params[p];
+			const int lo = info->min, hi = info->max, mid = (lo + hi) / 2;
 			cases[nc++] = (Case){busy, p, lo};
 			if (mid != lo && mid != hi) cases[nc++] = (Case){busy, p, mid};
 			if (hi != lo) cases[nc++] = (Case){busy, p, hi};

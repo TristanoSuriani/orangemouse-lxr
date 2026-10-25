@@ -77,7 +77,7 @@ add_library(om_core OBJECT
     ${LXR_ROOT}/engines/orangemouse-va/VaPresets.c
     ${LXR_ROOT}/engines/orangemouse-va/va_engine.c
 )
-target_include_directories(om_core PUBLIC ${LXR_ROOT}/studio ${LXR_ROOT}/engines ${LXR_ROOT}/engines/orangemouse-va)
+target_include_directories(om_core PUBLIC ${LXR_ROOT}/studio ${LXR_ROOT}/engines ${LXR_ROOT}/engines/orangemouse-va ${LXR_ROOT}/generated/registry)
 target_compile_options(om_core PRIVATE
     "SHELL:-include ${CMAKE_CURRENT_LIST_DIR}/om_math.h" -ffp-contract=off -Wall)
 target_compile_definitions(om_core PRIVATE ${musl_math_definition})
@@ -88,6 +88,7 @@ if(NOT EMSCRIPTEN)
 endif()
 foreach(tool ${lxr_tools})
     add_executable(${tool} ${tool}.c $<TARGET_OBJECTS:lxr_firmware> ${musl_objects})
+    target_include_directories(${tool} PRIVATE ${LXR_ROOT}/engines)
     target_link_libraries(${tool} PRIVATE m)
 endforeach()
 add_executable(studio_render studio_render.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${musl_objects})

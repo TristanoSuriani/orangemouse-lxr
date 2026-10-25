@@ -8,6 +8,7 @@
  * web_render() returns) and as a WAV of both stereo outputs mixed.
  *
  *   lxr_render [--seconds S] [--rate HZ] [--raw out.f32] [--wav out.wav]
+ *   lxr_render --dump-kit      the init kit's sound parameters after boot, one per line
  *
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
@@ -28,6 +29,8 @@ void web_boot(float rate, uint32_t seed);
 float *web_render(void);
 int web_block_size(void);
 void web_test_demo_block(uint32_t block, float rate);
+uint16_t web_test_num_sound_params(void);
+extern uint8_t activeParameters[];
 
 static void writeWav(const char *path, const int16_t *s, uint32_t frames, uint32_t rate)
 {
@@ -47,6 +50,14 @@ int main(int argc, char **argv)
 {
 	float seconds = 8.f, rate = 44100.f;
 	const char *rawPath = NULL, *wavPath = NULL;
+	if (argc == 2 && !strcmp(argv[1], "--dump-kit"))
+	{
+		web_sd_alloc(32768);
+		web_boot(rate, 1);
+		for (int p = 0; p < web_test_num_sound_params(); p++)
+			printf("%d %d\n", p, activeParameters[p]);
+		return 0;
+	}
 	for (int i = 1; i + 1 < argc; i += 2)
 	{
 		if (!strcmp(argv[i], "--seconds")) seconds = (float)atof(argv[i + 1]);

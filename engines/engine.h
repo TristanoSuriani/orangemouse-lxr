@@ -13,8 +13,9 @@
  *    their exact sample; otherwise the engine renders in blocks of that size
  *    and the studio applies events at the start of the block they fall in
  *    (the LXR: 64 frames, as on the hardware).
- *  - Parameters are bytes, as in the LXR's and VA's kits; the parameter
- *    registry (PLAN.md step 0.7) will describe each engine's.
+ *  - Parameters are bytes, as in the LXR's and VA's kits. The parameter
+ *    registry (registry/<engine>.json) describes them: params[i] is
+ *    parameter i, with its names, range and default (param_info.h).
  *
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
@@ -23,14 +24,9 @@
 #define OM_ENGINE_H_
 
 #include <stdint.h>
+#include "param_info.h"
 
 #define OM_MAX_BLOCK 64   // the most frames the studio asks an engine for at once
-
-typedef struct
-{
-	float bpm;           // tempo
-	uint64_t frame;      // frames since the studio started
-} OmTransport;
 
 typedef struct OmEngineClass
 {
@@ -38,6 +34,8 @@ typedef struct OmEngineClass
 	uint8_t parts;
 	uint8_t stems;
 	uint16_t block;      // 0: any length up to OM_MAX_BLOCK; else exactly this many frames
+	const OmParamInfo *params;
+	uint16_t numParams;
 
 	// returns the engine's state, or NULL (e.g. a single-instance engine created twice)
 	void *(*create)(float sampleRate);

@@ -18,7 +18,6 @@
 #include "menu/menu.h"
 #include "Soundengine/MIDI/MidiVoiceControl.h"
 #include "Soundengine/Sequencer/sequencer.h"
-#include "menu/CcNr2Text.h"
 #include "Preset/PresetManager.h"
 
 // voice 0..6 (drum 1-3, snare, cymbal, closed hihat, open hihat)
@@ -73,32 +72,6 @@ WEB_EXPORT void web_test_busy_kit(void)
 		web_test_set_param((uint16_t)(PAR_VEL_DEST_1 + i), (uint8_t)(modTargetVoiceOffsets[i].start + 1));
 		web_test_set_param((uint16_t)(PAR_VELO_MOD_AMT_1 + i), 100);
 	}
-}
-
-// The range the menu allows for a parameter (as limitPotValue() in menu.c),
-// as min | max << 8. Menu-type parameters report 0..1: every menu has at least
-// two entries, and their entry counts are private to menu.c.
-WEB_EXPORT uint16_t web_test_param_range(uint16_t param)
-{
-	uint8_t min = 0, max = 127;
-	switch (parameter_dtypes[param] & 0xFF)
-	{
-	case DTYPE_0B255:     max = 255; break;
-	case DTYPE_1B16:      min = 1; max = 16; break;
-	case DTYPE_1B64:      min = 1; max = 64; break;
-	case DTYPE_VOICE_LFO: min = 1; max = 6; break;
-	case DTYPE_0B15:      max = 15; break;
-	case DTYPE_ON_OFF:
-	case DTYPE_0b1:
-	case DTYPE_MENU:      max = 1; break;
-	case DTYPE_0B100:     max = 100; break;
-	case DTYPE_AUTOM_TARGET:
-	case DTYPE_TARGET_SELECTION_LFO:
-	case DTYPE_TARGET_SELECTION_VELO:
-		max = (uint8_t)(getNumModTargets() - 1); break;
-	default:              max = 127; break;
-	}
-	return (uint16_t)(min | (max << 8));
 }
 
 // The demo groove the renders and the parity check play: one bar of 16ths at
