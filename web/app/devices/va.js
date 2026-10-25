@@ -232,7 +232,14 @@ export function createVaDevice({ send, help }) {
     }
     keybed.light(semi, on);
   }
-  const keybed = makeKeybed({ onNote: noteFromKey });
+  const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const keybed = makeKeybed({
+    onNote: noteFromKey,
+    describe: (key, semi, letter) => describe(key, help, () => {
+      const note = 12 * (state.octave + 1) + semi;
+      return `Key ${NOTE_NAMES[note % 12]}${Math.floor(note / 12) - 1}: plays ${registry.parts[state.slot]}. Computer key ${letter}.`;
+    }),
+  });
   el.append(keybed.el);
 
   // ---- from the worklet ----
@@ -250,7 +257,7 @@ export function createVaDevice({ send, help }) {
     state.octave = Math.min(6, Math.max(0, state.octave + d));
   }
 
-  addGuide(el, el.querySelector('.device-head'), GUIDE);
+  addGuide(el, el.querySelector('.device-head'), GUIDE, help);
   render();
   return { el, onMessage, noteFromKey, octave, onSummary: (fn) => { summary = fn; render(); } };
 }

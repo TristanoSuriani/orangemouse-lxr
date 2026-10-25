@@ -453,7 +453,7 @@ const LXR_GUIDE = [
   { title: 'Keys and saving', text: 'Space starts and stops; arrow keys turn the encoder, Enter pushes it. The LXR autosaves the kit and pattern 2 s after the last edit, but not while it plays: stop before closing the tab. SD card (top bar) exports a backup.' },
 ];
 const machine = document.getElementById('machine');
-addGuide(machine, machine.querySelector('.device-head'), LXR_GUIDE);
+addGuide(machine, machine.querySelector('.device-head'), LXR_GUIDE, help);
 
 const devices = [
   { id: 'lxr', name: 'LXR', what: 'drum machine', el: machine },

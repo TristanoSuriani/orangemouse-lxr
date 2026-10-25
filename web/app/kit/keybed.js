@@ -23,7 +23,8 @@ for (const [code, semi] of Object.entries(KEY_SEMITONES)) {
 
 const BLACK = new Set([1, 3, 6, 8, 10]);
 
-export function makeKeybed({ onNote }) {
+// describe(key, semitone) is called for each key, to explain it on a help strip.
+export function makeKeybed({ onNote, describe = () => {} }) {
   const el = document.createElement('div');
   el.className = 'keybed';
   el.setAttribute('role', 'group');
@@ -58,6 +59,7 @@ export function makeKeybed({ onNote }) {
     key.addEventListener('pointerup', up);
     key.addEventListener('pointercancel', up);
     keys[semi] = key;
+    describe(key, semi, LABELS[semi]);
     el.append(key);
   }
   el.style.setProperty('--whites', String(whiteIndex));

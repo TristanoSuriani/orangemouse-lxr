@@ -10,13 +10,17 @@
 //   - the help strip explains the control under the pointer;
 //   - the ? pad opens and closes the device's guide card;
 //   - in a 1280x800 window, every device fits without scrolling (one is
-//     expanded at a time; the others are cards in the top bar).
+//     expanded at a time; the others are cards in the top bar);
+//   - the panel lint passes for every device: each control has a name and
+//     help, none overlap or stick out of their panel, no pad label is cut;
+//   - each device looks as in tests/golden/screens/ (UPDATE_GOLDEN=1 accepts
+//     the new look).
 // Writes screenshots to tests/browser/out/ (<device>.png, guide.png).
 //
 //   node tests/browser/smoke.mjs        (needs Google Chrome and web/app/studio.wasm)
 
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync, readFileSync, existsSync, copyFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { extname, join } from 'node:path';
@@ -25,12 +29,41 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const APP = join(ROOT, 'web/app');
 const OUT = join(ROOT, 'tests/browser/out');
+const GOLDEN = join(ROOT, 'tests/golden/screens');
 const CHROME = process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm' };
 
 let failures = 0;
 const check = (ok, msg) => { console.log(`   ${ok ? 'ok' : 'FAIL'}: ${msg}`); if (!ok) failures++; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// The panel lint, run in the page on one device's panel.
+const LINT = `((device) => {
+  const problems = [];
+  const name = (el) => el.getAttribute('aria-label') || el.textContent.trim() || (el.labels && el.labels[0] && el.labels[0].textContent.trim());
+  const controls = [...device.querySelectorAll('button, [role=slider], input, select')].filter((el) => el.offsetParent !== null);
+  for (const el of controls) {
+    const what = name(el) || el.className;
+    if (!name(el)) problems.push('no accessible name: ' + el.outerHTML.slice(0, 60));
+    if (!el.closest('[data-described]') && !el.querySelector('[data-described]')) problems.push('no help: ' + what);
+  }
+  const box = device.getBoundingClientRect();
+  const solid = controls.filter((el) => !el.classList.contains('key'));   // keys overlap by design
+  for (const el of solid) {
+    const r = el.getBoundingClientRect();
+    if (r.left < box.left - 1 || r.right > box.right + 1 || r.top < box.top - 1 || r.bottom > box.bottom + 1)
+      problems.push('outside its panel: ' + name(el));
+  }
+  for (let i = 0; i < solid.length; i++) for (let j = i + 1; j < solid.length; j++) {
+    const a = solid[i].getBoundingClientRect(), b = solid[j].getBoundingClientRect();
+    const w = Math.min(a.right, b.right) - Math.max(a.left, b.left), h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    if (w > 1 && h > 1 && !solid[i].contains(solid[j]) && !solid[j].contains(solid[i])) problems.push('overlap: ' + name(solid[i]) + ' / ' + name(solid[j]));
+  }
+  for (const pad of device.querySelectorAll('.pad')) {
+    for (const t of pad.querySelectorAll('.label, .alt')) if (t.scrollWidth > pad.clientWidth + 1) problems.push('label cut: ' + t.textContent);
+  }
+  return { controls: controls.length, problems };
+})`;
 
 // ---- a static server for web/app ----
 const server = createServer((req, res) => {
@@ -117,8 +150,22 @@ try {
       vw: innerWidth, vh: innerHeight, visible: [...document.querySelectorAll('.device')].filter((d) => !d.hidden).length })`);
     check(size.visible === 1, `${id}: one device expanded (${size.visible})`);
     check(size.w <= size.vw && size.h <= size.vh, `${id}: fits without scrolling (${size.w}x${size.h} in ${size.vw}x${size.vh})`);
+    const lint = await evaluate(`${LINT}([...document.querySelectorAll('.device')].find((d) => !d.hidden))`);
+    check(lint.problems.length === 0, `${id}: panel lint over ${lint.controls} controls${lint.problems.length ? ': ' + lint.problems.slice(0, 4).join('; ') : ''}`);
     mkdirSync(OUT, { recursive: true });
-    writeFileSync(join(OUT, `${id}.png`), Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+    await evaluate(`document.activeElement && document.activeElement.blur()`);
+    await sleep(100);
+    const png = Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64');
+    writeFileSync(join(OUT, `${id}.png`), png);
+    const golden = join(GOLDEN, `${id}.png`);
+    if (process.env.UPDATE_GOLDEN) {
+      mkdirSync(GOLDEN, { recursive: true });
+      copyFileSync(join(OUT, `${id}.png`), golden);
+      console.log(`   updated tests/golden/screens/${id}.png`);
+    } else {
+      check(existsSync(golden) && readFileSync(golden).equals(png),
+        `${id}: looks as in tests/golden/screens/${id}.png${existsSync(golden) ? '' : ' (no golden yet)'} (new: tests/browser/out/${id}.png)`);
+    }
   }
   await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('va'))`);
 

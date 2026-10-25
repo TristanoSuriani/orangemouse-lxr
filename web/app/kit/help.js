@@ -61,5 +61,6 @@ export function describe(el, help, text) {
   el.addEventListener('pointerleave', () => { if (help.source === source) help.show(null); });
   el.addEventListener('blur', () => { if (help.source === source) help.show(null); });
   el.title = '';   // the strip replaces tooltips
+  el.dataset.described = '';   // the panel lint checks every control has help (tests/browser)
   return source;
 }

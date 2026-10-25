@@ -5,11 +5,12 @@
 // it explains how to work the device, grouped by task (PLAN.md, "A printed
 // legend"). Press ? again, or Escape, to put it away.
 //
-//   addGuide(deviceEl, headEl, [{ title: 'Play', text: 'Keys Z-M ...' }, ...]);
+//   addGuide(deviceEl, headEl, [{ title: 'Play', text: 'Keys Z-M ...' }, ...], helpStrip);
 
 import { makePad } from './controls.js';
+import { describe } from './help.js';
 
-export function addGuide(device, head, sections) {
+export function addGuide(device, head, sections, help) {
   const card = document.createElement('div');
   card.className = 'guide-card';
   card.hidden = true;
@@ -27,6 +28,7 @@ export function addGuide(device, head, sections) {
   pad.setAttribute('aria-label', 'How to use this device');
   pad.setAttribute('aria-expanded', 'false');
   head.append(pad);
+  describe(pad, help, '?: how to use this device, by task. Press again (or Escape) to close it.');
   card.addEventListener('pointerdown', () => toggle(false));
   device.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !card.hidden) toggle(false); });
   return { toggle };
