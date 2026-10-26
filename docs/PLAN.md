@@ -242,10 +242,7 @@ Done as follows:
 Added on 2026-10-26: **Surge filters on every channel.** Each mixer channel gets an insert filter from
 Surge XT (sst-filters, already fetched with the effects): its filter types (low-pass, high-pass,
 band-pass, notch, the ladders and the vintage models) with cutoff and resonance on the channel's
-strip, for the sweeps that trance and dub techno live on. Done: 13 of Surge's filters (studio/filter.cpp: low-pass
-12 and 24 dB, the legacy and vintage ladders, OB-Xd, K35, diode; high-pass 12, 24 dB and K35; band-pass,
-notch, OB-Xd band-pass), each checked to filter as its kind should; off leaves the sound bit for bit
-untouched.
+strip, for the sweeps that trance and dub techno live on.
 
 ### Phase 4: Dexed
 
@@ -333,4 +330,4 @@ Added on 2026-10-26, after the phases above:
 - **Mutable Instruments Rings**, the resonator (MIT, from the same eurorack repository as Plaits): a
   device of its own, played from the tracker, and possibly fed by other channels.
 - **Surge XT's waveforms**: its oscillators (classic, modern, wavetable, window, sine, FM and the
-  others) as an instrument, presets first, in the same way as Dexed.
+  others) as an instrument, included sound design, unlike Dexed.
