@@ -237,7 +237,12 @@ Done as follows:
 - **The mix is part of the song** (song.mix), so it saves and loads with it.
 - **Parity holds.** Surge's effects run on our own configuration with a seeded random generator, and the
   native and browser renders of the demo song, effects included, are still bit for bit the same.
-- **Not yet:** effects as inserts on a channel, and an EQ.
+- **Not yet:** an EQ.
+
+Added on 2026-10-26: **Surge filters on every channel.** Each mixer channel gets an insert filter from
+Surge XT (sst-filters, already fetched with the effects): its filter types (low-pass, high-pass,
+band-pass, notch, the ladders and the vintage models) with cutoff and resonance on the channel's
+strip, for the sweeps that trance and dub techno live on.
 
 ### Phase 4: Dexed
 
@@ -307,3 +312,12 @@ Fel-Tracker's suite showed this works: golden hashes, CPU counts and a layout li
 4. **LXR:** you can play the LXR alone. Its sequencer takes the clock when the tracker is off.
 5. **Layout:** the whole studio fits on one desktop page, and you can move between devices. Phones are not a
    priority.
+
+## Later
+
+Added on 2026-10-26, after the phases above:
+
+- **Mutable Instruments Rings**, the resonator (MIT, from the same eurorack repository as Plaits): a
+  device of its own, played from the tracker, and possibly fed by other channels.
+- **Surge XT's waveforms**: its oscillators (classic, modern, wavetable, window, sine, FM and the
+  others) as an instrument, presets first, in the same way as Dexed.
