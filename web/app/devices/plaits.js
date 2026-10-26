@@ -61,7 +61,7 @@ const GUIDE = [
 ];
 
 export function createPlaitsDevice({ send, help, song }) {
-  const state = { part: 0, page: 0, octave: 3, presets: [] };
+  const state = { part: 0, page: 0, octave: 3, presets: registry.presets };
   const part = () => song().plaits[state.part].p;
   const meaning = (param) => {
     const i = [P.HARMONICS, P.TIMBRE, P.MORPH].indexOf(param);
@@ -262,13 +262,6 @@ export function createPlaitsDevice({ send, help, song }) {
     return true;
   }
 
-  function onMessage(msg) {
-    if (msg.type === 'plaitsPresets') {
-      state.presets = msg.presets;
-      render();
-    }
-  }
-
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
-  return { el, render, onMessage, noteFromKey, octave, handleKey, presets: () => state.presets, onSummary: (fn) => { summary = fn; render(); } };
+  return { el, render, noteFromKey, octave, handleKey, presets: () => state.presets, onSummary: (fn) => { summary = fn; render(); } };
 }

@@ -13,9 +13,13 @@
  */
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "studio.h"
 #include "plaits_engine.h"
+#include "om_registry_plaits.h"
+
+#define om_plaits_num_presets OM_PLAITS_NUM_PRESETS
 
 static int failures;
 #define CHECK(cond, ...) do { if (!(cond)) { failures++; printf("FAIL %s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
@@ -56,8 +60,82 @@ static void setAll(OmStudio *st, uint8_t part, const uint8_t *p)
 		om_studio_set_param(st, om_studio_frame(st), 0, part, i, p[i]);
 }
 
+// PLAITS_LOUDNESS=1: each preset's loudness (RMS of a held C4 and a C3/C5
+// pair over 1 s at volume 0 dB), for balancing their volumes
+static void loudness(void)
+{
+	for (int k = 0; k < om_plaits_num_presets; k++)
+	{
+		OmStudio *st = fresh();
+		uint8_t p[PLAITS_PRESET_PARAMS];
+		memcpy(p, om_plaits_presets[k].p, sizeof p);
+		p[PL_P_VOLUME] = 100;
+		setAll(st, 0, p);
+		double e = 0;
+		long count = 0;
+		const uint8_t notes[3] = {60, 48, 72};
+		for (int i = 0; i < 3; i++)
+		{
+			om_studio_note_on(st, om_studio_frame(st), 0, 0, notes[i], 100);
+			for (int b = 0; b < 690; b++)
+			{
+				om_studio_render(st, L, R, OM_MAX_BLOCK);
+				for (int j = 0; j < OM_MAX_BLOCK; j++, count += 2) e += (double)L[j] * L[j] + (double)R[j] * R[j];
+			}
+			om_studio_note_off(st, om_studio_frame(st), 0, 0, notes[i]);
+			run(st, 2000, NULL);
+		}
+		printf("%-12s %6.1f dBFS\n", om_plaits_presets[k].name, 10 * log10(e / count + 1e-12));
+		om_studio_destroy(st);
+	}
+}
+
+// PLAITS_WAVS=<dir>: each preset as a WAV (C4, then C3 and C5), for listening
+static void wavs(const char *dir)
+{
+	char path[512];
+	snprintf(path, sizeof path, "mkdir -p '%s'", dir);
+	if (system(path) != 0) return;
+	for (int k = 0; k < om_plaits_num_presets; k++)
+	{
+		OmStudio *st = fresh();
+		setAll(st, 0, om_plaits_presets[k].p);
+		enum { FRAMES = 44100 * 6 };
+		static int16_t pcm[FRAMES * 2];
+		const uint8_t notes[3] = {60, 48, 72};
+		uint32_t f = 0;
+		for (int i = 0; i < 3; i++)
+		{
+			om_studio_note_on(st, om_studio_frame(st), 0, 0, notes[i], 100);
+			for (int b = 0; b < 1378; b++, f += OM_MAX_BLOCK)   // 2 s a note: 1 s held, 1 s release
+			{
+				if (b == 689) om_studio_note_off(st, om_studio_frame(st), 0, 0, notes[i]);
+				om_studio_render(st, L, R, OM_MAX_BLOCK);
+				for (int j = 0; j < OM_MAX_BLOCK && f + j < FRAMES; j++)
+				{
+					pcm[2 * (f + j)] = (int16_t)(fmaxf(-1.f, fminf(1.f, L[j])) * 32767.f);
+					pcm[2 * (f + j) + 1] = (int16_t)(fmaxf(-1.f, fminf(1.f, R[j])) * 32767.f);
+				}
+			}
+		}
+		om_studio_destroy(st);
+		snprintf(path, sizeof path, "%s/%02d %s.wav", dir, k + 1, om_plaits_presets[k].name);
+		FILE *out = fopen(path, "wb");
+		if (!out) continue;
+		const uint32_t data = FRAMES * 4, riff = 36 + data, fmt = 16, rate = 44100, br = rate * 4;
+		const uint16_t pcmFormat = 1, ch = 2, ba = 4, bits = 16;
+		fwrite("RIFF", 1, 4, out); fwrite(&riff, 4, 1, out); fwrite("WAVEfmt ", 1, 8, out);
+		fwrite(&fmt, 4, 1, out); fwrite(&pcmFormat, 2, 1, out); fwrite(&ch, 2, 1, out);
+		fwrite(&rate, 4, 1, out); fwrite(&br, 4, 1, out); fwrite(&ba, 2, 1, out); fwrite(&bits, 2, 1, out);
+		fwrite("data", 1, 4, out); fwrite(&data, 4, 1, out); fwrite(pcm, 4, FRAMES, out);
+		fclose(out);
+	}
+}
+
 int main(void)
 {
+	if (getenv("PLAITS_LOUDNESS")) { loudness(); return 0; }
+	if (getenv("PLAITS_WAVS")) { wavs(getenv("PLAITS_WAVS")); return 0; }
 	// every preset, three notes: sound, bounded, then silence (pads within 9 s)
 	OmStudio *st = fresh();
 	const uint8_t notes[3] = {36, 60, 84};

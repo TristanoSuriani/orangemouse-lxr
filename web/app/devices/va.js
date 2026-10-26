@@ -251,7 +251,10 @@ export function createVaDevice({ send, help, song }) {
   }
   // a song was loaded: its slots (those it changed; the others follow their preset, from the worklet)
   function load(s) {
-    s.va.forEach((slot, k) => { if (slot.params) state.params[k] = [...slot.params]; });
+    s.va.forEach((slot, k) => {
+      if (slot.params) state.params[k] = [...slot.params];
+      else state.params[k][VA_P_PRESET] = slot.preset ?? 0;
+    });
     render();
   }
 

@@ -18,6 +18,7 @@ import { createPlaitsDevice } from './devices/plaits.js';
 import { songMessages } from './tracker/song.js';
 import * as library from './tracker/library.js';
 import { demoSong } from './tracker/demo.js';
+import { GENRE_SONGS } from './tracker/genres/index.js';
 import { DotMatrix } from './kit/dotmatrix.js';
 import { addGuide } from './kit/guide.js';
 import { HelpStrip, describe } from './kit/help.js';
@@ -431,9 +432,6 @@ function onWorkletMessage(msg) {
     case 'dexedNames':
       dexed.onMessage(msg);
       break;
-    case 'plaitsPresets':
-      plaits.onMessage(msg);
-      break;
   }
 }
 
@@ -487,6 +485,7 @@ tracker.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); va.load
 // the demo song at once; the song last edited replaces it when the library answers
 tracker.load(demoSong());
 (async () => {
+  await library.seed(GENRE_SONGS);   // the genre demos, in the library once
   const id = library.currentId();
   const saved = id && (await library.load(id));
   if (saved) {

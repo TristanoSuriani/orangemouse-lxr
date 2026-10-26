@@ -18,6 +18,7 @@
 #include "dexed_engine.h"
 #include "plaits_engine.h"
 #include "om_registry_lxr.h"
+#include "om_registry_plaits.h"
 
 extern const OmEngineClass om_lxr_engine, om_va_engine;
 void om_lxr_set_seed(uint32_t seed);
@@ -147,12 +148,6 @@ WEB_EXPORT const char *om_web_dexed_program_name(int bank, int program)
 	om_dexed_program_name(bank, program, dexedName);
 	return dexedName;
 }
-
-// Plaits' presets (plaits_presets.c): a name, a genre, the parameters.
-WEB_EXPORT int om_web_plaits_presets(void) { return om_plaits_num_presets; }
-WEB_EXPORT const char *om_web_plaits_preset_name(int i) { return om_plaits_presets[i].name; }
-WEB_EXPORT int om_web_plaits_preset_genre(int i) { return om_plaits_presets[i].genre; }
-WEB_EXPORT const uint8_t *om_web_plaits_preset_params(int i) { return om_plaits_presets[i].p; }
 
 // ---- the tracker (studio/tracker.h), driven by the tracker device ----
 

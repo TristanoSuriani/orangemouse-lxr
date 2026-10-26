@@ -9,6 +9,7 @@
 // off), vel: 1..127 (0: 100), retrig: 0 or 2..8 }.
 
 import { newMix, mixMessages } from '../mixer/mix.js';
+import plaitsRegistry from '../registry/plaits.js';
 
 export const TRACKS = 16;
 export const PATTERNS = 64;
@@ -34,18 +35,23 @@ const DEXED_FIELDS = ['bank', 'program', 'volume', 'transpose'];
 export const dexedMessage = (part, field, value) =>
   ({ type: 'param', engine: DEXED, part, param: DEXED_FIELDS.indexOf(field), value });
 
-// Plaits' parts: their 12 parameters as bytes (registry/plaits.json; engine 3).
-// A part starts from the first preset ("Supersaw"; plaits_presets.c).
 // VA's slots: their parameters (enum VaParam order), or null for a slot that
-// plays its first preset; the LXR's kit: every parameter (registry/lxr.json),
-// or null until the LXR reports it (main.js keeps it up to date).
+// plays a preset as it is ({ params: null, preset: n }; the first if none);
+// the LXR's kit: every parameter (registry/lxr.json), or null until the LXR
+// reports it (main.js keeps it up to date).
 export const VA = 1;
 export const VA_P_PRESET = 44;
 export const newVa = () => [0, 1, 2, 3].map(() => ({ params: null }));
 
+// Plaits' parts: their 12 parameters as bytes (registry/plaits.json; engine 3).
+// A part starts from a preset (the first: "Supersaw").
 export const PLAITS = 3;
-export const PLAITS_FIRST_PRESET = [1, 30, 20, 95, 70, 90, 0, 64, 64, 95, 24, 0];
-export const newPlaits = () => [0, 1].map(() => ({ p: [...PLAITS_FIRST_PRESET] }));
+export const plaitsPreset = (name) => {
+  const i = plaitsRegistry.presets.findIndex((pr) => pr.name === name);
+  if (i < 0) throw new Error(`no Plaits preset ${name}`);
+  return { p: [...plaitsRegistry.presets[i].params, i] };
+};
+export const newPlaits = () => [0, 1].map(() => plaitsPreset(plaitsRegistry.presets[0].name));
 export const plaitsMessage = (part, param, value) => ({ type: 'param', engine: PLAITS, part, param, value });
 
 function defaultTracks() {
@@ -102,7 +108,7 @@ export function songMessages(song) {
   song.plaits.forEach((part, k) => part.p.forEach((v, i) => msgs.push(plaitsMessage(k, i, v))));
   // VA: the preset first (it loads all of the slot's sound), then the changes
   song.va.forEach((slot, k) => {
-    msgs.push({ type: 'param', engine: VA, part: k, param: VA_P_PRESET, value: slot.params?.[VA_P_PRESET] ?? 0 });
+    msgs.push({ type: 'param', engine: VA, part: k, param: VA_P_PRESET, value: slot.params?.[VA_P_PRESET] ?? slot.preset ?? 0 });
     slot.params?.forEach((v, i) => { if (i !== VA_P_PRESET) msgs.push({ type: 'param', engine: VA, part: k, param: i, value: v }); });
   });
   song.lxr?.forEach((v, i) => msgs.push({ type: 'param', engine: 0, part: 0, param: i, value: v }));

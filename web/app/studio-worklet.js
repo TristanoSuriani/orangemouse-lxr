@@ -94,7 +94,6 @@ class StudioProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (e) => this.onMessage(e.data);
     this.sendVaPresets();
     this.sendDexedNames();
-    this.sendPlaitsPresets();
     for (let slot = 0; slot < 4; slot++) this.vaSlotsChanged.add(slot);
     // a blank card has just been formatted by the firmware: store all of it
     if (blankCard) this.flushSd(true);
@@ -181,18 +180,6 @@ class StudioProcessor extends AudioWorkletProcessor {
       banks.push({ name: this.readCString(w.om_web_dexed_bank_name(b)), programs });
     }
     this.port.postMessage({ type: 'dexedNames', banks });
-  }
-
-  // Plaits' presets: name, genre (0 trance .. 3 dub techno), parameters; once.
-  sendPlaitsPresets() {
-    const w = this.wasm;
-    const presets = [];
-    for (let i = 0; i < w.om_web_plaits_presets(); i++) {
-      const ptr = w.om_web_plaits_preset_params(i);
-      presets.push({ name: this.readCString(w.om_web_plaits_preset_name(i)), genre: w.om_web_plaits_preset_genre(i),
-        params: Array.from(this.bytes().subarray(ptr, ptr + 11)) });
-    }
-    this.port.postMessage({ type: 'plaitsPresets', presets });
   }
 
   // A VA slot's parameters, after a preset load changed them all.

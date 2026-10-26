@@ -7,8 +7,8 @@
  *
  * The mixer: every engine stem is a channel (a Surge filter, level, pan, two
  * sends, mute, solo); two send buses each run an effect (fx.h) and return it to the mix;
- * the master has a level and a limiter that keeps the output under -0.2 dBFS
- * (1.5 ms lookahead). Gains move smoothly over a block when they change.
+ * the master has a level, a DC blocker (5 Hz) and a limiter that keeps the
+ * output under -0.2 dBFS (1.5 ms lookahead). Gains move smoothly over a block when they change.
  *
  * It runs on the audio thread: nothing here allocates after creation, except
  * a send effect's engine the first time a bus is set to its type.
@@ -82,6 +82,9 @@ uint8_t om_studio_fx_value(const OmStudio *st, uint8_t bus, uint16_t param);
 // buses' returns, the master's left and right (before the limiter), and the
 // limiter's lowest gain (1: it did nothing). Returns how many floats it wrote.
 uint32_t om_studio_meters(OmStudio *st, float *out, uint32_t max);
+// The master's DC blocker, on from the start; tests that check exact sample
+// values of a constant signal turn it off.
+void om_studio_dc_blocker(OmStudio *st, int on);
 
 // Renders `frames` frames (a multiple of OM_MAX_BLOCK) of the stereo mix.
 void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames);

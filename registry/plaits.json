@@ -43,5 +43,32 @@
     {"id": "PL_P_PRESET", "short": "PRE", "name": "Preset", "group": "Output", "min": 0, "max": 63, "default": 0,
      "display": {"kind": "preset"},
      "help": "The preset the part started from (the device marks it * once you change it)."}
+  ],
+  "_presets": "Volumes balanced to -21 dBFS (PLAITS_LOUDNESS=1 tests/host/build/plaits_test; +6 dB at most). Six per genre (genre 0 trance, 1 electro, 2 synthwave, 3 dub techno): starting points set from what each engine's knobs do, for the genre packs to tune by ear. params: PL_P_ENGINE .. PL_P_TRANSPOSE. Names fit the device (10 characters).",
+  "presets": [
+    {"name": "Supersaw", "genre": 0, "params": [1, 30, 20, 95, 70, 90, 0, 64, 64, 93, 24]},
+    {"name": "Pluck", "genre": 0, "params": [0, 70, 40, 30, 40, 60, 0, 100, 64, 121, 24]},
+    {"name": "Wave arp", "genre": 0, "params": [5, 30, 60, 50, 45, 80, 0, 80, 64, 115, 24]},
+    {"name": "Trance pad", "genre": 0, "params": [7, 0, 90, 64, 100, 40, 92, 64, 64, 127, 24]},
+    {"name": "Hoover", "genre": 0, "params": [4, 80, 70, 60, 70, 90, 0, 64, 64, 83, 12]},
+    {"name": "FM bell", "genre": 0, "params": [3, 90, 50, 20, 60, 100, 0, 100, 64, 87, 24]},
+    {"name": "Robot vox", "genre": 1, "params": [8, 30, 64, 64, 50, 70, 0, 64, 64, 127, 24]},
+    {"name": "FM bass", "genre": 1, "params": [3, 32, 70, 40, 35, 40, 0, 90, 64, 86, 12]},
+    {"name": "CZ bass", "genre": 1, "params": [4, 40, 80, 30, 40, 50, 0, 95, 64, 83, 12]},
+    {"name": "Fold lead", "genre": 1, "params": [2, 50, 70, 64, 60, 80, 0, 64, 64, 94, 24]},
+    {"name": "Zap", "genre": 1, "params": [0, 100, 20, 30, 25, 40, 0, 127, 64, 92, 24]},
+    {"name": "Vocoder", "genre": 1, "params": [6, 40, 50, 100, 50, 60, 0, 64, 64, 119, 24]},
+    {"name": "Poly brass", "genre": 2, "params": [0, 40, 55, 45, 70, 50, 50, 90, 64, 102, 24]},
+    {"name": "Stringer", "genre": 2, "params": [7, 0, 30, 30, 100, 30, 80, 64, 64, 127, 24]},
+    {"name": "Retro bass", "genre": 2, "params": [1, 0, 50, 100, 40, 30, 0, 64, 64, 87, 12]},
+    {"name": "Sync lead", "genre": 2, "params": [1, 64, 110, 60, 70, 90, 0, 64, 64, 94, 24]},
+    {"name": "Glass keys", "genre": 2, "params": [3, 60, 40, 10, 70, 100, 0, 90, 64, 90, 24]},
+    {"name": "Chord mem", "genre": 2, "params": [6, 70, 40, 30, 60, 60, 0, 64, 64, 115, 24]},
+    {"name": "Dub chord", "genre": 3, "params": [6, 60, 40, 40, 45, 30, 0, 90, 64, 117, 24]},
+    {"name": "Dub stab", "genre": 3, "params": [0, 60, 35, 35, 38, 30, 0, 100, 64, 127, 24]},
+    {"name": "Ping", "genre": 3, "params": [9, 50, 60, 60, 64, 64, 0, 64, 64, 127, 24]},
+    {"name": "Crackle", "genre": 3, "params": [10, 40, 30, 40, 80, 64, 0, 64, 64, 127, 24]},
+    {"name": "Deep pad", "genre": 3, "params": [7, 40, 60, 20, 100, 20, 100, 64, 64, 127, 24]},
+    {"name": "Sub bass", "genre": 3, "params": [0, 30, 15, 0, 50, 20, 0, 64, 64, 103, 12]}
   ]
 }

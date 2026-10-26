@@ -44,7 +44,8 @@ export function migrate(raw) {
   s.mix = migrateMix(raw.mix);
   s.dexed = newDexed().map((d, k) => ({ ...d, ...(raw.dexed?.[k] ?? {}) }));
   s.plaits = newPlaits().map((d, k) => (raw.plaits?.[k]?.p?.length === d.p.length ? { p: [...raw.plaits[k].p] } : d));
-  s.va = newVa().map((d, k) => (Array.isArray(raw.va?.[k]?.params) ? { params: [...raw.va[k].params] } : d));
+  s.va = newVa().map((d, k) => (Array.isArray(raw.va?.[k]?.params) ? { params: [...raw.va[k].params] }
+    : Number.isInteger(raw.va?.[k]?.preset) ? { params: null, preset: raw.va[k].preset } : d));
   s.lxr = Array.isArray(raw.lxr) ? [...raw.lxr] : null;
   return s;
 }
@@ -79,6 +80,29 @@ export async function save(song) {
 
 export async function remove(id) {
   try { await request((await store('readwrite')).delete(id)); } catch { /* already gone */ }
+}
+
+// The demo songs (the genre packs), saved into the library once: a song you
+// delete stays deleted. Returns how many were added.
+const SEEDED_KEY = 'om.seeded';
+export async function seed(songs, version = 1) {
+  try {
+    if (Number(localStorage.getItem(SEEDED_KEY)) >= version) return 0;
+  } catch {
+    return 0;   // storage unavailable: nothing to seed into
+  }
+  let added = 0;
+  for (const { id, make } of songs) {
+    if (await load(id)) continue;
+    const s = make();
+    s.id = id;
+    try {
+      await request((await store('readwrite')).put({ id, name: s.name, updated: Date.now() - added, song: s }));
+      added++;
+    } catch { /* not kept */ }
+  }
+  try { localStorage.setItem(SEEDED_KEY, String(version)); } catch { /* as above */ }
+  return added;
 }
 
 export function currentId() {

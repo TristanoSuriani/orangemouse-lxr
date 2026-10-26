@@ -1,0 +1,8 @@
+trance health: 0 not finite, peak 0.961, 0.00 % of samples at the limiter, DC 0.00000, RMS -15.8 dBFS
+trance hash 0d8b7758d12b9a57
+electro health: 0 not finite, peak 0.898, 0.00 % of samples at the limiter, DC -0.00000, RMS -15.3 dBFS
+electro hash 0c8e8af14f07d796
+synthwave health: 0 not finite, peak 0.804, 0.00 % of samples at the limiter, DC 0.00000, RMS -18.2 dBFS
+synthwave hash 9fd93f2c7951496b
+dubtechno health: 0 not finite, peak 0.517, 0.00 % of samples at the limiter, DC -0.00000, RMS -17.0 dBFS
+dubtechno hash adc60c0fdd7bf6dd

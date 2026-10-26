@@ -37,8 +37,9 @@ enum
 
 extern const OmEngineClass om_plaits_engine;
 
-// The presets (plaits_presets.c): a name, its genre (0 trance, 1 electro,
-// 2 synthwave, 3 dub techno) and the parameters PL_P_ENGINE .. PL_P_TRANSPOSE.
+// A preset (registry/plaits.json "presets", in om_registry_plaits.h): a name,
+// its genre (0 trance, 1 electro, 2 synthwave, 3 dub techno) and the
+// parameters PL_P_ENGINE .. PL_P_TRANSPOSE.
 #define PLAITS_PRESET_PARAMS PL_P_PRESET
 typedef struct
 {
@@ -46,9 +47,6 @@ typedef struct
 	uint8_t genre;
 	uint8_t p[PLAITS_PRESET_PARAMS];
 } PlaitsPreset;
-
-extern const PlaitsPreset om_plaits_presets[];
-extern const int om_plaits_num_presets;
 
 #ifdef __cplusplus
 }

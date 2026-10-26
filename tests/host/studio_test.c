@@ -66,6 +66,15 @@ static float peakOf(const float *x, int from, int to)
 	return p;
 }
 
+// a studio for the mock checks: they look at exact values of a constant
+// signal, which the master's DC blocker would take away
+static OmStudio *mockStudio(void)
+{
+	OmStudio *st = om_studio_create(48000.f);
+	om_studio_dc_blocker(st, 0);
+	return st;
+}
+
 int main(void)
 {
 	enum { N = 4096 };
@@ -73,7 +82,7 @@ int main(void)
 
 	{   // events land on their exact frame in an engine that renders any length
 		const OmEngineClass cls = mockClass(0);
-		OmStudio *st = om_studio_create(48000.f);
+		OmStudio *st = mockStudio();
 		const int e = om_studio_add_engine(st, &cls);
 		CHECK(e == 0, "add_engine returned %d", e);
 		om_studio_note_on(st, 1000, 0, 0, 60, 100);
@@ -86,7 +95,7 @@ int main(void)
 	}
 	{   // a block engine gets its events at the start of their 64-frame block
 		const OmEngineClass cls = mockClass(64);
-		OmStudio *st = om_studio_create(48000.f);
+		OmStudio *st = mockStudio();
 		om_studio_add_engine(st, &cls);
 		om_studio_note_on(st, 1000, 0, 0, 60, 100);
 		om_studio_render(st, l, r, N);
@@ -95,7 +104,7 @@ int main(void)
 	}
 	{   // events scheduled out of order are played in order; late events play at once
 		const OmEngineClass cls = mockClass(0);
-		OmStudio *st = om_studio_create(48000.f);
+		OmStudio *st = mockStudio();
 		om_studio_add_engine(st, &cls);
 		om_studio_note_off(st, 700, 0, 0, 60);
 		om_studio_note_on(st, 300, 0, 0, 60, 100);
@@ -109,7 +118,7 @@ int main(void)
 	}
 	{   // the queue refuses events beyond OM_MAX_EVENTS, and unknown engines and parts
 		const OmEngineClass cls = mockClass(0);
-		OmStudio *st = om_studio_create(48000.f);
+		OmStudio *st = mockStudio();
 		om_studio_add_engine(st, &cls);
 		int ok = 0;
 		for (int i = 0; i < OM_MAX_EVENTS + 10; i++)
@@ -121,7 +130,7 @@ int main(void)
 	}
 	{   // the mixer: pan; the tempo reaches the engines
 		const OmEngineClass cls = mockClass(0);
-		OmStudio *st = om_studio_create(48000.f);
+		OmStudio *st = mockStudio();
 		om_studio_add_engine(st, &cls);
 		CHECK(om_studio_channels(st) == 1 && om_studio_channel(st, 0, 0) == 0, "one engine, one stem: one channel");
 		om_studio_mix(st, 0, OM_MIX_PAN, 127);
@@ -134,7 +143,7 @@ int main(void)
 	}
 	{   // level: 100 is 0 dB, a change glides over one block; mute and solo
 		const OmEngineClass cls = mockClass(0);
-		OmStudio *st = om_studio_create(48000.f);
+		OmStudio *st = mockStudio();
 		om_studio_add_engine(st, &cls);
 		om_studio_add_engine(st, &cls);
 		om_studio_note_on(st, 0, 0, 0, 60, 100);
@@ -162,7 +171,7 @@ int main(void)
 	}
 	{   // the limiter: a hot mix never goes over -0.2 dBFS, and the meters say it worked
 		const OmEngineClass cls = mockClass(0);
-		OmStudio *st = om_studio_create(48000.f);
+		OmStudio *st = mockStudio();
 		om_studio_add_engine(st, &cls);
 		om_studio_mix(st, 0, OM_MIX_LEVEL, 127);   // +6 dB
 		mockGain = 6.f;                             // 3.0, +15 dB more
@@ -259,10 +268,20 @@ int main(void)
 			om_filter_destroy(f);
 		}
 	}
+	{   // the master's DC blocker: a constant falls away within a second, a tone passes
+		const OmEngineClass cls = mockClass(0);
+		OmStudio *st = om_studio_create(48000.f);
+		om_studio_add_engine(st, &cls);
+		om_studio_note_on(st, 0, 0, 0, 60, 100);
+		static float dl[48000], dr[48000];
+		om_studio_render(st, dl, dr, 48000);
+		CHECK(fabsf(dl[47999]) < 0.001f && dl[100] > 0.4f, "DC: %g at the start, %g after 1 s", dl[100], dl[47999]);
+		om_studio_destroy(st);
+	}
 	{   // the delay bus: echoes on the tempo (1/8 dotted at 120 BPM is 0.375 s)
 		const OmEngineClass cls = mockClass(0);
 		const float rate = 48000.f;
-		OmStudio *st = om_studio_create(rate);
+		OmStudio *st = mockStudio();   // a burst of constant: no DC blocker tail in the gap
 		om_studio_add_engine(st, &cls);
 		om_studio_set_tempo(st, 120.f);
 		om_studio_fx(st, 1, OM_FX_DELAY_LEFT, 8);   // 1/8 dotted (the default)

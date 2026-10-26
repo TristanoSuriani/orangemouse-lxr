@@ -14,7 +14,6 @@ list(FILTER om_plaits_dsp EXCLUDE REGEX "/plaits/dsp/voice\\.cc$")
 set(om_plaits_sources
     ${OM_PLAITS_ROOT}/engines/plaits/plaits_engine.cpp
     ${OM_PLAITS_ROOT}/engines/plaits/om_plaits_voice.cc
-    ${OM_PLAITS_ROOT}/engines/plaits/plaits_presets.c
     ${om_plaits_dsp}
     ${OM_EURORACK}/plaits/resources.cc
     ${OM_EURORACK}/stmlib/dsp/units.cc

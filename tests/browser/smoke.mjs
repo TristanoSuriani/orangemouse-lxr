@@ -286,9 +286,12 @@ try {
   await clickPad('.tracker-pads .pad:last-child');   // SONGS
   await sleep(300);
   check((await trackerText()).toUpperCase().includes('FIRST STEPS'), 'SONGS lists the demo song');
+  const listed = await trackerText();
+  check(['TRANCE', 'ELECTRO', 'SYNTHWAVE', 'DUB TECHNO'].every((g) => listed.toUpperCase().includes(g)), 'and the four genre songs');
+  const songCount = Number(/(\d+) SONGS/.exec(listed)?.[1]);
   await press('KeyN', 'n');
   await sleep(400);
-  check((await trackerText()).includes('2 SONGS'), 'N makes a second song');
+  check((await trackerText()).includes(`${songCount + 1} SONGS`), `N makes another song (${songCount} before)`);
   await press('Escape', 'Escape');
   await press('KeyZ', 'z');
   check((await trackerRow(0)).includes('C-4'), `the new song takes a note: "${await trackerRow(0)}"`);
@@ -313,7 +316,7 @@ try {
   check(code.old, 'an old song without tracks or order loads, completed');
   await cdp('Page.reload');
   await sleep(2000);
-  check((await evaluate(`document.querySelector('.rack-card').getAttribute('aria-label') && document.querySelector('.rack-lcd').getAttribute('aria-label')`)).includes('SONG 2'), 'after a reload the studio opens the last song');
+  check((await evaluate(`document.querySelector('.rack-lcd').getAttribute('aria-label')`)).includes(`SONG ${songCount + 1}`), 'after a reload the studio opens the last song');
   check((await trackerRow(0)).includes('C-4'), 'and its note was saved');
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
@@ -400,9 +403,6 @@ try {
   const plText = async () => (await evaluate(`document.querySelector('.plaits-lcd').getAttribute('aria-label')`)).replace(/^Display: /, '');
   const plRows = async () => (await plText()).split('\n');
   check((await plRows())[1].startsWith('TRANCE') && (await plText()).includes('Dub chord'), `the presets are listed by genre: "${(await plRows())[1]}"`);
-  const first = await evaluate(`(async () => { const { newPlaits } = await import('./tracker/song.js');
-    return JSON.stringify(newPlaits()[0].p.slice(0, 11)) === JSON.stringify(window.orangeMouse.plaits.presets()[0].params); })()`);
-  check(first, 'a new song\'s Plaits part is the first preset, as plaits_presets.c has it');
   await evaluate(`(() => { const c = document.querySelector('.plaits-lcd'), r = c.getBoundingClientRect();
     const at = { clientX: r.left + r.width * (34 / 44), clientY: r.top + r.height * (2.5 / 12) };
     c.dispatchEvent(new PointerEvent('pointerdown', { ...at, button: 0, bubbles: true })); })()`);
@@ -420,6 +420,17 @@ try {
     const lib = await import('./tracker/library.js');
     return (await lib.load(lib.currentId())).plaits; })()`);
   check(savedPl[0].p[0] === 6, 'Plaits\' settings save with the song');
+
+  console.log('== a genre song plays');
+  await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    window.orangeMouse.tracker.load(await lib.load('genre-dubtechno'));
+  })()`);
+  await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'song', from: 0 })`);
+  const genrePeak = await peak(1500);
+  await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
+  check(genrePeak > 0.05 && (await evaluate(`window.orangeMouse.tracker.song().name`)).startsWith('Dub Techno'),
+    `the dub techno song loads from the library and plays (peak ${genrePeak.toFixed(3)})`);
 
   console.log('== health');
   await sleep(300);

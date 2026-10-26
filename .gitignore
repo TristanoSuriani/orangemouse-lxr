@@ -14,3 +14,6 @@ __pycache__/
 /tests/host/build*/
 /web/app/studio.wasm
 /tests/browser/out/
+
+# listening renders (tools/render_songs.sh)
+renders/

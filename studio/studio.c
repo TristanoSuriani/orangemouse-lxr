@@ -77,6 +77,8 @@ struct OmStudio
 	float delay[2][LOOKAHEAD];
 	uint32_t delayPos, holdLeft;
 	float hold, env, release;
+	float dcIn[2], dcOut[2], dcPole;   // the DC blocker before it
+	int dcOn;
 	float peakL, peakR, lowestGain;
 };
 
@@ -111,6 +113,8 @@ OmStudio *om_studio_create(float sampleRate)
 	st->master.now = st->master.to;
 	st->hold = st->env = st->lowestGain = 1.f;
 	st->release = 1.f - expf(-1.f / (0.15f * sampleRate));   // 150 ms
+	st->dcPole = 1.f - 6.2831853f * 5.f / sampleRate;        // 5 Hz
+	st->dcOn = 1;
 	return st;
 }
 
@@ -355,6 +359,12 @@ uint32_t om_studio_meters(OmStudio *st, float *out, uint32_t max)
 	return n;
 }
 
+void om_studio_dc_blocker(OmStudio *st, int on)
+{
+	st->dcOn = on != 0;
+	st->dcIn[0] = st->dcIn[1] = st->dcOut[0] = st->dcOut[1] = 0.f;
+}
+
 // Adds src * gain (moving from gain->now to gain->to over the block) to dst.
 static float addRamped(float *dst, const float *src, Gain *g)
 {
@@ -372,7 +382,7 @@ static float addRamped(float *dst, const float *src, Gain *g)
 	return peak;
 }
 
-// The master: its level, then the limiter (LOOKAHEAD frames late).
+// The master: its level, a DC blocker (5 Hz), then the limiter (LOOKAHEAD frames late).
 static void master(OmStudio *st, float *l, float *r)
 {
 	const float step = (st->master.to - st->master.now) / OM_MAX_BLOCK;
@@ -380,7 +390,15 @@ static void master(OmStudio *st, float *l, float *r)
 	for (int i = 0; i < OM_MAX_BLOCK; i++)
 	{
 		const float g = st->master.now + step * (i + 1);
-		const float xl = l[i] * g, xr = r[i] * g;
+		float x[2] = {l[i] * g, r[i] * g};
+		for (int c = 0; c < 2 && st->dcOn; c++)
+		{
+			const float y = x[c] - st->dcIn[c] + st->dcPole * st->dcOut[c];
+			st->dcIn[c] = x[c];
+			st->dcOut[c] = y;
+			x[c] = y;
+		}
+		const float xl = x[0], xr = x[1];
 		st->peakL = fmaxf(st->peakL, fabsf(xl));
 		st->peakR = fmaxf(st->peakR, fabsf(xr));
 		// the gain this frame needs, held for as long as it is in the delay
