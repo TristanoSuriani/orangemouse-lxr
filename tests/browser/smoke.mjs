@@ -421,6 +421,19 @@ try {
     return (await lib.load(lib.currentId())).plaits; })()`);
   check(savedPl[0].p[0] === 6, 'Plaits\' settings save with the song');
 
+  console.log('== a demo\'s new version');
+  const upgrade = await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    localStorage.setItem('om.seeded', JSON.stringify({ 'genre-trance': 1, 'genre-electro': 1, 'genre-synthwave': 1, 'genre-dubtechno': 1 }));
+    const wrote = await lib.seed([{ id: 'genre-trance', make: () => ({ ...(window.orangeMouse.tracker.song()), name: 'Trance v2' }), version: 2 },
+      { id: 'genre-electro', make: () => null, version: 1 }]);
+    const names = (await lib.list()).map((x) => x.name);
+    const again = await lib.seed([{ id: 'genre-trance', make: () => null, version: 2 }]);
+    return { wrote, again, names };
+  })()`);
+  check(upgrade.wrote === 1 && upgrade.again === 0 && upgrade.names.includes('Trance v2') && upgrade.names.includes('Trance: Dawn Run (v1)'),
+    `a new version replaces the demo and keeps the old one: wrote ${upgrade.wrote}, then ${upgrade.again}`);
+
   console.log('== a genre song plays');
   await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');

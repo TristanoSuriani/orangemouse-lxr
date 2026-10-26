@@ -82,27 +82,39 @@ export async function remove(id) {
   try { await request((await store('readwrite')).delete(id)); } catch { /* already gone */ }
 }
 
-// The demo songs (the genre packs), saved into the library once: a song you
-// delete stays deleted. Returns how many were added.
-const SEEDED_KEY = 'om.seeded';
-export async function seed(songs, version = 1) {
+// The demo songs (the genre packs), saved into the library: each once per
+// version. A demo you delete stays deleted; when a demo gets a new version,
+// the copy you had is kept under its old name with "(v<n>)" (you may have
+// changed it) and the new one takes its place. Returns how many it wrote.
+const SEEDED_KEY = 'om.seeded';   // { id: version }; "1" from the first release: every demo at version 1
+export async function seed(songs) {
+  let seeded;
   try {
-    if (Number(localStorage.getItem(SEEDED_KEY)) >= version) return 0;
+    const raw = localStorage.getItem(SEEDED_KEY);
+    seeded = raw === null ? {} : raw === '1' ? Object.fromEntries(songs.map(({ id }) => [id, 1])) : JSON.parse(raw);
   } catch {
     return 0;   // storage unavailable: nothing to seed into
   }
-  let added = 0;
-  for (const { id, make } of songs) {
-    if (await load(id)) continue;
-    const s = make();
-    s.id = id;
+  let wrote = 0;
+  for (const { id, make, version = 1 } of songs) {
+    const had = seeded[id];
+    if (had >= version) continue;
+    const old = had ? await load(id) : null;
+    if (had && !old) { seeded[id] = version; continue; }   // deleted: it stays deleted
     try {
-      await request((await store('readwrite')).put({ id, name: s.name, updated: Date.now() - added, song: s }));
-      added++;
-    } catch { /* not kept */ }
+      if (old) {
+        const keep = { ...old, id: songId(), name: `${old.name} (v${had})` };
+        await request((await store('readwrite')).put({ id: keep.id, name: keep.name, updated: Date.now() - 1000, song: keep }));
+      }
+      const s = make();
+      s.id = id;
+      await request((await store('readwrite')).put({ id, name: s.name, updated: Date.now() - wrote, song: s }));
+      seeded[id] = version;
+      wrote++;
+    } catch { /* not kept this time */ }
   }
-  try { localStorage.setItem(SEEDED_KEY, String(version)); } catch { /* as above */ }
-  return added;
+  try { localStorage.setItem(SEEDED_KEY, JSON.stringify(seeded)); } catch { /* as above */ }
+  return wrote;
 }
 
 export function currentId() {
