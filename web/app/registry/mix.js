@@ -113,10 +113,10 @@ export default {
      "off",
      "hall",
      "room",
-     "delay",
+     "dly",
      "chor",
-     "phasr",
-     "flang"
+     "phsr",
+     "flng"
     ]
    },
    "help": "The effect on this send: hall and room reverbs, a tempo delay, chorus, phaser, flanger."

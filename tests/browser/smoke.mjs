@@ -370,6 +370,32 @@ try {
     return (await lib.load(lib.currentId())).dexed; })()`);
   check(savedDx[0].bank === 2 && savedDx[0].program === 9, 'Dexed\'s choice saves with the song');
 
+  console.log('== Plaits');
+  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('plaits'))`);
+  const plText = async () => (await evaluate(`document.querySelector('.plaits-lcd').getAttribute('aria-label')`)).replace(/^Display: /, '');
+  const plRows = async () => (await plText()).split('\n');
+  check((await plRows())[1].startsWith('TRANCE') && (await plText()).includes('Dub chord'), `the presets are listed by genre: "${(await plRows())[1]}"`);
+  const first = await evaluate(`(async () => { const { newPlaits } = await import('./tracker/song.js');
+    return JSON.stringify(newPlaits()[0].p.slice(0, 11)) === JSON.stringify(window.orangeMouse.plaits.presets()[0].params); })()`);
+  check(first, 'a new song\'s Plaits part is the first preset, as plaits_presets.c has it');
+  await evaluate(`(() => { const c = document.querySelector('.plaits-lcd'), r = c.getBoundingClientRect();
+    const at = { clientX: r.left + r.width * (34 / 44), clientY: r.top + r.height * (2.5 / 12) };
+    c.dispatchEvent(new PointerEvent('pointerdown', { ...at, button: 0, bubbles: true })); })()`);
+  check((await plRows())[0].includes('DUB CHORD') && (await plRows())[0].endsWith('CHORDS'), `clicking a preset loads it: "${(await plRows())[0]}"`);
+  check((await plRows())[9].includes('HRM chord'), `the knobs say what they do on this engine: "${(await plRows())[9]}"`);
+  await clickPad('.plaits-nav .pad:first-child');   // PAGE
+  check((await plRows())[9].startsWith('ATK'), 'PAGE puts the envelope on the knobs');
+  const plQuiet = await peak(150);
+  await key('KeyZ', 'z', true);
+  const plPeak = await peak(400);
+  await key('KeyZ', 'z', false);
+  check(plPeak > 0.01 && plPeak > plQuiet, `key Z plays PL1 (peak ${plPeak.toFixed(3)})`);
+  await sleep(1200);   // autosave
+  const savedPl = await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    return (await lib.load(lib.currentId())).plaits; })()`);
+  check(savedPl[0].p[0] === 6, 'Plaits\' settings save with the song');
+
   console.log('== health');
   await sleep(300);
   check(errors.length === 0, errors.length ? `errors: ${errors.slice(0, 3).join(' / ')}` : 'no errors or exceptions');

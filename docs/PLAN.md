@@ -260,6 +260,16 @@ browser renders stay bit for bit the same.
 
 The genre-picked engines, with presets for each genre.
 
+Done as follows: eleven of Plaits' engines, picked for the genres (VA with filter, classic VA,
+waveshaper, 2-op FM, phase distortion, wavetable, chords, string machine, speech, modal resonator,
+particles; the drums stay with the LXR). engines/plaits/om_plaits_voice.cc is a copy of Plaits' voice
+with only those engines, float output (no 16-bit clip) and no trigger delay. Two parts, PL1 and PL2, of
+four voices each, on tracker tracks 14 and 15; the gate drives Plaits' trigger and, through an attack
+envelope and the velocity, its low-pass gate. Every note is corrected by +1.42 semitones for 44.1 kHz:
+A4 measures 440.0 Hz. Six presets per genre (engines/plaits/plaits_presets.c), starting points for the
+genre packs to tune by ear. The device lists every preset in a column per genre and names the three
+macro knobs in each engine's words.
+
 ### Phase 6: genre packs
 
 Presets and one demo song per genre for trance, electro, synthwave and dub techno. These demo songs also

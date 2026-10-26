@@ -50,6 +50,9 @@ om_fx_configure(om_fx)
 include(${CMAKE_CURRENT_LIST_DIR}/../engines/dexed/dexed_sources.cmake)
 add_library(om_dexed OBJECT ${om_dexed_sources})
 om_dexed_configure(om_dexed)
+include(${CMAKE_CURRENT_LIST_DIR}/../engines/plaits/plaits_sources.cmake)
+add_library(om_plaits OBJECT ${om_plaits_sources})
+om_plaits_configure(om_plaits)
 
 add_executable(lxr ${lxr_core_sources} ${lxr_fatfs_sources} ${lxr_port_sources})
 lxr_configure(lxr)
@@ -64,9 +67,10 @@ add_executable(studio
     port/web_studio.c
     $<TARGET_OBJECTS:om_fx>
     $<TARGET_OBJECTS:om_dexed>
+    $<TARGET_OBJECTS:om_plaits>
 )
 lxr_configure(studio)
-target_include_directories(studio PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines/orangemouse-va ${LXR_ROOT}/engines/dexed)
+target_include_directories(studio PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines/orangemouse-va ${LXR_ROOT}/engines/dexed ${LXR_ROOT}/engines/plaits)
 
 # Cortex-M7 semantics for integer division by zero, see port/web_arm_division.c.
 find_package(Python3 REQUIRED COMPONENTS Interpreter)

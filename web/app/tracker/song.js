@@ -23,6 +23,7 @@ export const ENGINES = [
   { name: 'LXR', parts: ['Drum 1', 'Drum 2', 'Drum 3', 'Snare', 'Cymbal', 'Hihat cl', 'Hihat op'] },
   { name: 'VA', parts: ['VA1 Bass', 'VA2 Poly', 'VA3 Lead', 'VA4 Noise'] },
   { name: 'Dexed', parts: ['DX1', 'DX2'] },
+  { name: 'Plaits', parts: ['PL1', 'PL2'] },
 ];
 
 // Dexed's parts, as the song keeps them: bank, program, volume, transpose
@@ -32,6 +33,13 @@ export const newDexed = () => [0, 1].map(() => ({ bank: 1, program: 0, volume: 1
 const DEXED_FIELDS = ['bank', 'program', 'volume', 'transpose'];
 export const dexedMessage = (part, field, value) =>
   ({ type: 'param', engine: DEXED, part, param: DEXED_FIELDS.indexOf(field), value });
+
+// Plaits' parts: their 12 parameters as bytes (registry/plaits.json; engine 3).
+// A part starts from the first preset ("Supersaw"; plaits_presets.c).
+export const PLAITS = 3;
+export const PLAITS_FIRST_PRESET = [1, 30, 20, 95, 70, 90, 0, 64, 64, 95, 24, 0];
+export const newPlaits = () => [0, 1].map(() => ({ p: [...PLAITS_FIRST_PRESET] }));
+export const plaitsMessage = (part, param, value) => ({ type: 'param', engine: PLAITS, part, param, value });
 
 function defaultTracks() {
   const tracks = [];
@@ -45,7 +53,7 @@ export function newPattern(rows = 64) {
 }
 
 export function newSong() {
-  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix(), dexed: newDexed() };
+  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix(), dexed: newDexed(), plaits: newPlaits() };
 }
 
 export const cellKey = (row, track) => `${row}:${track}`;
@@ -83,6 +91,7 @@ export function songMessages(song) {
     msgs.push({ type: 'tracker', op: 'mute', track: k, on: t.mute }, { type: 'tracker', op: 'solo', track: k, on: t.solo });
   });
   song.dexed.forEach((part, k) => DEXED_FIELDS.forEach((f) => msgs.push(dexedMessage(k, f, part[f]))));
+  song.plaits.forEach((part, k) => part.p.forEach((v, i) => msgs.push(plaitsMessage(k, i, v))));
   return msgs.concat(mixMessages(song.mix));
 }
 

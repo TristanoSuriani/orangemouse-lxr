@@ -6,7 +6,7 @@
 // as JSON, and passed around as a share code. Songs written by any earlier
 // version still load (migrate()).
 
-import { TRACKS, newSong, newPattern, newDexed } from './song.js';
+import { TRACKS, newSong, newPattern, newDexed, newPlaits } from './song.js';
 import { migrateMix } from '../mixer/mix.js';
 
 const DB_NAME = 'orange-mouse';
@@ -43,6 +43,7 @@ export function migrate(raw) {
   s.tracks = base.tracks.map((t, k) => ({ ...t, ...(raw.tracks?.[k] ?? {}) })).slice(0, TRACKS);
   s.mix = migrateMix(raw.mix);
   s.dexed = newDexed().map((d, k) => ({ ...d, ...(raw.dexed?.[k] ?? {}) }));
+  s.plaits = newPlaits().map((d, k) => (raw.plaits?.[k]?.p?.length === d.p.length ? { p: [...raw.plaits[k].p] } : d));
   return s;
 }
 

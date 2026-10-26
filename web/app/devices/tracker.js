@@ -641,6 +641,6 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   // send: changes to the song (the mixer's too) go through it, so they save
   return { el, load, onState, handleKey, send, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
     song.value.name.toUpperCase(),
-    `PAT ${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
+    `P${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
   ] };
 }

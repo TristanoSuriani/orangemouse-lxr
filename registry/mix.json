@@ -25,7 +25,7 @@
      "help": "Plays only the soloed channels (and the effects they send to)."},
     {"id": "OM_MIX_FX_TYPE", "short": "FX", "name": "Effect", "group": "Bus", "min": 0, "max": 6, "default": 1,
      "display": {"kind": "enum", "values": ["off", "hall", "room", "delay", "chorus", "phaser", "flanger"],
-                 "short": ["off", "hall", "room", "delay", "chor", "phasr", "flang"]},
+                 "short": ["off", "hall", "room", "dly", "chor", "phsr", "flng"]},
      "help": "The effect on this send: hall and room reverbs, a tempo delay, chorus, phaser, flanger."},
     {"id": "OM_MIX_RETURN", "short": "RET", "name": "Return", "group": "Bus", "min": 0, "max": 127, "default": 100,
      "display": {"kind": "fader"},

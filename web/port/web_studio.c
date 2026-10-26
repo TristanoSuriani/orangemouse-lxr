@@ -2,7 +2,7 @@
  * web_studio.c
  *
  * The studio in the browser (web/app/studio-worklet.js): what studio.wasm
- * exports. Engine 0 is the LXR, engine 1 Orange Mouse VA, engine 2 Dexed. The worklet loads
+ * exports. Engine 0 is the LXR, engine 1 Orange Mouse VA, engine 2 Dexed, engine 3 Plaits. The worklet loads
  * the saved SD card (web_sd_alloc) before om_web_init(), renders 64-frame
  * blocks with om_web_render(), and forwards the panels' notes and parameter
  * changes, which take effect at the start of the next block. The tracker
@@ -16,6 +16,7 @@
 #include "tracker.h"
 #include "VaEngine.h"
 #include "dexed_engine.h"
+#include "plaits_engine.h"
 
 extern const OmEngineClass om_lxr_engine, om_va_engine;
 void om_lxr_set_seed(uint32_t seed);
@@ -31,20 +32,22 @@ WEB_EXPORT int om_web_init(float rate, uint32_t seed)
 	if (!studio)
 		return -1;
 	if (om_studio_add_engine(studio, &om_lxr_engine) != 0 || om_studio_add_engine(studio, &om_va_engine) != 1 ||
-	    om_studio_add_engine(studio, &om_dexed_engine) != 2)
+	    om_studio_add_engine(studio, &om_dexed_engine) != 2 || om_studio_add_engine(studio, &om_plaits_engine) != 3)
 		return -2;
 	for (uint8_t s = 0; s < VA_NUM_SLOTS; s++)   // -6 dB: VA's slots are loud next to the LXR
 		om_studio_mix(studio, (uint8_t)om_studio_channel(studio, 1, s), OM_MIX_LEVEL, 79);
 	tracker = om_tracker_create(studio, rate);
 	if (!tracker)
 		return -3;
-	// tracks 1-7: the LXR's voices; 8-11: VA's slots; 12-13: Dexed's parts; 14-16: not routed yet
+	// tracks 1-7: the LXR's voices; 8-11: VA's slots; 12-13: Dexed's parts; 14-15: Plaits'; 16: not routed yet
 	for (uint8_t k = 0; k < 7; k++)
 		om_tracker_route(tracker, k, 0, k);
 	for (uint8_t k = 0; k < VA_NUM_SLOTS; k++)
 		om_tracker_route(tracker, (uint8_t)(7 + k), 1, k);
 	for (uint8_t k = 0; k < DEXED_PARTS; k++)
 		om_tracker_route(tracker, (uint8_t)(11 + k), 2, k);
+	for (uint8_t k = 0; k < PLAITS_PARTS; k++)
+		om_tracker_route(tracker, (uint8_t)(13 + k), 3, k);
 	return 0;
 }
 
@@ -133,6 +136,12 @@ WEB_EXPORT const char *om_web_dexed_program_name(int bank, int program)
 	om_dexed_program_name(bank, program, dexedName);
 	return dexedName;
 }
+
+// Plaits' presets (plaits_presets.c): a name, a genre, the parameters.
+WEB_EXPORT int om_web_plaits_presets(void) { return om_plaits_num_presets; }
+WEB_EXPORT const char *om_web_plaits_preset_name(int i) { return om_plaits_presets[i].name; }
+WEB_EXPORT int om_web_plaits_preset_genre(int i) { return om_plaits_presets[i].genre; }
+WEB_EXPORT const uint8_t *om_web_plaits_preset_params(int i) { return om_plaits_presets[i].p; }
 
 // ---- the tracker (studio/tracker.h), driven by the tracker device ----
 

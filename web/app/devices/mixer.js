@@ -26,7 +26,7 @@ import { CHANNELS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage
 
 const COLS = 84;
 const ROWS = 15;
-const W = 5;                 // display columns per strip: 16 strips
+const W = 4;                 // display columns per strip: 18 strips (the ▶ column parts them)
 const METER_TOP = 2;
 const METER_ROWS = 8;
 const FLOOR_DB = -48;        // the meters' bottom
@@ -52,6 +52,12 @@ const GUIDE = [
   { title: 'Loud enough', text: 'The master has a limiter: the mix never goes past -0.2 dB. GR on the OUT strip shows how much it holds back; a few dB on the loudest hits is fine, more means turn something down.' },
   { title: 'Saved with the song', text: 'The mix is part of the song: it saves as you change it, and loads with the song.' },
 ];
+
+// a strip's values in three characters, so a space parts the strips: whole
+// dB ("-6", "off"), pan ("C", "L50"), the effect ("hal"); row 0 has them in full
+const FX3 = ['off', 'hal', 'rom', 'dly', 'chr', 'phs', 'flg'];
+const db3 = (v) => (v === 0 ? 'off' : (() => { const d = Math.round(60 * Math.log10(v / 100)); return d > 0 ? `+${d}` : String(d); })());
+const pan3 = (v) => { const x = Math.round(((v - 64) / 63) * 100); return x === 0 ? 'C' : `${x < 0 ? 'L' : 'R'}${Math.min(99, Math.abs(x))}`; };
 
 const center = (s, width) => {
   const left = Math.max(0, Math.floor((width - s.length) / 2));
@@ -166,13 +172,13 @@ export function createMixerDevice({ send, help, song }) {
       if (x.kind === 'channel') {
         const ch = m.channels[x.key];
         const silent = ch.mute || (anySolo && !ch.solo);
-        lines = [formatShort(P.LEVEL, ch.level), formatShort(P.PAN, ch.pan), ch.sendA ? formatShort(P.SEND_A, ch.sendA) : '-',
-          ch.sendB ? formatShort(P.SEND_B, ch.sendB) : '-', `${ch.mute ? 'M' : silent ? '·' : ' '}${ch.solo ? 'S' : ' '}`];
+        lines = [db3(ch.level), pan3(ch.pan), ch.sendA ? db3(ch.sendA) : '-', ch.sendB ? db3(ch.sendB) : '-',
+          `${ch.mute ? 'M' : silent ? '·' : ' '}${ch.solo ? 'S' : ' '}`];
       } else if (x.kind === 'bus') {
         const b = m.buses[x.bus];
-        lines = [formatShort(P.RETURN, b.ret), formatShort(P.FX_TYPE, b.type), '', '', ''];
+        lines = [db3(b.ret), FX3[b.type], '', '', ''];
       } else {
-        lines = [formatShort(P.LEVEL, m.master), 'GR', gr() > 0.05 ? `-${gr().toFixed(1)}` : '0', '', ''];
+        lines = [db3(m.master), 'GR', gr() > 0.5 ? `-${Math.round(gr())}` : '0', '', ''];
       }
       lines.forEach((t, j) => rows[METER_ROWS + j].push(center(t, W)));
     });
@@ -231,9 +237,9 @@ export function createMixerDevice({ send, help, song }) {
   function card() {
     const m = mix();
     const dots = meterDots(Math.max(state.level[CHANNELS.length + 2], state.level[CHANNELS.length + 3]));
-    const lit = Math.round((dots / (METER_ROWS * 8)) * 12);
-    return [`A ${FX_TYPES[m.buses[0].type].toUpperCase()} B ${FX_TYPES[m.buses[1].type].toUpperCase()}`,
-      `OUT ${'■'.repeat(lit)}${' '.repeat(12 - lit)}`];
+    const lit = Math.round((dots / (METER_ROWS * 8)) * 8);
+    const type = (b) => formatShort(P.FX_TYPE, m.buses[b].type).toUpperCase();
+    return [`A ${type(0)} B ${type(1)}`, `OUT ${'■'.repeat(lit)}`];
   }
 
   // ---- knobs ----

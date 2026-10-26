@@ -93,7 +93,7 @@ export function createDexedDevice({ send, help, song }) {
     }
     display.invert(FIRST + (p.program % 8), Math.floor(p.program / 8) * NAME_W, NAME_W - 1);
     display.draw();
-    summary([`DX${state.part + 1} ${bankName(p.bank).toUpperCase()}`, `#${String(p.program + 1).padStart(2, '0')} ${programName(p.bank, p.program).toUpperCase()}`]);
+    summary([`DX${state.part + 1} ${registry.params[0].display.short[p.bank]}`, `#${String(p.program + 1).padStart(2, '0')} ${programName(p.bank, p.program).toUpperCase()}`]);
     partPads.forEach((pad, i) => setLed(pad, i === state.part));
     help.refresh();
   }
