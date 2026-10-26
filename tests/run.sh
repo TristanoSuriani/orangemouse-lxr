@@ -78,7 +78,7 @@ check studio_demo.txt "$OUT/studio_demo.txt"
 echo "== the genre songs (whole, through the whole studio; PLAN.md Phase 6)"
 mkdir -p "$OUT/songs"
 : > "$OUT/songs.txt"
-for g in trance electro synthwave dubtechno; do
+for g in electro synthwave dubtechno; do
   node tools/song_stream.mjs web/app/tracker/genres/$g.js > "$OUT/songs/$g.txt"
   if ! $BIN/song_render "$OUT/songs/$g.txt" > "$OUT/songs/$g.out"; then
     echo "   FAIL: $g:"; grep -E 'silent|not finite' "$OUT/songs/$g.out" | sed 's/^/     /'; fail=1
@@ -90,7 +90,7 @@ check songs.txt "$OUT/songs.txt"
 echo "== CPU (best of 3)"
 cpu lxr_cpu.txt $BIN/lxr_render
 cpu studio_cpu.txt $BIN/studio_render
-cpu song_cpu.txt $BIN/song_render "$OUT/songs/trance.txt"
+cpu song_cpu.txt $BIN/song_render "$OUT/songs/electro.txt"
 
 if command -v emcmake >/dev/null && command -v node >/dev/null; then
   echo "== WebAssembly parity"
@@ -103,8 +103,8 @@ if command -v emcmake >/dev/null && command -v node >/dev/null; then
   node tests/host/build-wasm/tracker_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/dexed_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/plaits_test.js | sed 's/^/   wasm: /' || fail=1
-  # each: a tool, and its arguments (the trance song: the whole studio, every engine)
-  for run in "lxr_render" "studio_render" "song_render $OUT/songs/trance.txt"; do
+  # each: a tool, and its arguments (the electro song: the whole studio, every engine)
+  for run in "lxr_render" "studio_render" "song_render $OUT/songs/electro.txt"; do
     set -- $run
     tool=$1; shift
     native=$($BIN/$tool "$@" | grep '^hash')

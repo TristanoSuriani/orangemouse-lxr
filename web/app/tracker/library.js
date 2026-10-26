@@ -96,7 +96,8 @@ export async function seed(songs) {
     return 0;   // storage unavailable: nothing to seed into
   }
   let wrote = 0;
-  for (const { id, make, version = 1 } of songs) {
+  const now = Date.now();   // the songs list in the order given: the first is the newest
+  for (const [k, { id, make, version = 1 }] of songs.entries()) {
     const had = seeded[id];
     if (had >= version) continue;
     const old = had ? await load(id) : null;
@@ -108,13 +109,33 @@ export async function seed(songs) {
       }
       const s = make();
       s.id = id;
-      await request((await store('readwrite')).put({ id, name: s.name, updated: Date.now() - wrote, song: s }));
+      await request((await store('readwrite')).put({ id, name: s.name, updated: now - k * 1000, song: s }));
       seeded[id] = version;
       wrote++;
     } catch { /* not kept this time */ }
   }
   try { localStorage.setItem(SEEDED_KEY, JSON.stringify(seeded)); } catch { /* as above */ }
   return wrote;
+}
+
+// Songs taken out of the studio (2026-10-26: the "First steps" and trance
+// demos): deleted from the library once, by id or by name.
+const RETIRED_KEY = 'om.retired';
+export async function retire({ ids = [], names = [] }, version = 1) {
+  try {
+    if (Number(localStorage.getItem(RETIRED_KEY)) >= version) return 0;
+  } catch {
+    return 0;
+  }
+  let removed = 0;
+  for (const item of await list()) {
+    if (ids.includes(item.id) || names.includes(item.name)) { await remove(item.id); removed++; }
+  }
+  try {
+    localStorage.setItem(RETIRED_KEY, String(version));
+    if (ids.includes(currentId()) || removed) localStorage.removeItem(CURRENT_KEY);
+  } catch { /* as above */ }
+  return removed;
 }
 
 export function currentId() {

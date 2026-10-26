@@ -179,6 +179,12 @@ try {
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
   check(await evaluate('!!window.orangeMouse') && errors.length === 0, `the studio started${errors.length ? ` (errors: ${errors.slice(0, 3).join(' / ')})` : ''}`);
+  check((await evaluate(`window.orangeMouse.tracker.song().name`)).startsWith('Electro'),
+    `a fresh studio opens the library's newest song: "${await evaluate(`window.orangeMouse.tracker.song().name`)}"`);
+  // the checks below start from an empty song: every device at its defaults
+  // (a fresh studio opens the library's newest song, a genre demo)
+  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(lib.migrate({ name: 'Smoke test' })); })()`);
+  await sleep(300);
   check((await evaluate(`document.getElementById('help').getAttribute('aria-label')`)).includes('SD card'), 'the SD card is ready (the help strip says so)');
   await sleep(800);
   check((await vaDisplay()).includes('#01'), `the VA display shows a preset: "${(await vaDisplay()).replace(/\n/g, ' | ')}"`);
@@ -285,9 +291,9 @@ try {
   await sleep(1000);   // the demo song saves itself
   await clickPad('.tracker-pads .pad:last-child');   // SONGS
   await sleep(300);
-  check((await trackerText()).toUpperCase().includes('FIRST STEPS'), 'SONGS lists the demo song');
   const listed = await trackerText();
-  check(['TRANCE', 'ELECTRO', 'SYNTHWAVE', 'DUB TECHNO'].every((g) => listed.toUpperCase().includes(g)), 'and the four genre songs');
+  check(['ELECTRO', 'SYNTHWAVE', 'DUB TECHNO'].every((g) => listed.toUpperCase().includes(g)) && !/TRANCE|FIRST STEPS/.test(listed.toUpperCase()),
+    'SONGS lists the three genre songs, and not the retired ones');
   const songCount = Number(/(\d+) SONGS/.exec(listed)?.[1]);
   await press('KeyN', 'n');
   await sleep(400);
@@ -334,8 +340,8 @@ try {
   const mixRow = async (r) => (await mixText()).replace(/^Display: /, '').split('\n')[r] ?? '';
   const mixOf = (path) => evaluate(`window.orangeMouse.tracker.song().mix.${path}`);
   check((await mixRow(1)).includes('DR1') && (await mixRow(1)).includes('OUT'), `the strips are named: "${await mixRow(1)}"`);
-  // the demo song, so every strip has something to show
-  await evaluate(`(async () => { const { demoSong } = await import('./tracker/demo.js'); window.orangeMouse.tracker.load(demoSong()); })()`);
+  // a genre song, so many strips have something to show
+  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(await lib.load('genre-electro')); })()`);
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'pattern', from: 1 })`);
   let moved = false;   // the song's one kick, on row 0: the meters rise, then fall back
   for (let i = 0; i < 20 && !moved; i++, await sleep(50)) moved = /[▁▂▃▄▅▆▇█]/.test((await mixText()).split('\n').slice(2, 10).join(''));
@@ -343,6 +349,9 @@ try {
   const shot = async (name) => writeFileSync(join(OUT, name), Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
   await shot('mixer-playing.png');   // to look at, not compared
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
+  // the rest from an empty song again: the mixer and Dexed at their defaults
+  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(lib.migrate({ name: 'Smoke test mix' })); })()`);
+  await sleep(300);
   for (let i = 0; i < 8; i++) await press('ArrowRight', 'ArrowRight');
   check((await mixRow(0)).startsWith('VA2 POLY'), `the arrows choose a strip: "${await mixRow(0)}"`);
   await evaluate(`document.querySelectorAll('.mixer-knobs .pot')[2].focus()`);
@@ -424,15 +433,48 @@ try {
   console.log('== a demo\'s new version');
   const upgrade = await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');
-    localStorage.setItem('om.seeded', JSON.stringify({ 'genre-trance': 1, 'genre-electro': 1, 'genre-synthwave': 1, 'genre-dubtechno': 1 }));
-    const wrote = await lib.seed([{ id: 'genre-trance', make: () => ({ ...(window.orangeMouse.tracker.song()), name: 'Trance v2' }), version: 2 },
-      { id: 'genre-electro', make: () => null, version: 1 }]);
+    localStorage.setItem('om.seeded', JSON.stringify({ 'genre-electro': 1, 'genre-synthwave': 1, 'genre-dubtechno': 1 }));
+    const wrote = await lib.seed([{ id: 'genre-electro', make: () => ({ ...(window.orangeMouse.tracker.song()), name: 'Electro v2' }), version: 2 },
+      { id: 'genre-synthwave', make: () => null, version: 1 }]);
     const names = (await lib.list()).map((x) => x.name);
-    const again = await lib.seed([{ id: 'genre-trance', make: () => null, version: 2 }]);
+    const again = await lib.seed([{ id: 'genre-electro', make: () => null, version: 2 }]);
     return { wrote, again, names };
   })()`);
-  check(upgrade.wrote === 1 && upgrade.again === 0 && upgrade.names.includes('Trance v2') && upgrade.names.includes('Trance: Dawn Run (v1)'),
+  check(upgrade.wrote === 1 && upgrade.again === 0 && upgrade.names.includes('Electro v2') && upgrade.names.includes('Electro: Signal Lost (v1)'),
     `a new version replaces the demo and keeps the old one: wrote ${upgrade.wrote}, then ${upgrade.again}`);
+
+  console.log('== retired songs');
+  const retired = await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    await lib.save({ ...lib.migrate({ name: 'First steps' }), id: 'old-first' });
+    await lib.save({ ...lib.migrate({ name: 'Trance: Dawn Run' }), id: 'genre-trance' });
+    await lib.save({ ...lib.migrate({ name: 'Keep me' }), id: 'keep-me' });
+    localStorage.removeItem('om.retired');
+    const removed = await lib.retire({ ids: ['genre-trance'], names: ['First steps', 'Trance: Dawn Run'] });
+    const names = (await lib.list()).map((x) => x.name);
+    const again = await lib.retire({ ids: ['genre-trance'], names: ['First steps'] });
+    await lib.remove('keep-me');
+    return { removed, again, names };
+  })()`);
+  check(retired.removed === 2 && retired.again === 0 && !retired.names.includes('First steps') && retired.names.includes('Keep me'),
+    `the retired songs leave the library once, the others stay (${retired.removed} removed)`);
+
+  console.log('== the tracker follows the song');
+  await evaluate(`(async () => {
+    const { newSong, newPattern } = await import('./tracker/song.js');
+    const s = newSong();
+    s.name = 'Follow';
+    s.bpm = 240;
+    s.patterns = [newPattern(4), newPattern(4), newPattern(4)];
+    s.order = [0, 1, 2];
+    window.orangeMouseUi.showDevice(0);
+    window.orangeMouse.tracker.load(s);
+    window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'song', from: 0 });
+  })()`);
+  const seen = new Set();
+  for (let i = 0; i < 40; i++, await sleep(20)) seen.add(/PAT (\d\d)/.exec(await trackerText())?.[1]);
+  await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
+  check(seen.has('00') && seen.has('01') && seen.has('02'), `the display follows each next pattern (saw ${[...seen].join(', ')})`);
 
   console.log('== a genre song plays');
   await evaluate(`(async () => {

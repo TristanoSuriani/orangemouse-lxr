@@ -279,17 +279,22 @@ Built on 2026-10-26, waiting to be tuned by ear (docs/listening/phase6.md):
 
 - **Songs carry every sound.** A song keeps VA's slots and the LXR's kit as well as the mix, Dexed and
   Plaits, so a genre song brings its own drums and synths.
-- **Four songs**, written in code (web/app/tracker/genres/): trance (138 BPM), electro (125), synthwave
-  (100) and dub techno (122), 35 to 58 s each. Each uses the LXR, VA, Dexed and Plaits, the sends and the
+- **Songs**, written in code (web/app/tracker/genres/): electro (125 BPM), synthwave (100) and dub
+  techno (122), 38 to 58 s each (a trance song too, at first; see below). Each uses the LXR, VA, Dexed and Plaits, the sends and the
   channel filters. They are in the library on first start.
 - **They are the regression songs.** tools/song_stream.mjs turns a song into the message stream the page
   sends; tests/host/song_render.c replays it through the whole studio. tests/run.sh renders each song
-  whole (hash, health, loudness, and a failure if an instrument the song plays stays silent); the trance
-  song also has a CPU budget and is checked bit for bit against WebAssembly.
+  whole (hash, health, loudness, and a failure if an instrument the song plays stays silent); one song
+  also has a CPU budget and is checked bit for bit against WebAssembly.
 - **Plaits' presets** moved into registry/plaits.json (one source for C and the page), their volumes
   balanced to -21 dBFS by measurement.
 - **The master has a DC blocker** (5 Hz) before its limiter: the first renders carried up to 0.0045 of DC.
 - **To listen:** tools/render_songs.sh writes the songs and Plaits' presets as WAV files into renders/.
+
+Listened on 2026-10-26: electro, synthwave and dub techno are kept. The trance song (in two versions) and
+"First steps" were taken out, with no replacement: a fresh studio opens the library's newest song, and the
+studio deletes those two from an existing library once. The genre packs are three songs; the electro song
+now carries the CPU budget and the WebAssembly check.
 
 ## Testing: as much as possible without a browser or ears
 

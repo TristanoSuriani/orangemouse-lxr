@@ -20,7 +20,6 @@ import { addGuide } from '../kit/guide.js';
 import { KEY_SEMITONES } from '../kit/keybed.js';
 import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, newPattern, getCell, songMessages, Editor } from '../tracker/song.js';
 import * as library from '../tracker/library.js';
-import { demoSong } from '../tracker/demo.js';
 
 const COLS = 84;
 const ROWS = 20;
@@ -56,7 +55,7 @@ const GUIDE = [
   { title: 'Select, copy, paste', text: 'Without a selection, Cmd/Ctrl C and V copy one cell. Shift+arrows or a drag select a block; paste lands at the cursor. Cmd+Shift+V pastes back into the same tracks. Cmd+A: the track, again: everything. Cmd+Z undoes.' },
   { title: 'Play', text: 'Space plays the song from the order position you chose (click it on the ORDER row), or stops. Enter (LOOP) repeats the pattern you edit. PAT -/+ choose the pattern; PAT + past the last makes a new one; Cmd+D duplicates it. ORD + adds it to the order list. BPM sets the pattern\'s tempo.' },
   { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, C copies a share code, V loads one.' },
-  { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots. Tab moves between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
+  { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. Tab moves between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
 export function createTrackerDevice({ send: sendToWorklet, help }) {
@@ -251,7 +250,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
       state.confirm = null;
       state.songs = await library.list();
       state.songCur = Math.min(state.songCur, state.songs.length - 1);
-      if (item.id === song.value.id) load(state.songs.length ? await library.load(state.songs[0].id) : demoSong());
+      if (item.id === song.value.id) load(state.songs.length ? await library.load(state.songs[0].id) : library.migrate({}));
       return note('DELETED');
     } else if (k === 'e' && item) {
       const s = await library.load(item.id);
@@ -461,7 +460,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   const padsEl = el.querySelector('.tracker-pads');
   const pads = {};
   const PADS = [
-    ['play', 'PLAY', 'Plays the song from the start of the order list, or stops (Space).', () => play('song')],
+    ['play', 'PLAY', 'Plays the song from the order position you chose (click it on the ORDER row), or stops (Space).', () => play('song')],
     ['loop', 'LOOP', 'Repeats the pattern you edit, or stops (Enter).', () => play('pattern')],
     ['stop', 'STOP', 'Stops and releases every note.', () => send({ type: 'tracker', op: 'stop' })],
     ['edit', 'EDIT', 'On: the keys write notes at the cursor. Off: they only play (Esc).', () => { state.edit = !state.edit; render(); }],
@@ -631,10 +630,19 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   }
   const loadListeners = [];
 
+  // where the worklet's tracker plays: [playing, pattern, order position, row, bpm].
+  // While the song plays, the display follows it into each next pattern.
   function onState(tracker) {
     const playedRow = tracker[3] !== state.playing[3] || tracker[0] !== state.playing[0];
+    const nextPattern = tracker[0] && tracker[1] !== state.p && song.value.patterns[tracker[1]];
     state.playing = tracker;
-    if (playedRow) render();
+    if (nextPattern) {
+      state.p = tracker[1];
+      state.pos = tracker[2];
+      state.anchor = null;
+      state.cur.r = clampRow(state.cur.r);
+    }
+    if (playedRow || nextPattern) render();
   }
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);

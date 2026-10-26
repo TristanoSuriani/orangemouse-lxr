@@ -14,25 +14,9 @@ The songs are also in the studio's library (SONGS on the tracker), so anything c
 
 ## The songs
 
-Measured on 2026-10-26: no clipping, nothing at the limiter, no DC; loudness (RMS) trance -12.7 dBFS,
-electro -15.3, synthwave -18.2, dub techno -17.0.
-
-### Trance: Dawn Run, version 2 (138 BPM, A minor, 35 s)
-
-Version 1 did not sound like trance (2026-10-26). Version 2: intro, build, breakdown, drop twice;
-Am F C G, a bar each. In the library the old one stays as "Trance: Dawn Run (v1)".
-
-| What | Meant to be | Keep / change |
-|---|---|---|
-| Kick (LXR drum 1) | short and punchy, with a click; four on the floor | |
-| Rolling bass (VA1 Classic, low-pass) | the three 16ths after each beat | |
-| Supersaw gate (VA2 Supersaw) | the chords chopped in 16ths, wide, in the hall and the delay; quiet in the build, full in the drop | |
-| Anthem (VA3 Super Lead) | alone in the breakdown, then over the drop; delayed | |
-| Arpeggio (Plaits Pluck) | 16ths under the supersaws, left, in the delay | |
-| Pad (Plaits Trance pad), bells (Dexed glassbell) | the breakdown's bed and sparkle | |
-| The build | in the breakdown's last two bars: the snare roll speeds up (quarters, eighths, 16ths, a 32nd roll) under the riser | |
-| The drop | everything at once after the roll | |
-| The mix as a whole | | |
+Measured on 2026-10-26: no clipping, nothing at the limiter, no DC; loudness (RMS) electro -15.3 dBFS,
+synthwave -18.2, dub techno -17.0. Listened on 2026-10-26: all three kept. The trance song (two versions)
+and "First steps" were taken out.
 
 ### Electro: Signal Lost (125 BPM, F minor, 38 s)
 
