@@ -638,8 +638,18 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   }
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
+  // The LXR's kit as the worklet reports it (its panel or SD card changed it):
+  // the song keeps it, and saves.
+  function keepLxrKit(values) {
+    const s = song.value;
+    if (s.lxr && s.lxr.length === values.length && s.lxr.every((v, i) => v === values[i])) return;
+    s.lxr = values;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => library.save(song.value), 800);
+  }
+
   // send: changes to the song (the mixer's too) go through it, so they save
-  return { el, load, onState, handleKey, send, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
+  return { el, load, onState, handleKey, send, keepLxrKit, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
     song.value.name.toUpperCase(),
     `P${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
   ] };

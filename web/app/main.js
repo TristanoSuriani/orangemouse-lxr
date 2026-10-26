@@ -410,6 +410,7 @@ function onWorkletMessage(msg) {
         devices[0].mini(tracker.summary());
       }
       if (msg.meters) mixer.onMeters(msg.meters);
+      if (msg.lxrKit) tracker.keepLxrKit(msg.lxrKit);
       if (msg.lxrPots) {
         lxrPots = msg.lxrPots;
         help.refresh();
@@ -475,13 +476,14 @@ const help = new HelpStrip(document.getElementById('help'),
 
 buildPanel();
 describeLxr();
-const va = createVaDevice({ send, help });
 const tracker = createTrackerDevice({ send, help });
+// VA's slots are part of the song: its changes go through the tracker, which saves them
+const va = createVaDevice({ send: tracker.send, help, song: tracker.song });
 // the mix is part of the song: its changes go through the tracker, which saves them
 const mixer = createMixerDevice({ send: tracker.send, help, song: tracker.song });
 const dexed = createDexedDevice({ send: tracker.send, help, song: tracker.song });
 const plaits = createPlaitsDevice({ send: tracker.send, help, song: tracker.song });
-tracker.onLoad(() => { mixer.render(); dexed.render(); plaits.render(); });
+tracker.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); va.load(s); });
 // the demo song at once; the song last edited replaces it when the library answers
 tracker.load(demoSong());
 (async () => {

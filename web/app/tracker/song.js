@@ -36,6 +36,13 @@ export const dexedMessage = (part, field, value) =>
 
 // Plaits' parts: their 12 parameters as bytes (registry/plaits.json; engine 3).
 // A part starts from the first preset ("Supersaw"; plaits_presets.c).
+// VA's slots: their parameters (enum VaParam order), or null for a slot that
+// plays its first preset; the LXR's kit: every parameter (registry/lxr.json),
+// or null until the LXR reports it (main.js keeps it up to date).
+export const VA = 1;
+export const VA_P_PRESET = 44;
+export const newVa = () => [0, 1, 2, 3].map(() => ({ params: null }));
+
 export const PLAITS = 3;
 export const PLAITS_FIRST_PRESET = [1, 30, 20, 95, 70, 90, 0, 64, 64, 95, 24, 0];
 export const newPlaits = () => [0, 1].map(() => ({ p: [...PLAITS_FIRST_PRESET] }));
@@ -53,7 +60,8 @@ export function newPattern(rows = 64) {
 }
 
 export function newSong() {
-  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix(), dexed: newDexed(), plaits: newPlaits() };
+  return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix(), dexed: newDexed(), plaits: newPlaits(),
+    va: newVa(), lxr: null };
 }
 
 export const cellKey = (row, track) => `${row}:${track}`;
@@ -92,6 +100,12 @@ export function songMessages(song) {
   });
   song.dexed.forEach((part, k) => DEXED_FIELDS.forEach((f) => msgs.push(dexedMessage(k, f, part[f]))));
   song.plaits.forEach((part, k) => part.p.forEach((v, i) => msgs.push(plaitsMessage(k, i, v))));
+  // VA: the preset first (it loads all of the slot's sound), then the changes
+  song.va.forEach((slot, k) => {
+    msgs.push({ type: 'param', engine: VA, part: k, param: VA_P_PRESET, value: slot.params?.[VA_P_PRESET] ?? 0 });
+    slot.params?.forEach((v, i) => { if (i !== VA_P_PRESET) msgs.push({ type: 'param', engine: VA, part: k, param: i, value: v }); });
+  });
+  song.lxr?.forEach((v, i) => msgs.push({ type: 'param', engine: 0, part: 0, param: i, value: v }));
   return msgs.concat(mixMessages(song.mix));
 }
 

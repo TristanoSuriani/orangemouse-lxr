@@ -57,7 +57,7 @@ const center = (s, width) => {
   return ' '.repeat(Math.max(0, left)) + s;
 };
 
-export function createVaDevice({ send, help }) {
+export function createVaDevice({ send, help, song }) {
   const state = {
     slot: 0,
     page: 0,
@@ -130,6 +130,7 @@ export function createVaDevice({ send, help }) {
       v = Math.min(p.max, Math.max(p.min, v));
       if (v === value(p)) return;
       state.params[state.slot][p.index] = v;
+      keep(state.slot);
       send({ type: 'param', engine: ENGINE, part: state.slot, param: p.index, value: v });
       render();
     };
@@ -195,6 +196,7 @@ export function createVaDevice({ send, help }) {
     if (!count) return;
     const next = (state.params[state.slot][VA_P_PRESET] + d + count) % count;
     state.params[state.slot][VA_P_PRESET] = next;
+    keep(state.slot);
     send({ type: 'param', engine: ENGINE, part: state.slot, param: VA_P_PRESET, value: next });
     render();   // the worklet sends the preset's parameters back (vaParams)
   };
@@ -242,6 +244,17 @@ export function createVaDevice({ send, help }) {
   });
   el.append(keybed.el);
 
+  // ---- the song keeps the slots' sounds ----
+  function keep(slot) {
+    const s = song();
+    if (s) s.va[slot] = { params: [...state.params[slot]] };
+  }
+  // a song was loaded: its slots (those it changed; the others follow their preset, from the worklet)
+  function load(s) {
+    s.va.forEach((slot, k) => { if (slot.params) state.params[k] = [...slot.params]; });
+    render();
+  }
+
   // ---- from the worklet ----
   function onMessage(msg) {
     if (msg.type === 'vaPresets') {
@@ -249,6 +262,7 @@ export function createVaDevice({ send, help }) {
       render();
     } else if (msg.type === 'vaParams') {
       state.params[msg.slot] = msg.params;
+      keep(msg.slot);
       if (msg.slot === state.slot) render();
     }
   }
@@ -259,5 +273,5 @@ export function createVaDevice({ send, help }) {
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
   render();
-  return { el, onMessage, noteFromKey, octave, onSummary: (fn) => { summary = fn; render(); } };
+  return { el, onMessage, noteFromKey, octave, load, onSummary: (fn) => { summary = fn; render(); } };
 }

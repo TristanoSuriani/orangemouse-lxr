@@ -17,6 +17,7 @@
 #include "VaEngine.h"
 #include "dexed_engine.h"
 #include "plaits_engine.h"
+#include "om_registry_lxr.h"
 
 extern const OmEngineClass om_lxr_engine, om_va_engine;
 void om_lxr_set_seed(uint32_t seed);
@@ -125,6 +126,16 @@ WEB_EXPORT const uint8_t *om_web_va_preset_params(uint8_t slot, uint8_t preset)
 WEB_EXPORT int om_web_va_preset_param_count(void)
 {
 	return VA_NUM_SOUND_PARAMS;
+}
+
+// The LXR's kit as the song keeps it: every parameter's value (registry/lxr.json order).
+static uint8_t lxrKit[OM_LXR_NUM_PARAMS];
+WEB_EXPORT int om_web_lxr_kit_size(void) { return OM_LXR_NUM_PARAMS; }
+WEB_EXPORT const uint8_t *om_web_lxr_kit(void)
+{
+	for (uint16_t p = 0; p < OM_LXR_NUM_PARAMS; p++)
+		lxrKit[p] = om_studio_get_param(studio, 0, 0, p);
+	return lxrKit;
 }
 
 // Dexed's cartridges, for the bank browser: the banks' names and the programs'.

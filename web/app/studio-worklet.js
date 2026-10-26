@@ -88,6 +88,7 @@ class StudioProcessor extends AudioWorkletProcessor {
     this.lastLcdVersion = -1;
     this.lastLeds = [-1, -1];
     this.uiTimer = 0;
+    this.uiCount = 0;
     this.sdTimer = 0;
 
     this.port.onmessage = (e) => this.onMessage(e.data);
@@ -248,6 +249,15 @@ class StudioProcessor extends AudioWorkletProcessor {
     if (force || trackerKey !== this.lastTracker) {
       this.lastTracker = trackerKey;
       msg.tracker = tracker;
+    }
+    // the LXR's kit, twice a second when it changed (its panel, a kit loaded from the SD card): the song keeps it
+    if (force || this.uiCount++ % 30 === 0) {
+      const kit = Array.from(this.bytes().subarray(w.om_web_lxr_kit(), w.om_web_lxr_kit() + w.om_web_lxr_kit_size()));
+      const kitKey = kit.join(',');
+      if (kitKey !== this.lastKit) {
+        this.lastKit = kitKey;
+        msg.lxrKit = kit;
+      }
     }
     // the mixer's meters: the peaks since the last time (studio.h om_studio_meters)
     msg.meters = Array.from(new Float32Array(w.memory.buffer, w.om_web_meters(), w.om_web_channels() + 5));

@@ -292,6 +292,15 @@ try {
   await press('Escape', 'Escape');
   await press('KeyZ', 'z');
   check((await trackerRow(0)).includes('C-4'), `the new song takes a note: "${await trackerRow(0)}"`);
+  // the instruments' sounds are the song's too: a VA knob, and the LXR's kit (drum 2's coarse tune, as its panel changes it)
+  // VA1's cutoff (VA_P_CUTOFF, 16) as its knob sets it: the panel's values, then the message
+  await evaluate(`(() => { const params = [...window.orangeMouse.tracker.song().va[0].params]; params[16] = 33;
+    window.orangeMouse.va.onMessage({ type: 'vaParams', slot: 0, params });
+    window.orangeMouse.tracker.send({ type: 'param', engine: 1, part: 0, param: 16, value: 33 }); })()`);
+  await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'param', engine: 0, part: 0, param: 10, value: 77 })`);
+  await sleep(1200);   // the LXR reports its kit, and the song saves
+  const kit3 = await evaluate(`JSON.stringify(window.orangeMouse.tracker.song().lxr?.slice(8, 12))`);
+  check(JSON.parse(kit3 ?? 'null')?.[2] === 77, `the song keeps the LXR's kit: ${kit3}`);
   await sleep(1200);   // autosave
   const code = await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');
@@ -308,6 +317,9 @@ try {
   check((await trackerRow(0)).includes('C-4'), 'and its note was saved');
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
+  await sleep(1500);   // the LXR reports its kit again: the song's, if loading the song set it
+  check((await evaluate(`window.orangeMouse.tracker.song().lxr?.[10]`)) === 77, 'after a reload the LXR plays the song\'s kit');
+  check((await evaluate(`window.orangeMouse.tracker.song().va[0].params?.[16]`)) === 33, 'and VA1 its sound (VA reports its cutoff back)');
 
   console.log('== the LXR plays');
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'note', engine: 0, part: 0, note: 36, velocity: 120, on: true })`);
