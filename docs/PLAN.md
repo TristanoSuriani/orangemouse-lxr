@@ -331,3 +331,5 @@ Added on 2026-10-26, after the phases above:
   device of its own, played from the tracker, and possibly fed by other channels.
 - **Surge XT's waveforms**: its oscillators (classic, modern, wavetable, window, sine, FM and the
   others) as an instrument, included sound design, unlike Dexed.
+- **Surge XT's waveshapers** (sst-waveshapers, already fetched): soft and hard clippers, folders,
+  asymmetric and digital shapers, as an insert on a channel next to its filter.
