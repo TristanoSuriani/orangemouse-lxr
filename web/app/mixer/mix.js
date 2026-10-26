@@ -30,16 +30,17 @@ export const CHANNELS = [
 ];
 
 // studio.h: the controls, and the targets besides the channels
-export const MIX = { LEVEL: 0, PAN: 1, SEND_A: 2, SEND_B: 3, MUTE: 4, SOLO: 5, FX_TYPE: 6, RETURN: 7 };
+export const MIX = { LEVEL: 0, PAN: 1, SEND_A: 2, SEND_B: 3, MUTE: 4, SOLO: 5, FX_TYPE: 6, RETURN: 7, FILTER: 8, CUTOFF: 9, RESONANCE: 10 };
 export const BUS_A = 0xf0;
 export const MASTER = 0xff;
 export const FX_TYPES = fxRegistry.parts;   // 'Off', 'Hall', ...
-const CHANNEL_FIELDS = ['level', 'pan', 'sendA', 'sendB', 'mute', 'solo'];
+// a channel's fields and their controls (studio.h)
+const CHANNEL_FIELDS = { level: 0, pan: 1, sendA: 2, sendB: 3, mute: 4, solo: 5, filter: 8, cutoff: 9, reso: 10 };
 
 export function newMix() {
   return {
     // VA's slots start at -6 dB: they are loud next to the LXR
-    channels: Object.fromEntries(CHANNELS.map((c) => [c.key, { level: c.engine === 1 ? 79 : 100, pan: 64, sendA: 0, sendB: 0, mute: 0, solo: 0 }])),
+    channels: Object.fromEntries(CHANNELS.map((c) => [c.key, { level: c.engine === 1 ? 79 : 100, pan: 64, sendA: 0, sendB: 0, mute: 0, solo: 0, filter: 0, cutoff: 127, reso: 0 }])),
     buses: [{ type: 1, ret: 100, fx: {} }, { type: 3, ret: 100, fx: {} }],   // a hall and a delay
     master: 100,
   };
@@ -59,7 +60,7 @@ export function migrateMix(raw) {
 export const fxValue = (bus, index) => bus.fx[fxRegistry.params[index].id] ?? fxRegistry.params[index].default;
 
 export const channelMessage = (index, field, value) =>
-  ({ type: 'mix', target: index, param: CHANNEL_FIELDS.indexOf(field), value });
+  ({ type: 'mix', target: index, param: CHANNEL_FIELDS[field], value });
 export const busMessage = (bus, param, value) => ({ type: 'mix', target: BUS_A + bus, param, value });
 export const fxMessage = (bus, index, value) => ({ type: 'fx', bus, param: index, value });
 
@@ -67,7 +68,7 @@ export const fxMessage = (bus, index, value) => ({ type: 'fx', bus, param: index
 export function mixMessages(mix) {
   const msgs = [];
   CHANNELS.forEach((c, i) => {
-    for (const field of CHANNEL_FIELDS) msgs.push(channelMessage(i, field, mix.channels[c.key][field]));
+    for (const field of Object.keys(CHANNEL_FIELDS)) msgs.push(channelMessage(i, field, mix.channels[c.key][field]));
   });
   mix.buses.forEach((b, i) => {
     // the settings first: the type change applies them all to the effect at once

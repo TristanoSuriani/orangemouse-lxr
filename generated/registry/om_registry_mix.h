@@ -5,7 +5,7 @@
 #include "param_info.h"
 #include "studio.h"
 
-#define OM_MIX_NUM_PARAMS 8
+#define OM_MIX_NUM_PARAMS 11
 
 // every entry sits at its enum value
 _Static_assert(OM_MIX_LEVEL == 0, "registry/mix.json: OM_MIX_LEVEL is not entry 0");
@@ -16,6 +16,9 @@ _Static_assert(OM_MIX_MUTE == 4, "registry/mix.json: OM_MIX_MUTE is not entry 4"
 _Static_assert(OM_MIX_SOLO == 5, "registry/mix.json: OM_MIX_SOLO is not entry 5");
 _Static_assert(OM_MIX_FX_TYPE == 6, "registry/mix.json: OM_MIX_FX_TYPE is not entry 6");
 _Static_assert(OM_MIX_RETURN == 7, "registry/mix.json: OM_MIX_RETURN is not entry 7");
+_Static_assert(OM_MIX_FILTER == 8, "registry/mix.json: OM_MIX_FILTER is not entry 8");
+_Static_assert(OM_MIX_CUTOFF == 9, "registry/mix.json: OM_MIX_CUTOFF is not entry 9");
+_Static_assert(OM_MIX_RESONANCE == 10, "registry/mix.json: OM_MIX_RESONANCE is not entry 10");
 
 static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_LEVEL", "LEV", "Level", 0, 127, 100, 0},
@@ -26,6 +29,9 @@ static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_SOLO", "SOL", "Solo", 0, 1, 0, 0},
 	{"OM_MIX_FX_TYPE", "FX", "Effect", 0, 6, 1, 0},
 	{"OM_MIX_RETURN", "RET", "Return", 0, 127, 100, 0},
+	{"OM_MIX_FILTER", "FLT", "Filter", 0, 13, 0, 0},
+	{"OM_MIX_CUTOFF", "CUT", "Cutoff", 0, 127, 127, 0},
+	{"OM_MIX_RESONANCE", "RES", "Resonance", 0, 127, 0, 0},
 };
 
 #endif /* OM_REGISTRY_MIX_H_ */

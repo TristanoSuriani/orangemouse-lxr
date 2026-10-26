@@ -8,9 +8,10 @@
 //            rows 2-9: meters (the ▶ is the fader); then level, pan, send A,
 //            send B, mute/solo. FX A / FX B turn the display into that send
 //            effect's page: its type, return and every setting.
-//   knobs    the selected strip's level, pan, send A, send B (a send: return
-//            and effect; the master: level); on an effect's page, four of
-//            its settings (PAGE for the next four)
+//   knobs    the selected strip's level, pan, send A, send B, or with PAGE
+//            its Surge filter: type, cutoff, resonance (a send: return and
+//            effect; the master: level); on an effect's page, four of its
+//            settings (PAGE for the next four)
 //   pads     strip back/forward, mute, solo, FX A, FX B, type -/+, page
 //
 // The mix lives in the song (song.mix, mixer/mix.js), so it saves with it.
@@ -25,7 +26,7 @@ import { addGuide } from '../kit/guide.js';
 import { CHANNELS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage } from '../mixer/mix.js';
 
 const COLS = 84;
-const ROWS = 15;
+const ROWS = 16;
 const W = 4;                 // display columns per strip: 18 strips (the ▶ column parts them)
 const METER_TOP = 2;
 const METER_ROWS = 8;
@@ -41,7 +42,8 @@ const STRIPS = [
   { kind: 'master', short: 'OUT', name: 'Master' },
 ];
 const P = Object.fromEntries(mixRegistry.params.map((p) => [p.id.replace('OM_MIX_', ''), p]));
-const FIELD = { LEVEL: 'level', PAN: 'pan', SEND_A: 'sendA', SEND_B: 'sendB', MUTE: 'mute', SOLO: 'solo' };
+const FIELD = { LEVEL: 'level', PAN: 'pan', SEND_A: 'sendA', SEND_B: 'sendB', MUTE: 'mute', SOLO: 'solo',
+  FILTER: 'filter', CUTOFF: 'cutoff', RESONANCE: 'reso' };
 const typeParams = FX_TYPES.map((name) =>
   fxRegistry.params.map((p, index) => ({ ...p, index })).filter((p) => p.group === name));
 
@@ -49,6 +51,7 @@ const GUIDE = [
   { title: 'The strips', text: 'One strip for each LXR voice (its FX bus is LFX), each VA slot, the two send effects (FXA, FXB) and the master (OUT). The meters move as they play; the ▶ beside a meter is its fader.' },
   { title: 'Mix', text: 'Click a strip (or &lt; CH, CH &gt;, the arrow keys) and turn the knobs: level, pan, send A, send B. MUTE and SOLO (M, S) silence channels or play only some. Double-click a knob to reset it.' },
   { title: 'Effects', text: 'Send A is a hall reverb, send B a delay on the song\'s tempo. Turn a channel\'s SDA or SDB up to send it there. FX A / FX B open the effect: TYPE - and TYPE + change it (hall, room, delay, chorus, phaser, flanger), the knobs its settings, PAGE the next four.' },
+  { title: 'Filters', text: 'Every channel has one of Surge\'s filters. Press PAGE on a channel: the knobs become FLT (the type: low-passes, ladders, high-passes, band-pass, notch), CUT and RES. Sweep CUT for build-ups; FLT off leaves the sound untouched.' },
   { title: 'Loud enough', text: 'The master has a limiter: the mix never goes past -0.2 dB. GR on the OUT strip shows how much it holds back; a few dB on the loudest hits is fine, more means turn something down.' },
   { title: 'Saved with the song', text: 'The mix is part of the song: it saves as you change it, and loads with the song.' },
 ];
@@ -56,6 +59,8 @@ const GUIDE = [
 // a strip's values in three characters, so a space parts the strips: whole
 // dB ("-6", "off"), pan ("C", "L50"), the effect ("hal"); row 0 has them in full
 const FX3 = ['off', 'hal', 'rom', 'dly', 'chr', 'phs', 'flg'];
+const FLT3 = ['-', 'l12', 'l24', 'lad', 'vin', 'obx', 'k35', 'dio', 'h12', 'h24', 'k3h', 'bp', 'nch', 'obp'];
+const HIGH_PASS = [8, 9, 10];   // registry/mix.json OM_MIX_FILTER: the high-passes
 const db3 = (v) => (v === 0 ? 'off' : (() => { const d = Math.round(60 * Math.log10(v / 100)); return d > 0 ? `+${d}` : String(d); })());
 const pan3 = (v) => { const x = Math.round(((v - 64) / 63) * 100); return x === 0 ? 'C' : `${x < 0 ? 'L' : 'R'}${Math.min(99, Math.abs(x))}`; };
 
@@ -76,6 +81,7 @@ export function createMixerDevice({ send, help, song }) {
     sel: 0,          // the strip the knobs work on
     fx: null,        // the send effect on the display (0, 1), or null: the strips
     page: 0,         // which four of the effect's settings are on the knobs
+    chPage: 0,       // a channel's knobs: 0 the mix, 1 its filter
     level: new Float32Array(CHANNELS.length + 5),   // the meters, falling back slowly
     hold: new Float32Array(CHANNELS.length + 5),
     holdAge: new Uint16Array(CHANNELS.length + 5),
@@ -110,9 +116,22 @@ export function createMixerDevice({ send, help, song }) {
     const s = strip();
     if (s.kind === 'channel') {
       const ch = mix().channels[s.key];
-      return ['LEVEL', 'PAN', 'SEND_A', 'SEND_B'].map((k) => [
-        P[k], () => ch[FIELD[k]], (v) => { ch[FIELD[k]] = v; send(channelMessage(s.index, FIELD[k], v)); },
-      ]);
+      const knob = (k) => [P[k], () => ch[FIELD[k]], (v) => { ch[FIELD[k]] = v; send(channelMessage(s.index, FIELD[k], v)); }];
+      if (state.chPage === 1) {
+        const filter = knob('FILTER');
+        // a high-pass wide open at the top would be silent: it starts at the bottom (and back)
+        filter[2] = (v) => {
+          const wasHigh = HIGH_PASS.includes(ch.filter), isHigh = HIGH_PASS.includes(v);
+          ch.filter = v;
+          send(channelMessage(s.index, 'filter', v));
+          if (isHigh !== wasHigh && (ch.cutoff === 127 || ch.cutoff === 0)) {
+            ch.cutoff = isHigh ? 0 : 127;
+            send(channelMessage(s.index, 'cutoff', ch.cutoff));
+          }
+        };
+        return [filter, knob('CUTOFF'), knob('RESONANCE'), null];
+      }
+      return ['LEVEL', 'PAN', 'SEND_A', 'SEND_B'].map(knob);
     }
     if (s.kind === 'bus') {
       const b = mix().buses[s.bus];
@@ -141,7 +160,9 @@ export function createMixerDevice({ send, help, song }) {
     if (s.kind === 'channel') {
       const ch = m.channels[s.key];
       words = `${s.name.toUpperCase()}  LEVEL ${formatValue(P.LEVEL, ch.level)}  PAN ${formatValue(P.PAN, ch.pan)}` +
-        `  A ${formatValue(P.SEND_A, ch.sendA)}  B ${formatValue(P.SEND_B, ch.sendB)}${ch.mute ? '  MUTED' : ''}${ch.solo ? '  SOLO' : ''}`;
+        `  A ${formatValue(P.SEND_A, ch.sendA)}  B ${formatValue(P.SEND_B, ch.sendB)}` +
+        (ch.filter ? `  ${formatShort(P.FILTER, ch.filter).toUpperCase()} ${formatShort(P.CUTOFF, ch.cutoff)}` : '') +
+        `${ch.mute ? '  MUTED' : ''}${ch.solo ? '  SOLO' : ''}`;
     } else if (s.kind === 'bus') {
       const b = m.buses[s.bus];
       words = `${s.name.toUpperCase()}: ${FX_TYPES[b.type].toUpperCase()}  RETURN ${formatValue(P.RETURN, b.ret)}   (FX ${'AB'[s.bus]}: its settings)`;
@@ -173,12 +194,12 @@ export function createMixerDevice({ send, help, song }) {
         const ch = m.channels[x.key];
         const silent = ch.mute || (anySolo && !ch.solo);
         lines = [db3(ch.level), pan3(ch.pan), ch.sendA ? db3(ch.sendA) : '-', ch.sendB ? db3(ch.sendB) : '-',
-          `${ch.mute ? 'M' : silent ? '·' : ' '}${ch.solo ? 'S' : ' '}`];
+          FLT3[ch.filter], `${ch.mute ? 'M' : silent ? '·' : ' '}${ch.solo ? 'S' : ' '}`];
       } else if (x.kind === 'bus') {
         const b = m.buses[x.bus];
-        lines = [db3(b.ret), FX3[b.type], '', '', ''];
+        lines = [db3(b.ret), FX3[b.type], '', '', '', ''];
       } else {
-        lines = [db3(m.master), 'GR', gr() > 0.5 ? `-${Math.round(gr())}` : '0', '', ''];
+        lines = [db3(m.master), 'GR', gr() > 0.5 ? `-${Math.round(gr())}` : '0', '', '', ''];
       }
       lines.forEach((t, j) => rows[METER_ROWS + j].push(center(t, W)));
     });
@@ -302,7 +323,9 @@ export function createMixerDevice({ send, help, song }) {
     ['fxB', 'FX B', 'Send B\'s effect on the display: its type and settings. Press again for the strips.', () => openFx(1)],
     ['typeDown', 'TYPE -', 'The previous effect on this send (with FX A or FX B lit).', () => changeType(-1)],
     ['typeUp', 'TYPE +', 'The next effect on this send: hall, room, delay, chorus, phaser, flanger.', () => changeType(1)],
-    ['page', 'PAGE', 'The next four settings of the effect on the knobs.', () => nextPage()],
+    ['page', 'PAGE', () => (state.fx !== null ? 'The next four settings of the effect on the knobs.'
+      : `A channel's knobs: its mix (level, pan, sends) or its filter (type, cutoff, resonance). Now: ${state.chPage ? 'the filter' : 'the mix'}.`),
+    () => nextPage()],
   ];
   const pads = {};
   for (const [key, label, text, action] of PADS) {
@@ -322,7 +345,12 @@ export function createMixerDevice({ send, help, song }) {
     render();
   }
   function nextPage() {
-    if (state.fx === null) return;
+    if (state.fx === null) {
+      state.chPage = 1 - state.chPage;
+      setLed(pads.page, state.chPage === 1);
+      render();
+      return;
+    }
     const count = typeParams[mix().buses[state.fx].type].length;
     state.page = (state.page + 1) % Math.max(1, Math.ceil(count / 4));
     render();

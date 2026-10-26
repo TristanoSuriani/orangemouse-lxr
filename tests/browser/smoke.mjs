@@ -178,7 +178,7 @@ try {
   console.log('== switch on');
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
-  check(await evaluate('!!window.orangeMouse'), `the studio started${errors.length ? ` (errors: ${errors.slice(0, 3).join(' / ')})` : ''}`);
+  check(await evaluate('!!window.orangeMouse') && errors.length === 0, `the studio started${errors.length ? ` (errors: ${errors.slice(0, 3).join(' / ')})` : ''}`);
   check((await evaluate(`document.getElementById('help').getAttribute('aria-label')`)).includes('SD card'), 'the SD card is ready (the help strip says so)');
   await sleep(800);
   check((await vaDisplay()).includes('#01'), `the VA display shows a preset: "${(await vaDisplay()).replace(/\n/g, ' | ')}"`);
@@ -337,6 +337,19 @@ try {
   await press('KeyM', 'm');
   check((await mixOf('channels.va2.mute')) === 1 && (await mixRow(0)).includes('MUTED'), 'M mutes the strip');
   await press('KeyM', 'm');
+  // the channel's Surge filter: PAGE, then FLT (Shift+Up: one step) and CUT
+  await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE
+  check((await evaluate(`[...document.querySelectorAll('.mixer-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'FLT CUT RES -', 'PAGE puts the filter on the knobs');
+  await evaluate(`document.querySelectorAll('.mixer-knobs .pot')[0].focus()`);
+  await press('ArrowUp', 'ArrowUp', 8);
+  await press('ArrowUp', 'ArrowUp', 8);
+  await evaluate(`document.querySelectorAll('.mixer-knobs .pot')[1].focus()`);
+  for (let i = 0; i < 10; i++) await press('ArrowDown', 'ArrowDown');
+  check((await mixOf('channels.va2.filter')) === 2 && (await mixOf('channels.va2.cutoff')) === 87 && (await mixRow(0)).includes('LP24'),
+    `the knobs set a 24 dB low-pass and lower its cutoff: "${await mixRow(0)}"`);
+  check((await mixText()).split('\n')[14].includes('l24'), 'the strip shows its filter');
+  await evaluate(`document.activeElement.blur()`);
+  await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE: back to the mix
   await clickPad('.mixer-pads .pad:nth-child(5)');   // FX A
   check((await mixRow(0)).startsWith('SEND A  HALL'), `FX A shows the hall: "${await mixRow(0)}"`);
   await shot('mixer-fx.png');
@@ -347,7 +360,7 @@ try {
   const savedMix = await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');
     return (await lib.load(lib.currentId())).mix; })()`);
-  check(savedMix.channels.va2.sendA === 20 && savedMix.buses[0].type === 1, 'the mix saves with the song');
+  check(savedMix.channels.va2.sendA === 20 && savedMix.buses[0].type === 1 && savedMix.channels.va2.filter === 2, 'the mix saves with the song, its filters too');
 
   console.log('== Dexed');
   await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('dexed'))`);

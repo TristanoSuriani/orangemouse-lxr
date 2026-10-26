@@ -14,6 +14,7 @@
 #include <string.h>
 #include "studio.h"
 #include "fx.h"
+#include "filter.h"
 
 enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK };
 
@@ -42,7 +43,8 @@ typedef struct
 typedef struct
 {
 	uint8_t engine, stem;
-	uint8_t value[OM_MIX_SOLO + 1];
+	uint8_t value[OM_MIX_RESONANCE + 1];
+	OmFilter *filter;
 	Gain left, right, sendA, sendB;
 	float peak;
 } Channel;
@@ -120,6 +122,8 @@ void om_studio_destroy(OmStudio *st)
 		st->engine[e].cls->destroy(st->engine[e].self);
 	for (int b = 0; b < 2; b++)
 		om_fx_destroy(st->bus[b].fx);
+	for (int c = 0; c < st->channels; c++)
+		om_filter_destroy(st->channel[c].filter);
 	free(st);
 }
 
@@ -142,6 +146,14 @@ int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 		memset(ch, 0, sizeof(*ch));
 		ch->engine = st->engines;
 		ch->stem = s;
+		ch->filter = om_filter_create(st->rate);
+		if (!ch->filter)
+		{
+			st->channels--;
+			cls->destroy(self);
+			return -1;
+		}
+		ch->value[OM_MIX_CUTOFF] = 127;
 		om_studio_mix(st, c, OM_MIX_LEVEL, 100);
 		om_studio_mix(st, c, OM_MIX_PAN, 64);
 		ch->left.now = ch->left.to;
@@ -285,11 +297,17 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 		}
 		return;
 	}
-	if (target >= st->channels || param > OM_MIX_SOLO)
+	const int isChannelParam = param <= OM_MIX_SOLO || (param >= OM_MIX_FILTER && param <= OM_MIX_RESONANCE);
+	if (target >= st->channels || !isChannelParam)
 		return;
-	const uint8_t max = param >= OM_MIX_MUTE ? 1 : 127;
-	st->channel[target].value[param] = value > max ? max : value;
-	retarget(st);
+	Channel *ch = &st->channel[target];
+	const uint8_t max = param == OM_MIX_MUTE || param == OM_MIX_SOLO ? 1 : param == OM_MIX_FILTER ? OM_FILTER_TYPES - 1 : 127;
+	ch->value[param] = value > max ? max : value;
+	if (param >= OM_MIX_FILTER)   // cutoff: semitones from A4, -60 .. 70 (registry "exp", 13.75 Hz up)
+		om_filter_set(ch->filter, ch->value[OM_MIX_FILTER], -60.f + ch->value[OM_MIX_CUTOFF] * (130.f / 127.f),
+		              ch->value[OM_MIX_RESONANCE] / 127.f);
+	else
+		retarget(st);
 }
 
 uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param)
@@ -301,7 +319,8 @@ uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param)
 		const Bus *bus = &st->bus[target - OM_MIX_BUS_A];
 		return param == OM_MIX_FX_TYPE ? bus->type : param == OM_MIX_RETURN ? bus->ret : 0;
 	}
-	return target < st->channels && param <= OM_MIX_SOLO ? st->channel[target].value[param] : 0;
+	return target < st->channels && param <= OM_MIX_RESONANCE && (param <= OM_MIX_SOLO || param >= OM_MIX_FILTER)
+		? st->channel[target].value[param] : 0;
 }
 
 void om_studio_fx(OmStudio *st, uint8_t bus, uint16_t param, uint8_t value)
@@ -448,8 +467,9 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 		for (int c = 0; c < st->channels; c++)
 		{
 			Channel *ch = &st->channel[c];
-			const Engine *en = &st->engine[ch->engine];
-			const float *sl = en->buf[2 * ch->stem], *sr = en->buf[2 * ch->stem + 1];
+			Engine *en = &st->engine[ch->engine];
+			float *sl = en->buf[2 * ch->stem], *sr = en->buf[2 * ch->stem + 1];
+			om_filter_process(ch->filter, sl, sr, OM_MAX_BLOCK);   // the insert, before the fader
 			Gain a = ch->sendA, b = ch->sendB;   // both sides of a send ramp alike
 			addRamped(st->bus[0].buf[0], sl, &ch->sendA);
 			addRamped(st->bus[0].buf[1], sr, &a);

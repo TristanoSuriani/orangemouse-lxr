@@ -133,6 +133,80 @@ export default {
     "kind": "fader"
    },
    "help": "How loud the effect comes back into the mix."
+  },
+  {
+   "id": "OM_MIX_FILTER",
+   "short": "FLT",
+   "name": "Filter",
+   "group": "Channel",
+   "min": 0,
+   "max": 13,
+   "default": 0,
+   "display": {
+    "kind": "enum",
+    "values": [
+     "off",
+     "low-pass 12 dB",
+     "low-pass 24 dB",
+     "ladder",
+     "vintage ladder",
+     "OB-Xd 24 dB",
+     "K35 low-pass",
+     "diode ladder",
+     "high-pass 12 dB",
+     "high-pass 24 dB",
+     "K35 high-pass",
+     "band-pass",
+     "notch",
+     "OB-Xd band-pass"
+    ],
+    "short": [
+     "off",
+     "lp12",
+     "lp24",
+     "laddr",
+     "vintg",
+     "obxd",
+     "k35",
+     "diode",
+     "hp12",
+     "hp24",
+     "k35hp",
+     "bp",
+     "notch",
+     "obxbp"
+    ]
+   },
+   "help": "Surge's filters on the channel: low-pass, ladders, high-pass, band-pass, notch."
+  },
+  {
+   "id": "OM_MIX_CUTOFF",
+   "short": "CUT",
+   "name": "Cutoff",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 127,
+   "display": {
+    "kind": "exp",
+    "base": 13.75,
+    "octaves": 10.833333,
+    "unit": "Hz"
+   },
+   "help": "The filter's frequency. Sweep it for the build-ups and breakdowns."
+  },
+  {
+   "id": "OM_MIX_RESONANCE",
+   "short": "RES",
+   "name": "Resonance",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 0,
+   "display": {
+    "kind": "percent"
+   },
+   "help": "How much the filter rings at its cutoff; the ladders whistle at the top."
   }
  ]
 };

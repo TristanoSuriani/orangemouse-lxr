@@ -52,6 +52,14 @@ class StudioProcessor extends AudioWorkletProcessor {
         },
         fd_close: () => 0,
         fd_seek: () => 70,   // ESPIPE
+        // an empty environment (getenv, linked by the channel filters)
+        environ_sizes_get: (count, size) => {
+          const view = new DataView(this.wasm.memory.buffer);
+          view.setUint32(count, 0, true);
+          view.setUint32(size, 0, true);
+          return 0;
+        },
+        environ_get: () => 0,
         clock_time_get: (id, precision, out) => {
           new DataView(this.wasm.memory.buffer).setBigUint64(out, 0n, true);
           return 0;

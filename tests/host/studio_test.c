@@ -14,6 +14,7 @@
 #include <string.h>
 #include "studio.h"
 #include "fx.h"
+#include "filter.h"
 #include "om_registry_fx.h"
 
 extern const OmEngineClass om_va_engine;
@@ -214,6 +215,49 @@ int main(void)
 				CHECK(energy > 1e-3f, "%s at %s is silent (energy %g)", names[type], at[setting], energy);
 				om_fx_destroy(fx);
 			}
+	}
+	{   // every channel filter filters: low-passes cut a high sine, high-passes a low one,
+		// band-passes both, the notch its own frequency; with full resonance and
+		// noise they stay finite and bounded
+		const char *names[OM_FILTER_TYPES] = {"off", "lp12", "lp24", "ladder", "vintage", "obxd", "k35", "diode",
+			"hp12", "hp24", "k35hp", "bp", "notch", "obxbp"};
+		static float fl[4096], fr[4096];
+		// the level of a sine after the filter, in dB against the sine (after 2048 frames to settle)
+		#define FILTERED(type, cutoff, hz, out) do { \
+			OmFilter *f = om_filter_create(44100.f); \
+			om_filter_set(f, type, cutoff, 0.f); \
+			for (int i = 0; i < 4096; i++) fl[i] = fr[i] = 0.5f * sinf(6.2831853f * (hz) * i / 44100.f); \
+			om_filter_process(f, fl, fr, 4096); \
+			double e = 0; for (int i = 2048; i < 4096; i++) e += fl[i] * fl[i]; \
+			out = 10.0 * log10(e / 2048 / 0.125 + 1e-12); \
+			om_filter_destroy(f); } while (0)
+		for (uint8_t t = OM_FILTER_LP12; t < OM_FILTER_TYPES; t++)
+		{
+			const int lp = t <= OM_FILTER_DIODE, hp = t >= OM_FILTER_HP12 && t <= OM_FILTER_K35_HP;
+			const int bp = t == OM_FILTER_BP || t == OM_FILTER_OBXD_BP;
+			double low, high, mid;
+			FILTERED(t, -24.f, 5000.f, high);   // cutoff 220 Hz (semitones from A4)
+			FILTERED(t, 24.f, 55.f, low);       // cutoff 3.5 kHz
+			FILTERED(t, 0.f, 440.f, mid);       // cutoff at the sine
+			if (lp) CHECK(high < -20.0, "%s: a 5 kHz sine through a 220 Hz low-pass is only %.1f dB down", names[t], high);
+			if (hp) CHECK(low < -20.0, "%s: a 55 Hz sine through a 3.5 kHz high-pass is only %.1f dB down", names[t], low);
+			if (bp) CHECK(high < -10.0 && low < -10.0, "%s: a band-pass lets through %.1f dB above, %.1f dB below", names[t], high, low);
+			if (t == OM_FILTER_NOTCH) CHECK(mid < -10.0, "notch: its own frequency is only %.1f dB down", mid);
+			// full resonance, noise
+			OmFilter *f = om_filter_create(44100.f);
+			om_filter_set(f, t, 10.f, 1.f);
+			uint32_t seed = 7;
+			float peak = 0.f;
+			int bad = 0;
+			for (int rep = 0; rep < 20; rep++)
+			{
+				for (int i = 0; i < 4096; i++) { seed = seed * 1664525u + 1013904223u; fl[i] = fr[i] = ((seed >> 9) * (1.f / 4194304.f) - 1.f) * 0.5f; }
+				om_filter_process(f, fl, fr, 4096);
+				for (int i = 0; i < 4096; i++) { bad += !isfinite(fl[i]); peak = fmaxf(peak, fabsf(fl[i])); }
+			}
+			CHECK(bad == 0 && peak < 16.f, "%s at full resonance: %d bad samples, peak %g", names[t], bad, peak);
+			om_filter_destroy(f);
+		}
 	}
 	{   // the delay bus: echoes on the tempo (1/8 dotted at 120 BPM is 0.375 s)
 		const OmEngineClass cls = mockClass(0);

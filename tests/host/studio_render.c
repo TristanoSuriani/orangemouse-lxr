@@ -136,6 +136,12 @@ int main(int argc, char **argv)
 		om_studio_mix(st, c, OM_MIX_LEVEL, 79);   // -6 dB
 		om_studio_mix(st, c, OM_MIX_PAN, s == 1 ? 45 : s == 2 ? 83 : 64);
 	}
+	{   // a Surge filter: VA4's noise through a resonant 24 dB high-pass
+		const uint8_t c = (uint8_t)om_studio_channel(st, (uint8_t)va, 3);
+		om_studio_mix(st, c, OM_MIX_FILTER, 9);
+		om_studio_mix(st, c, OM_MIX_CUTOFF, 90);
+		om_studio_mix(st, c, OM_MIX_RESONANCE, 50);
+	}
 	// the send effects: the snare and VA's poly into the hall, the lead into the delay
 	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)lxr, 3), OM_MIX_SEND_A, 70);
 	om_studio_mix(st, (uint8_t)om_studio_channel(st, (uint8_t)va, 1), OM_MIX_SEND_A, 80);
