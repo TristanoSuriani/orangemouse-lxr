@@ -195,8 +195,8 @@ nothing built earlier has to be redone.
      samples. At 48 kHz its filters would sit 1.5 semitones higher and its transients and envelopes would
      run 9 % faster, unless the whole firmware were audited.
    - VA, Dexed and the Surge effects take the rate as a parameter.
-   - Plaits is the only engine designed for 48 kHz. Its adapter corrects its pitch (+1.47 semitones), or
-     resamples that one voice (Phase 5).
+   - Plaits is the only engine designed for about 48 kHz (47.9 kHz). Its adapter corrects its pitch
+     (+1.42 semitones, measured in Phase 5), or resamples that one voice.
    - The browser converts 44.1 kHz to the sound card's rate.
    - `REAL_FS` (44140 on the hardware, whose clock cannot make 44100) is 44100 in our builds, so the LXR
      is in tune with the other engines. That moved its pitch by 1.6 cents and was re-baselined on purpose.
@@ -296,6 +296,65 @@ Listened on 2026-10-26: electro, synthwave and dub techno are kept. The trance s
 studio deletes those two from an existing library once. The genre packs are three songs; the electro song
 now carries the CPU budget and the WebAssembly check.
 
+### Phases 7 to 10: added on 2026-10-26, after a review of the product
+
+A review after Phase 6 found that what limits the songs now is the mixing tools and the tracker, not
+the engines, and it named the risks below. The new phases come before "Later", in this order: the
+risks first, then what the plan promised and doesn't have yet, then the mix, then the tracker. Trance
+comes back last, once the tools it needs exist.
+
+### Phase 7: safety (the risks)
+
+1. **Songs can't be lost.** The library lives only in IndexedDB and localStorage, which a browser may
+   evict (Safari does after 7 days without a visit). Ask for `navigator.storage.persist()` at start and
+   say on the tracker's display if it was refused. Add a backup: a folder picked once (File System
+   Access) that receives every song as .json after each autosave, or, where that isn't available, an
+   `EXPORT?` reminder when the songs haven't been exported for a week.
+2. **CPU in the browser, at the worst case.** Write a stress song with every part at its voice limit
+   (Dexed's 32 voices, both Plaits parts, the four VA slots, the LXR), both sends on reverbs and every
+   channel filter on. Time it in WebAssembly, in a headless browser, against a budget, as well as
+   natively. Only the electro song has a budget today, and only natively.
+3. **Fuzzing**, as the Testing section promises and the suite doesn't yet do: random parameter sweeps
+   and note and MIDI streams across all 16 tracks (note-on storms, missing note-offs, panics), each run
+   through the health checks.
+4. **The accessibility tests** the plan promises: an axe-core audit and a Tab-order walk in the
+   browser test.
+5. **Re-baselining is deliberate.** A commit with `UPDATE_GOLDEN=1` names the renders it changed and
+   why, and the changed ones are listened to. The suite proves that nothing changed, not that it sounds
+   good.
+6. **Plaits' timing at 44.1 kHz.** The +1.42-semitone correction fixes pitch only: Plaits' envelopes
+   and low-pass gate are built for about 47.9 kHz, so they run about 8 % slower here. Measure a
+   percussive preset's decay against Plaits at its own rate and correct the time constants in the
+   adapter if the difference can be heard.
+
+### Phase 8: what the plan promised
+
+1. **WAV export** from the tracker: the offline render `song_render` already does natively, run in
+   WebAssembly, with `RENDERING…` on the display first.
+2. **The playlist:** songs queued one after another with a set gap, reorderable, startable anywhere.
+3. **The perform view:** the big display as full-screen visuals that react to each track's level.
+
+### Phase 9: the mix
+
+1. **Sidechain ducking** on every mixer channel, keyed from the LXR's kick (or any channel): amount,
+   release, and a help line that says what it does. Trance and synthwave rely on it.
+2. **A trance gate** as a channel insert next to the filter: a 16-step gate pattern in tempo, with
+   depth and smoothing.
+3. **An EQ** on every channel: low shelf, a sweepable mid and a high shelf (Phase 3's "Not yet").
+
+### Phase 10: the tracker, for the genres
+
+1. **An effect column** in the cell: a parameter (cutoff, resonance, send, level...) set on a row, with
+   a slide to the next value, for the sweeps dub techno and trance live on. Patterns' own effects stay,
+   for the jumps on the downbeat.
+2. **Swing** per pattern, for electro and dub techno.
+3. **Glide and note length** for the mono VA slots, for acid and rubbery bass lines.
+4. **Probability and conditions** on a cell (play 50 %, every 2nd time...), so long dub techno loops
+   don't sound static.
+5. **A MIDI controller:** the registry's CC map mapped to the soft knobs of the device in focus, so a
+   physical knob box plays the studio.
+6. **Trance, version 3**, with ducking, the gate and the effect column, listened to like the others.
+
 ## Testing: as much as possible without a browser or ears
 
 Fel-Tracker's suite showed this works: golden hashes, CPU counts and a layout lint, under 5 minutes.
@@ -346,11 +405,18 @@ Fel-Tracker's suite showed this works: golden hashes, CPU counts and a layout li
 
 ## Later
 
-Added on 2026-10-26, after the phases above:
+Added on 2026-10-26, after the phases above. **Nothing here starts while a listening checklist still has
+empty keep/change lines:** tuning what exists makes better songs than another engine.
 
 - **Mutable Instruments Rings**, the resonator (MIT, from the same eurorack repository as Plaits): a
   device of its own, played from the tracker, and possibly fed by other channels.
 - **Surge XT's waveforms**: its oscillators (classic, modern, wavetable, window, sine, FM and the
-  others) as an instrument, included sound design, unlike Dexed.
+  others) as an instrument, included sound design, unlike Dexed. To reconsider first: full sound design
+  goes against "understandable without a manual" and Dexed's presets-only decision.
+- **Mutable Instruments Clouds or Beads** (granular, MIT), for IDM.
 - **Surge XT's waveshapers** (sst-waveshapers, already fetched): soft and hard clippers, folders,
   asymmetric and digital shapers, as an insert on a channel next to its filter.
+- **Before hosting the studio anywhere public** (even a shared page): `NOTICE.md` forbids using "LXR"
+  and "Erica Synths" in a way that suggests the work comes from them, so rename the LXR device; publish
+  the source, as GPL-3 requires; and check that Dexed's 33 cartridges may be redistributed, or ship
+  only those that may. Private use needs none of this.
