@@ -87,10 +87,11 @@ int main(int argc, char **argv)
 			const char *args = line + 2 + strlen(op);
 			if (!strcmp(op, "clear")) om_tracker_clear(tr);
 			else if (!strcmp(op, "tempo") && sscanf(args, "%f", &f) == 1) om_tracker_set_tempo(tr, f);
-			else if (!strcmp(op, "pattern") && sscanf(args, "%d %d %f", &a[0], &a[1], &f) == 3)
-			{
+			else if (!strcmp(op, "pattern") && sscanf(args, "%d %d %f %d", &a[0], &a[1], &f, &a[2]) >= 3)
+			{   // the swing (a fourth field) is optional
 				om_tracker_set_length(tr, (uint8_t)a[0], (uint8_t)a[1]);
 				om_tracker_set_pattern_tempo(tr, (uint8_t)a[0], f);
+				om_tracker_set_pattern_swing(tr, (uint8_t)a[0], a[2] ? (uint8_t)a[2] : 50);
 			}
 			else if (!strcmp(op, "order") && sscanf(args, "%d %d", &a[0], &a[1]) == 2) om_tracker_set_order(tr, (uint16_t)a[0], (uint8_t)a[1]);
 			else if (!strcmp(op, "cell") && sscanf(args, "%d %d %d %d %d %d %d %d %d %d %d", &a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7], &a[8], &a[9], &a[10]) >= 9)

@@ -244,6 +244,20 @@ int main(void)
 		CHECK(stops == 1 && stopAt == 12000, "the clock stops %d times, at frame %llu (12000 expected)", stops, (unsigned long long)stopAt);
 	}
 
+	{   // swing (PLAN.md 10.2): at 66 %, the second 16th of each pair comes late
+		fresh();
+		om_tracker_set_tempo(tr, 120.f);   // a row: 6000 frames at 48 kHz
+		om_tracker_set_pattern_swing(tr, 0, 66);
+		OmCell c = notes(60, OM_NOTE_EMPTY, OM_NOTE_EMPTY, 0);
+		for (uint8_t r = 0; r < 4; r++) om_tracker_set_cell(tr, 0, r, 0, &c);
+		om_tracker_play_song(tr, 0);
+		run(30000);
+		const Ev *a = nth(1, 0, 0), *b = nth(1, 0, 1), *d = nth(1, 0, 2), *e = nth(1, 0, 3);
+		// the mock engine sees events at the start of the block they fall in
+		CHECK(a && b && d && e && a->frame == 0 && b->frame / 64 == 7920 / 64 && d->frame / 64 == 12000 / 64 && e->frame / 64 == 19920 / 64,
+		      "swung rows start at %llu %llu %llu %llu (0, 7920, 12000, 19920)", a ? (unsigned long long)a->frame : 0,
+		      b ? (unsigned long long)b->frame : 0, d ? (unsigned long long)d->frame : 0, e ? (unsigned long long)e->frame : 0);
+	}
 	{   // the effect column (PLAN.md 10.1): a cutoff slide from 20 at row 0 to 100 at row 4, then put back
 		fresh();
 		om_tracker_set_tempo(tr, 120.f);   // a row: 6000 frames at 48 kHz

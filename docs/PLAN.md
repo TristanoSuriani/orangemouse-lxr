@@ -449,6 +449,9 @@ comes back last, once the tools it needs exist.
    effect. The C cell carries it (studio/tracker.h), the stream and the page too; the fuzz plays
    random effects. No render changed.
 2. **Swing** per pattern, for electro and dub techno.
+   **Done 2026-10-30**: each pattern has a swing, 50 % (straight) to 75 %: the first 16th of each pair
+   takes that share of the pair's time (studio/tracker.c `rowFrames`), so the clock, the LXR following
+   it and the gates swing too. A fifth knob on the tracker, SWG; saved with the pattern.
 3. **Glide and note length** for the mono VA slots, for acid and rubbery bass lines.
 4. **Probability and conditions** on a cell (play 50 %, every 2nd time...), so long dub techno loops
    don't sound static.

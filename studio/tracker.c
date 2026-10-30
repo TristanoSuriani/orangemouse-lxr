@@ -16,7 +16,8 @@ typedef struct
 {
 	OmCell cell[OM_MAX_ROWS][OM_TRACKS];
 	uint8_t rows;
-	float bpm;   // 0: the song's
+	float bpm;       // 0: the song's
+	uint8_t swing;   // 50..75 %
 } Pattern;
 
 typedef struct
@@ -83,6 +84,7 @@ void om_tracker_clear(OmTracker *t)
 				t->pattern[p].cell[r][k] = EMPTY;
 		t->pattern[p].rows = 64;
 		t->pattern[p].bpm = 0.f;
+		t->pattern[p].swing = 50;
 	}
 	memset(t->order, OM_ORDER_END, sizeof(t->order));
 	t->order[0] = 0;
@@ -114,6 +116,12 @@ void om_tracker_set_pattern_tempo(OmTracker *t, uint8_t pattern, float bpm)
 {
 	if (pattern < OM_PATTERNS)
 		t->pattern[pattern].bpm = bpm;
+}
+
+void om_tracker_set_pattern_swing(OmTracker *t, uint8_t pattern, uint8_t percent)
+{
+	if (pattern < OM_PATTERNS)
+		t->pattern[pattern].swing = percent < 50 ? 50 : percent > 75 ? 75 : percent;
 }
 
 void om_tracker_set_order(OmTracker *t, uint16_t position, uint8_t pattern)
@@ -156,9 +164,14 @@ static float tempoOf(const OmTracker *t, uint8_t pattern)
 	return t->pattern[pattern].bpm > 0.f ? t->pattern[pattern].bpm : t->bpm;
 }
 
+// a row's length; with swing, the first of each pair of rows is longer and the second shorter
 static double rowFrames(const OmTracker *t)
 {
-	return t->rate * 60.0 / tempoOf(t, t->current) / 4.0;
+	const double straight = t->rate * 60.0 / tempoOf(t, t->current) / 4.0;
+	const uint8_t swing = t->pattern[t->current].swing;
+	if (swing == 50)
+		return straight;
+	return straight * 2.0 * (t->row % 2 == 0 ? swing : 100 - swing) / 100.0;
 }
 
 static void release(OmTracker *t, uint8_t k, uint64_t frame)

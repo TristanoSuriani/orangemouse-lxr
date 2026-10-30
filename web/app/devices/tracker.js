@@ -18,7 +18,7 @@ import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed } from '../kit/controls.js';
 import { addGuide } from '../kit/guide.js';
 import { KEY_SEMITONES } from '../kit/keybed.js';
-import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, FX_NAMES, newPattern, getCell, songMessages, Editor } from '../tracker/song.js';
+import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, FX_NAMES, newPattern, patternMessage, getCell, songMessages, Editor } from '../tracker/song.js';
 import * as library from '../tracker/library.js';
 import { backup } from '../tracker/backup.js';
 import { renderSong, wavFile } from '../tracker/wav.js';
@@ -190,9 +190,10 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     const vel = c && !c.off && c.notes.length ? (c.vel || 100) : '-';
     const rtg = c && !c.off && c.notes.length ? (c.retrig >= 2 ? c.retrig : 'off') : '-';
     const knobText = state.fxView
-      ? [`FX ${c?.fx ? FX_NAMES[c.fx].name.toUpperCase() : 'none'}`, `VAL ${c?.fx ? c.fxv ?? 0 : '-'}`, `SLD ${c?.fx ? (c.fxs ? 'on' : 'off') : '-'}`, `LEN ${pt.rows}`]
-      : [`VEL ${vel}`, `RTG ${rtg}`, `BPM ${Math.round(bpm)}`, `LEN ${pt.rows}`];
-    display.line(ROWS - 1, knobText.map((x) => x.padEnd(21)).join(''));
+      ? [`FX ${c?.fx ? FX_NAMES[c.fx].name.toUpperCase() : 'none'}`, `VAL ${c?.fx ? c.fxv ?? 0 : '-'}`, `SLD ${c?.fx ? (c.fxs ? 'on' : 'off') : '-'}`]
+      : [`VEL ${vel}`, `RTG ${rtg}`, `BPM ${Math.round(bpm)}`];
+    knobText.push(`SWG ${pt.swing ?? 50}%`, `LEN ${pt.rows}`);
+    display.line(ROWS - 1, knobText.map((x) => x.padEnd(17)).join(''));
     knobCaptions.forEach((cap, i) => { cap.textContent = (state.fxView ? FX_KNOBS : KNOBS)[i][0]; });
     display.draw();
     help.refresh();
@@ -531,7 +532,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     if (p >= s.patterns.length) {
       if (s.patterns.length >= PATTERNS) return;
       s.patterns.push(newPattern(pat().rows));
-      send({ type: 'tracker', op: 'pattern', p: s.patterns.length - 1, rows: pat().rows, bpm: 0 });
+      send(patternMessage(s.patterns.length - 1, s.patterns[s.patterns.length - 1]));
       p = s.patterns.length - 1;
     }
     state.p = Math.max(0, p);
@@ -582,11 +583,13 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
       (n) => {
         const pt = pat();
         pt.bpm = Math.max(20, Math.min(300, (pt.bpm || song.value.bpm) + n));
-        send({ type: 'tracker', op: 'pattern', p: state.p, rows: pt.rows, bpm: pt.bpm });
+        send(patternMessage(state.p, pt));
         render();
       }],
+    ['SWG', 'Swing, for the pattern you edit: how much of each pair of 16ths the first takes, 50 % (straight) to 75 %. Electro and dub techno like 54 to 62.',
+      (n) => { const pt = pat(); pt.swing = Math.max(50, Math.min(75, (pt.swing ?? 50) + Math.sign(n))); send(patternMessage(state.p, pt)); render(); }],
     ['LEN', 'The pattern\'s length in rows (sixteenths): 16 is a bar, 64 four bars.',
-      (n) => { pat().rows = Math.max(1, Math.min(MAX_ROWS, pat().rows + n)); send({ type: 'tracker', op: 'pattern', p: state.p, rows: pat().rows, bpm: pat().bpm }); state.cur.r = clampRow(state.cur.r); render(); }],
+      (n) => { pat().rows = Math.max(1, Math.min(MAX_ROWS, pat().rows + n)); send(patternMessage(state.p, pat())); state.cur.r = clampRow(state.cur.r); render(); }],
   ];
   // the effect view's knobs (\`): the effect of the cell (or the selected cells)
   const withFx = (c, fn) => fn(c && (c.off || c.notes) ? { ...c } : { notes: [] });
@@ -603,7 +606,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     ['SLD', 'Slide: from this value to the track\'s next effect on the same control, over the rows between (a sweep).',
       (n) => setInCells((c) => (c?.fx ? { ...c, fxs: n > 0 } : c))],
   ];
-  FX_KNOBS.push(KNOBS[3]);   // LEN
+  FX_KNOBS.push(KNOBS[3], KNOBS[4]);   // SWG, LEN
   const knobs = el.querySelector('.tracker-knobs');
   const knobCaptions = [];
   KNOBS.forEach(([label, text], i) => {

@@ -66,6 +66,9 @@ void om_tracker_set_cell(OmTracker *t, uint8_t pattern, uint8_t row, uint8_t tra
 const OmCell *om_tracker_cell(const OmTracker *t, uint8_t pattern, uint8_t row, uint8_t track);
 void om_tracker_set_length(OmTracker *t, uint8_t pattern, uint8_t rows);     // 1..OM_MAX_ROWS
 void om_tracker_set_pattern_tempo(OmTracker *t, uint8_t pattern, float bpm); // 0: the song's
+// Swing (PLAN.md 10.2): the share of each pair of rows the first one takes,
+// 50 (straight) to 75 % (a dotted feel)
+void om_tracker_set_pattern_swing(OmTracker *t, uint8_t pattern, uint8_t percent);
 void om_tracker_set_order(OmTracker *t, uint16_t position, uint8_t pattern); // OM_ORDER_END ends the song
 void om_tracker_set_tempo(OmTracker *t, float bpm);                          // the song's
 void om_tracker_route(OmTracker *t, uint8_t track, uint8_t engine, uint8_t part);

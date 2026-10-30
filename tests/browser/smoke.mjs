@@ -563,8 +563,12 @@ try {
     const cellNow = await evaluate(`JSON.stringify(window.orangeMouse.tracker.song().patterns[0].cells['0:0'])`);
     check(cellNow === '{"notes":[],"fx":5,"fxv":64,"fxs":true}', `the FX knobs give the empty cell a cutoff slide: ${cellNow}`);
     check((await trackerRow(0)).includes('···  C40>'), `the display shows it: "${await trackerRow(0)}"`);
-    check((await evaluate(`[...document.querySelectorAll('.tracker-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'FX VAL SLD LEN', 'the knobs are FX, VAL, SLD, LEN');
+    check((await evaluate(`[...document.querySelectorAll('.tracker-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'FX VAL SLD SWG LEN', 'the knobs are FX, VAL, SLD, SWG, LEN');
     await evaluate(`document.querySelector('.tracker-lcd').dispatchEvent(new PointerEvent('pointermove', { clientX: 1, clientY: 1 }))`);
+    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[3].focus()`);
+    for (let i = 0; i < 8; i++) await press('ArrowUp', 'ArrowUp', 8);
+    await evaluate(`document.activeElement.blur()`);
+    check((await evaluate(`window.orangeMouse.tracker.song().patterns[0].swing`)) === 58 && (await trackerText()).includes('SWG 58%'), 'SWG swings the pattern: 58 %');
     await press('Backquote', '`');
     check((await trackerRow(0)).includes('···  ·· C'), `back in the note view, the cell shows its effect's letter: "${await trackerRow(0)}"`);
   }

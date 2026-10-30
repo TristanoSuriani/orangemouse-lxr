@@ -432,8 +432,8 @@ kbd {
 
 /* the tracker: its large display, then the knobs and pads in one row */
 .tracker-lcd { width: auto; align-self: center; }
-.tracker-controls { display: flex; gap: 18px; align-items: center; }
-.tracker-controls .pots { gap: 10px; padding: 0; }
+.tracker-controls { display: flex; gap: 12px; align-items: center; }
+.tracker-controls .pots { gap: 6px; padding: 0; }
 .tracker-controls .pot { width: 44px; height: 44px; }
 .tracker-pads { flex-wrap: nowrap; }
 .tracker-controls .device-head { margin-left: auto; gap: 10px; }

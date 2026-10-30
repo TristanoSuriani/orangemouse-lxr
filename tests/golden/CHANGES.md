@@ -19,3 +19,8 @@ Each re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to 
 ## 2026-10-30: the tracker gets a PERF pad for the perform view (Phase 8.3); its pads sit 6 px apart
 
 - `screens/tracker.png` (18436 pixels)
+
+## 2026-10-30: the tracker gets a fifth knob, SWG (Phase 10.2); the tracker's and mixer's knobs sit 6 px apart, the control row 12 px
+
+- `screens/tracker.png` (32717 pixels)
+- `screens/mixer.png` (21973 pixels)

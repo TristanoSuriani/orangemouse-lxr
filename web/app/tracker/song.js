@@ -70,8 +70,9 @@ function defaultTracks() {
 }
 
 export function newPattern(rows = 64) {
-  return { rows, bpm: 0, cells: {} };   // cells: "row:track" -> cell; bpm 0: the song's
+  return { rows, bpm: 0, swing: 50, cells: {} };   // cells: "row:track" -> cell; bpm 0: the song's; swing 50..75 %
 }
+export const patternMessage = (p, pat) => ({ type: 'tracker', op: 'pattern', p, rows: pat.rows, bpm: pat.bpm, swing: pat.swing ?? 50 });
 
 export function newSong() {
   return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix(), dexed: newDexed(), plaits: newPlaits(),
@@ -99,7 +100,7 @@ function cellMessage(p, row, track, cell) {
 export function songMessages(song) {
   const msgs = [{ type: 'tracker', op: 'clear' }, { type: 'tracker', op: 'tempo', bpm: song.bpm }];
   song.patterns.forEach((pat, p) => {
-    msgs.push({ type: 'tracker', op: 'pattern', p, rows: pat.rows, bpm: pat.bpm });
+    msgs.push(patternMessage(p, pat));
     for (const [key, cell] of Object.entries(pat.cells)) {
       const [row, track] = key.split(':').map(Number);
       msgs.push(cellMessage(p, row, track, cell));

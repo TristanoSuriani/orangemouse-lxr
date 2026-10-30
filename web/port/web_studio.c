@@ -162,6 +162,7 @@ WEB_EXPORT void om_web_tracker_cell(uint8_t pattern, uint8_t row, uint8_t track,
 WEB_EXPORT void om_web_tracker_clear(void) { om_tracker_clear(tracker); }
 WEB_EXPORT void om_web_tracker_length(uint8_t pattern, uint8_t rows) { om_tracker_set_length(tracker, pattern, rows); }
 WEB_EXPORT void om_web_tracker_pattern_tempo(uint8_t pattern, float bpm) { om_tracker_set_pattern_tempo(tracker, pattern, bpm); }
+WEB_EXPORT void om_web_tracker_pattern_swing(uint8_t pattern, uint8_t percent) { om_tracker_set_pattern_swing(tracker, pattern, percent); }
 WEB_EXPORT void om_web_tracker_order(uint16_t position, uint8_t pattern) { om_tracker_set_order(tracker, position, pattern); }
 WEB_EXPORT void om_web_tracker_tempo(float bpm) { om_tracker_set_tempo(tracker, bpm); }
 WEB_EXPORT void om_web_tracker_route(uint8_t track, uint8_t engine, uint8_t part) { om_tracker_route(tracker, track, engine, part); }
