@@ -9,8 +9,8 @@
 //            send B, mute/solo. FX A / FX B turn the display into that send
 //            effect's page: its type, return and every setting.
 //   knobs    the selected strip's level, pan, send A, send B, or with PAGE
-//            its Surge filter: type, cutoff, resonance, and again its ducking:
-//            amount, key, release (a send: return and
+//            its Surge filter: type, cutoff, resonance; again its ducking:
+//            amount, key, release; its gate; its EQ (a send: return and
 //            effect; the master: level); on an effect's page, four of its
 //            settings (PAGE for the next four)
 //   pads     strip back/forward, mute, solo, FX A, FX B, type -/+, page
@@ -45,8 +45,8 @@ const STRIPS = [
 const P = Object.fromEntries(mixRegistry.params.map((p) => [p.id.replace('OM_MIX_', ''), p]));
 const FIELD = { LEVEL: 'level', PAN: 'pan', SEND_A: 'sendA', SEND_B: 'sendB', MUTE: 'mute', SOLO: 'solo',
   FILTER: 'filter', CUTOFF: 'cutoff', RESONANCE: 'reso', DUCK: 'duck', DUCK_KEY: 'duckKey', DUCK_RELEASE: 'duckRel',
-  GATE: 'gate', GATE_SMOOTH: 'gateSmooth' };
-const CH_PAGES = ['the mix', 'the filter', 'the ducking', 'the gate'];
+  GATE: 'gate', GATE_SMOOTH: 'gateSmooth', EQ_LOW: 'eqLow', EQ_MID: 'eqMid', EQ_MID_FREQ: 'eqFreq', EQ_HIGH: 'eqHigh' };
+const CH_PAGES = ['the mix', 'the filter', 'the ducking', 'the gate', 'the EQ'];
 // the gate page's third knob: a pattern to start from (it sets all 16 steps)
 const PATTERN = { id: 'PATTERN', short: 'PAT', name: 'Gate pattern', min: 0, max: GATE_PATTERNS.length - 1,
   display: { kind: 'enum', values: GATE_PATTERNS.map((p) => p.name) },
@@ -62,6 +62,7 @@ const GUIDE = [
   { title: 'Filters', text: 'Every channel has one of Surge\'s filters. Press PAGE on a channel: the knobs become FLT (the type: low-passes, ladders, high-passes, band-pass, notch), CUT and RES. Sweep CUT for build-ups; FLT off leaves the sound untouched.' },
   { title: 'Ducking', text: 'PAGE twice on a channel puts its ducking on the knobs: DCK, how far it dips when its KEY hits (the kick, drum 1, at first), and REL, how fast it comes back. Pads and basses that pump with the kick are trance\'s and synthwave\'s sound. A muted key still keys.' },
   { title: 'The gate', text: 'PAGE three times on a channel: the trance gate. GAT is how far the steps that are off cut the sound, SMO how softly, PAT a pattern to start from. The display\'s top line shows the 16 steps, in time with the song: click one (or 1-8, Shift 9-16) to switch it.' },
+  { title: 'EQ', text: 'PAGE four times on a channel: its EQ. LOW and HI are shelves below 120 Hz and above 8 kHz, MID a band you move with FRQ (100 Hz to 8 kHz), each up to 12 dB up or down. Cutting usually beats boosting: take out what crowds the others.' },
   { title: 'Loud enough', text: 'The master has a limiter: the mix never goes past -0.2 dB. GR on the OUT strip shows how much it holds back; a few dB on the loudest hits is fine, more means turn something down.' },
   { title: 'Saved with the song', text: 'The mix is part of the song: it saves as you change it, and loads with the song.' },
 ];
@@ -91,7 +92,7 @@ export function createMixerDevice({ send, help, song }) {
     sel: 0,          // the strip the knobs work on
     fx: null,        // the send effect on the display (0, 1), or null: the strips
     page: 0,         // which four of the effect's settings are on the knobs
-    chPage: 0,       // a channel's knobs: 0 the mix, 1 its filter, 2 its ducking
+    chPage: 0,       // a channel's knobs: 0 the mix, 1 its filter, 2 its ducking, 3 its gate, 4 its EQ
     level: new Float32Array(CHANNELS.length + 5),   // the meters, falling back slowly
     hold: new Float32Array(CHANNELS.length + 5),
     holdAge: new Uint16Array(CHANNELS.length + 5),
@@ -146,6 +147,7 @@ export function createMixerDevice({ send, help, song }) {
         const now = () => Math.max(0, GATE_PATTERNS.findIndex((p) => p.steps.every((on, i) => on === gateSteps(ch)[i])));
         return [knob('GATE'), knob('GATE_SMOOTH'), [PATTERN, now, (v) => sendSteps(s, ch, GATE_PATTERNS[v].steps)], null];
       }
+      if (state.chPage === 4) return ['EQ_LOW', 'EQ_MID', 'EQ_MID_FREQ', 'EQ_HIGH'].map(knob);
       return ['LEVEL', 'PAN', 'SEND_A', 'SEND_B'].map(knob);
     }
     if (s.kind === 'bus') {
@@ -194,13 +196,21 @@ export function createMixerDevice({ send, help, song }) {
       words = `${' '.repeat(STEPS_AT)}${gateSteps(ch).map((on) => (on ? '■' : '·')).join('')}  ${s.short} GATE ${formatValue(P.GATE, ch.gate)}` +
         `  SMOOTH ${formatValue(P.GATE_SMOOTH, ch.gateSmooth)}  (click a step, or 1-8, Shift 9-16)`;
     } else if (s.kind === 'channel') {
+      // the part of the channel on the knobs; on the mix page, its inserts in brief
       const ch = m.channels[s.key];
-      words = `${s.name.toUpperCase()}  LEVEL ${formatValue(P.LEVEL, ch.level)}  PAN ${formatValue(P.PAN, ch.pan)}` +
-        `  A ${formatValue(P.SEND_A, ch.sendA)}  B ${formatValue(P.SEND_B, ch.sendB)}` +
-        (ch.filter ? `  ${formatShort(P.FILTER, ch.filter).toUpperCase()} ${formatShort(P.CUTOFF, ch.cutoff)}` : '') +
-        (ch.duck ? `  DUCK ${formatShort(P.DUCK, ch.duck)} ${formatShort(P.DUCK_KEY, ch.duckKey)}` : '') +
-        (ch.gate ? `  GATE ${formatShort(P.GATE, ch.gate)}` : '') +
-        `${ch.mute ? '  MUTED' : ''}${ch.solo ? '  SOLO' : ''}`;
+      const eq = ch.eqLow !== 64 || ch.eqMid !== 64 || ch.eqHigh !== 64;
+      const eqText = `EQ ${formatShort(P.EQ_LOW, ch.eqLow)} ${formatShort(P.EQ_MID, ch.eqMid)}@${formatShort(P.EQ_MID_FREQ, ch.eqFreq)} ${formatShort(P.EQ_HIGH, ch.eqHigh)}`;
+      const filterText = `${formatShort(P.FILTER, ch.filter).toUpperCase()} ${formatShort(P.CUTOFF, ch.cutoff)}`;
+      const duckText = `DUCK ${formatShort(P.DUCK, ch.duck)} ${formatShort(P.DUCK_KEY, ch.duckKey)}`;
+      const part = [
+        () => `LEVEL ${formatValue(P.LEVEL, ch.level)}  PAN ${formatValue(P.PAN, ch.pan)}  A ${formatValue(P.SEND_A, ch.sendA)}  B ${formatValue(P.SEND_B, ch.sendB)}` +
+          [ch.filter && filterText.split(' ')[0], ch.duck && 'DUCK', ch.gate && 'GATE', eq && 'EQ'].filter(Boolean).map((x) => `  ${x}`).join(''),
+        () => `${ch.filter ? filterText : 'FILTER OFF'}  RES ${formatValue(P.RESONANCE, ch.reso)}`,
+        () => `${duckText}  RELEASE ${formatValue(P.DUCK_RELEASE, ch.duckRel)}`,
+        () => '',
+        () => eqText,
+      ][state.chPage]();
+      words = `${s.name.toUpperCase()}  ${part}${ch.mute ? '  MUTED' : ''}${ch.solo ? '  SOLO' : ''}`;
     } else if (s.kind === 'bus') {
       const b = m.buses[s.bus];
       words = `${s.name.toUpperCase()}: ${FX_TYPES[b.type].toUpperCase()}  RETURN ${formatValue(P.RETURN, b.ret)}   (FX ${'AB'[s.bus]}: its settings)`;
@@ -362,7 +372,7 @@ export function createMixerDevice({ send, help, song }) {
     ['typeDown', 'TYPE -', 'The previous effect on this send (with FX A or FX B lit).', () => changeType(-1)],
     ['typeUp', 'TYPE +', 'The next effect on this send: hall, room, delay, chorus, phaser, flanger.', () => changeType(1)],
     ['page', 'PAGE', () => (state.fx !== null ? 'The next four settings of the effect on the knobs.'
-      : `A channel's knobs: its mix (level, pan, sends), its filter (type, cutoff, resonance), its ducking (amount, key, release) or its gate (depth, smoothing, pattern). Now: ${CH_PAGES[state.chPage]}.`),
+      : `A channel's knobs: its mix (level, pan, sends), its filter (type, cutoff, resonance), its ducking (amount, key, release), its gate (depth, smoothing, pattern) or its EQ (low, mid, its frequency, high). Now: ${CH_PAGES[state.chPage]}.`),
     () => nextPage()],
   ];
   const pads = {};

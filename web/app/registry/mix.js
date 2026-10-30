@@ -351,6 +351,73 @@ export default {
     "kind": "raw"
    },
    "help": "Steps 13 to 16 of the gate, a bit each."
+  },
+  {
+   "id": "OM_MIX_EQ_LOW",
+   "short": "LOW",
+   "name": "EQ low",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 64,
+   "display": {
+    "kind": "bipolar",
+    "center": 64,
+    "scale": 0.1905,
+    "digits": 1,
+    "unit": "dB"
+   },
+   "help": "The lows, a shelf below 120 Hz: up for weight, down to make room for the kick."
+  },
+  {
+   "id": "OM_MIX_EQ_MID",
+   "short": "MID",
+   "name": "EQ mid",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 64,
+   "display": {
+    "kind": "bipolar",
+    "center": 64,
+    "scale": 0.1905,
+    "digits": 1,
+    "unit": "dB"
+   },
+   "help": "A band around FREQ: cut it to clear a muddy part, boost it to bring one forward."
+  },
+  {
+   "id": "OM_MIX_EQ_MID_FREQ",
+   "short": "FRQ",
+   "name": "EQ mid frequency",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 67,
+   "display": {
+    "kind": "exp",
+    "base": 100,
+    "octaves": 6.3219,
+    "unit": "Hz"
+   },
+   "help": "Where the mid band sits, from 100 Hz to 8 kHz."
+  },
+  {
+   "id": "OM_MIX_EQ_HIGH",
+   "short": "HI",
+   "name": "EQ high",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 64,
+   "display": {
+    "kind": "bipolar",
+    "center": 64,
+    "scale": 0.1905,
+    "digits": 1,
+    "unit": "dB"
+   },
+   "help": "The highs, a shelf above 8 kHz: air and sparkle, or less hiss and harshness."
   }
  ]
 };

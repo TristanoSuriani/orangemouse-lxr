@@ -34,6 +34,14 @@ typedef struct
 	float buf[2 * OM_MAX_STEMS][OM_MAX_BLOCK];
 } Engine;
 
+// one band of a channel's EQ (RBJ's cookbook), off at 0 dB
+typedef struct
+{
+	int on;
+	float b0, b1, b2, a1, a2;
+	float x1[2], x2[2], y1[2], y2[2];
+} Biquad;
+
 // gains: where they are, and where they go during the next block
 typedef struct
 {
@@ -51,6 +59,7 @@ typedef struct
 	float duckRel;    // its release, per frame
 	float gate;       // the gate's gain now
 	float gateCoef;   // its smoothing, per frame
+	Biquad eq[3];     // low shelf, mid peak, high shelf
 } Channel;
 
 // the clock the gates follow: the tracker's (24 ticks a beat, a gate step
@@ -181,6 +190,8 @@ int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 		ch->value[OM_MIX_GATE_STEPS1] = ch->value[OM_MIX_GATE_STEPS2] = 21;   // the 8ths: x.x.x.x.x.x.x.x.
 		ch->value[OM_MIX_GATE_STEPS3] = 5;
 		ch->gate = 1.f;
+		ch->value[OM_MIX_EQ_LOW] = ch->value[OM_MIX_EQ_MID] = ch->value[OM_MIX_EQ_HIGH] = 64;   // 0 dB: off
+		ch->value[OM_MIX_EQ_MID_FREQ] = 67;   // 1 kHz
 		om_studio_mix(st, c, OM_MIX_LEVEL, 100);
 		om_studio_mix(st, c, OM_MIX_PAN, 64);
 		ch->left.now = ch->left.to;
@@ -341,6 +352,75 @@ static void retarget(OmStudio *st)
 	}
 }
 
+#define EQ_LOW_HZ  120.f
+#define EQ_HIGH_HZ 8000.f
+#define EQ_MID_Q   0.9f
+
+// a band's gain in dB from its byte (registry "bipolar": 64 is 0 dB, 12 dB at the ends)
+static float eqDb(uint8_t v) { return (v - 64) * 0.1905f; }
+
+// the channel's three bands from its EQ bytes; a band at 0 dB is off (and forgets its state)
+static void eqSet(const OmStudio *st, Channel *ch)
+{
+	const uint8_t *v = ch->value;
+	const float hz[3] = {EQ_LOW_HZ, 100.f * exp2f(v[OM_MIX_EQ_MID_FREQ] * 6.3219f / 127.f), EQ_HIGH_HZ};
+	const uint8_t gains[3] = {v[OM_MIX_EQ_LOW], v[OM_MIX_EQ_MID], v[OM_MIX_EQ_HIGH]};
+	for (int k = 0; k < 3; k++)
+	{
+		Biquad *q = &ch->eq[k];
+		if (gains[k] == 64)
+		{
+			memset(q, 0, sizeof(*q));
+			continue;
+		}
+		const float A = powf(10.f, eqDb(gains[k]) / 40.f);
+		const float w = 2.f * (float)M_PI * fminf(hz[k], 0.45f * st->rate) / st->rate;
+		const float c = cosf(w), sn = sinf(w);
+		float b0, b1, b2, a0, a1, a2;
+		if (k == 1)
+		{
+			const float alpha = sn / (2.f * EQ_MID_Q);
+			b0 = 1.f + alpha * A; b1 = -2.f * c; b2 = 1.f - alpha * A;
+			a0 = 1.f + alpha / A; a1 = -2.f * c; a2 = 1.f - alpha / A;
+		}
+		else
+		{
+			const float alpha = sn / 2.f * sqrtf(2.f), r = 2.f * sqrtf(A) * alpha;
+			const float s = k == 0 ? 1.f : -1.f;   // the high shelf mirrors the low one
+			b0 = A * ((A + 1.f) - s * (A - 1.f) * c + r);
+			b1 = s * 2.f * A * ((A - 1.f) - s * (A + 1.f) * c);
+			b2 = A * ((A + 1.f) - s * (A - 1.f) * c - r);
+			a0 = (A + 1.f) + s * (A - 1.f) * c + r;
+			a1 = -s * 2.f * ((A - 1.f) + s * (A + 1.f) * c);
+			a2 = (A + 1.f) + s * (A - 1.f) * c - r;
+		}
+		q->b0 = b0 / a0; q->b1 = b1 / a0; q->b2 = b2 / a0; q->a1 = a1 / a0; q->a2 = a2 / a0;
+		q->on = 1;
+	}
+}
+
+static void eqProcess(Channel *ch, float *sl, float *sr)
+{
+	for (int k = 0; k < 3; k++)
+	{
+		Biquad *q = &ch->eq[k];
+		if (!q->on)
+			continue;
+		for (int side = 0; side < 2; side++)
+		{
+			float *x = side ? sr : sl;
+			float x1 = q->x1[side], x2 = q->x2[side], y1 = q->y1[side], y2 = q->y2[side];
+			for (int i = 0; i < OM_MAX_BLOCK; i++)
+			{
+				const float y = q->b0 * x[i] + q->b1 * x1 + q->b2 * x2 - q->a1 * y1 - q->a2 * y2;
+				x2 = x1; x1 = x[i]; y2 = y1; y1 = y;
+				x[i] = y;
+			}
+			q->x1[side] = x1; q->x2[side] = x2; q->y1[side] = y1; q->y2[side] = y2;
+		}
+	}
+}
+
 void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 {
 	if (target == OM_MIX_MASTER)
@@ -377,6 +457,8 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 	ch->value[param] = value > max ? max : value;
 	if (param == OM_MIX_DUCK_RELEASE)   // 20 ms .. 1.28 s (registry "exp")
 		ch->duckRel = expf(-1.f / (0.02f * exp2f(ch->value[param] * 6.f / 127.f) * st->rate));
+	else if (param >= OM_MIX_EQ_LOW)
+		eqSet(st, ch);
 	else if (param == OM_MIX_GATE_SMOOTH)   // 0.5 .. 64 ms
 		ch->gateCoef = 1.f - expf(-1.f / (0.0005f * exp2f(ch->value[param] * 7.f / 127.f) * st->rate));
 	else if (param >= OM_MIX_DUCK)
@@ -576,6 +658,8 @@ static void gate(OmStudio *st, Channel *ch, float *sl, float *sr)
 	if (!v[OM_MIX_GATE])
 	{
 		ch->gate = 1.f;
+		ch->value[OM_MIX_EQ_LOW] = ch->value[OM_MIX_EQ_MID] = ch->value[OM_MIX_EQ_HIGH] = 64;   // 0 dB: off
+		ch->value[OM_MIX_EQ_MID_FREQ] = 67;   // 1 kHz
 		return;
 	}
 	const uint32_t steps = (uint32_t)v[OM_MIX_GATE_STEPS1] | (uint32_t)v[OM_MIX_GATE_STEPS2] << 6 | (uint32_t)v[OM_MIX_GATE_STEPS3] << 12;
@@ -631,13 +715,14 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 			memset(st->bus[b].buf, 0, sizeof(st->bus[b].buf));
 		for (int e = 0; e < st->engines; e++)
 			renderEngine(&st->engine[e], st->frame);
-		// every channel's inserts first, the filter then the gate: a key is heard after them
+		// every channel's inserts first, the filter, the EQ, then the gate: a key is heard after them
 		clockBlock(st);
 		for (int c = 0; c < st->channels; c++)
 		{
 			Channel *ch = &st->channel[c];
 			Engine *en = &st->engine[ch->engine];
 			om_filter_process(ch->filter, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1], OM_MAX_BLOCK);
+			eqProcess(ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
 			gate(st, ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
 		}
 		for (int c = 0; c < st->channels; c++)

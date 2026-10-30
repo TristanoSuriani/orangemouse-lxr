@@ -2,7 +2,7 @@
   "engine": "mix",
   "title": "Mixer",
   "c_header": "studio.h",
-  "_comment": "The mixer's controls (studio/studio.c). A channel (an engine's stem) has LEVEL..SOLO, FILTER..RESONANCE (Surge's filters, studio/filter.cpp) DUCK..DUCK_RELEASE (sidechain ducking) and GATE..GATE_STEPS3 (the trance gate, 16 steps in three 6-bit bytes); a send bus has FX and RETURN; the master has LEVEL. Faders: 100 is 0 dB, gain = (value / 100)^3.",
+  "_comment": "The mixer's controls (studio/studio.c). A channel (an engine's stem) has LEVEL..SOLO, FILTER..RESONANCE (Surge's filters, studio/filter.cpp) DUCK..DUCK_RELEASE (sidechain ducking) GATE..GATE_STEPS3 (the trance gate, 16 steps in three 6-bit bytes) and EQ_LOW..EQ_HIGH (a 3-band EQ); a send bus has FX and RETURN; the master has LEVEL. Faders: 100 is 0 dB, gain = (value / 100)^3.",
   "parts": [],
   "params": [
     {"id": "OM_MIX_LEVEL", "short": "LEV", "name": "Level", "group": "Channel", "min": 0, "max": 127, "default": 100,
@@ -65,6 +65,18 @@
      "help": "Steps 7 to 12 of the gate, a bit each."},
     {"id": "OM_MIX_GATE_STEPS3", "short": "ST3", "name": "Gate steps 13-16", "group": "Channel", "min": 0, "max": 15, "default": 5,
      "display": {"kind": "raw"},
-     "help": "Steps 13 to 16 of the gate, a bit each."}
+     "help": "Steps 13 to 16 of the gate, a bit each."},
+    {"id": "OM_MIX_EQ_LOW", "short": "LOW", "name": "EQ low", "group": "Channel", "min": 0, "max": 127, "default": 64,
+     "display": {"kind": "bipolar", "center": 64, "scale": 0.1905, "digits": 1, "unit": "dB"},
+     "help": "The lows, a shelf below 120 Hz: up for weight, down to make room for the kick."},
+    {"id": "OM_MIX_EQ_MID", "short": "MID", "name": "EQ mid", "group": "Channel", "min": 0, "max": 127, "default": 64,
+     "display": {"kind": "bipolar", "center": 64, "scale": 0.1905, "digits": 1, "unit": "dB"},
+     "help": "A band around FREQ: cut it to clear a muddy part, boost it to bring one forward."},
+    {"id": "OM_MIX_EQ_MID_FREQ", "short": "FRQ", "name": "EQ mid frequency", "group": "Channel", "min": 0, "max": 127, "default": 67,
+     "display": {"kind": "exp", "base": 100, "octaves": 6.3219, "unit": "Hz"},
+     "help": "Where the mid band sits, from 100 Hz to 8 kHz."},
+    {"id": "OM_MIX_EQ_HIGH", "short": "HI", "name": "EQ high", "group": "Channel", "min": 0, "max": 127, "default": 64,
+     "display": {"kind": "bipolar", "center": 64, "scale": 0.1905, "digits": 1, "unit": "dB"},
+     "help": "The highs, a shelf above 8 kHz: air and sparkle, or less hiss and harshness."}
   ]
 }

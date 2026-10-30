@@ -35,10 +35,12 @@ static uint8_t mockGetParam(void *self, uint8_t part, uint16_t param) { (void)se
 static void mockTempo(void *self, float bpm) { ((Mock *)self)->tempo = bpm; }
 #define MOCK 0.5f            // what a held mock note outputs (times mockGain)
 static float mockGain = 1.f;
+static int mockAlternate;    // 1: the sign flips every frame (a tone at Nyquist)
 static void mockRender(void *self, float *const *stems, uint32_t frames)
 {
-	for (uint32_t i = 0; i < frames; i++)
-		stems[0][i] = stems[1][i] = ((Mock *)self)->held ? MOCK * mockGain : 0.f;
+	static uint32_t n;
+	for (uint32_t i = 0; i < frames; i++, n++)
+		stems[0][i] = stems[1][i] = ((Mock *)self)->held ? MOCK * mockGain * (mockAlternate && (n & 1) ? -1.f : 1.f) : 0.f;
 }
 
 static OmEngineClass mockClass(uint16_t block)
@@ -308,6 +310,32 @@ int main(void)
 			om_studio_destroy(st);
 		}
 		#undef AT
+	}
+	{   // the EQ (PLAN.md 9.3): the low shelf lifts DC, the high shelf leaves it and cuts Nyquist; 0 dB is exact
+		const OmEngineClass cls = mockClass(0);
+		struct { uint8_t param, value; int alternate; float gain; const char *what; } cases[] = {
+			{OM_MIX_EQ_LOW, 64, 0, 1.f, "every band at 0 dB"},
+			{OM_MIX_EQ_LOW, 127, 0, 3.981f, "the low shelf at +12 dB, at DC"},
+			{OM_MIX_EQ_HIGH, 1, 0, 1.f, "the high shelf at -12 dB, at DC"},
+			{OM_MIX_EQ_HIGH, 1, 1, 0.2512f, "the high shelf at -12 dB, at Nyquist"},
+			{OM_MIX_EQ_MID, 127, 0, 1.f, "the mid band at +12 dB, at DC"},
+		};
+		mockGain = 0.1f;
+		for (size_t k = 0; k < sizeof cases / sizeof cases[0]; k++)
+		{
+			mockAlternate = cases[k].alternate;
+			OmStudio *st = mockStudio();
+			om_studio_add_engine(st, &cls);
+			om_studio_mix(st, 0, cases[k].param, cases[k].value);
+			om_studio_note_on(st, 0, 0, 0, 60, 100);
+			om_studio_render(st, l, r, N);
+			const float got = fabsf(l[N - 1]) / (MOCK * mockGain);
+			CHECK(k == 0 ? l[N - 1] == MOCK * mockGain : fabsf(got - cases[k].gain) < 0.01f * cases[k].gain,
+			      "%s: gain %.4f, expected %.4f", cases[k].what, got, cases[k].gain);
+			om_studio_destroy(st);
+		}
+		mockGain = 1.f;
+		mockAlternate = 0;
 	}
 	{   // every channel filter filters: low-passes cut a high sine, high-passes a low one,
 		// band-passes both, the notch its own frequency; with full resonance and

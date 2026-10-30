@@ -237,7 +237,7 @@ Done as follows:
 - **The mix is part of the song** (song.mix), so it saves and loads with it.
 - **Parity holds.** Surge's effects run on our own configuration with a seeded random generator, and the
   native and browser renders of the demo song, effects included, are still bit for bit the same.
-- **Not yet:** an EQ.
+- **Not yet:** an EQ (added in Phase 9.3).
 
 Added on 2026-10-26: **Surge filters on every channel.** Each mixer channel gets an insert filter from
 Surge XT (sst-filters, already fetched with the effects): its filter types (low-pass, high-pass,
@@ -427,6 +427,13 @@ comes back last, once the tools it needs exist.
    line shows the steps, and a click, or 1-8 and Shift+1-8, switches one. At GATE 0 nothing is
    computed: no render changed.
 3. **An EQ** on every channel: low shelf, a sweepable mid and a high shelf (Phase 3's "Not yet").
+   **Done 2026-10-30** (studio/studio.c `eqSet`, `eqProcess`): after the filter, a low shelf (120 Hz),
+   a mid band (Q 0.9, 100 Hz to 8 kHz) and a high shelf (8 kHz), each ±12 dB; RBJ's biquads. A band
+   at 0 dB is not computed, so no render changed. PAGE four times on a mixer channel: LOW, MID, FRQ,
+   HI. The mixer's top line now shows the part of the channel that is on the knobs (the mix page
+   lists the inserts that are on).
+
+**Phase 9 done 2026-10-30.** The insert order on a channel: filter, EQ, gate, then the ducking.
 
 ### Phase 10: the tracker, for the genres
 

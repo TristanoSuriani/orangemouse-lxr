@@ -31,18 +31,19 @@ export const CHANNELS = [
 
 // studio.h: the controls, and the targets besides the channels
 export const MIX = { LEVEL: 0, PAN: 1, SEND_A: 2, SEND_B: 3, MUTE: 4, SOLO: 5, FX_TYPE: 6, RETURN: 7, FILTER: 8, CUTOFF: 9, RESONANCE: 10,
-  DUCK: 11, DUCK_KEY: 12, DUCK_RELEASE: 13, GATE: 14, GATE_SMOOTH: 15, GATE_STEPS1: 16, GATE_STEPS2: 17, GATE_STEPS3: 18 };
+  DUCK: 11, DUCK_KEY: 12, DUCK_RELEASE: 13, GATE: 14, GATE_SMOOTH: 15, GATE_STEPS1: 16, GATE_STEPS2: 17, GATE_STEPS3: 18,
+  EQ_LOW: 19, EQ_MID: 20, EQ_MID_FREQ: 21, EQ_HIGH: 22 };
 export const BUS_A = 0xf0;
 export const MASTER = 0xff;
 export const FX_TYPES = fxRegistry.parts;   // 'Off', 'Hall', ...
 // a channel's fields and their controls (studio.h)
 const CHANNEL_FIELDS = { level: 0, pan: 1, sendA: 2, sendB: 3, mute: 4, solo: 5, filter: 8, cutoff: 9, reso: 10, duck: 11, duckKey: 12, duckRel: 13,
-  gate: 14, gateSmooth: 15, gateS1: 16, gateS2: 17, gateS3: 18 };
+  gate: 14, gateSmooth: 15, gateS1: 16, gateS2: 17, gateS3: 18, eqLow: 19, eqMid: 20, eqFreq: 21, eqHigh: 22 };
 
 export function newMix() {
   return {
     // VA's slots start at -6 dB: they are loud next to the LXR
-    channels: Object.fromEntries(CHANNELS.map((c) => [c.key, { level: c.engine === 1 ? 79 : 100, pan: 64, sendA: 0, sendB: 0, mute: 0, solo: 0, filter: 0, cutoff: 127, reso: 0, duck: 0, duckKey: 0, duckRel: 62, gate: 0, gateSmooth: 47, gateS1: 21, gateS2: 21, gateS3: 5 }])),
+    channels: Object.fromEntries(CHANNELS.map((c) => [c.key, { level: c.engine === 1 ? 79 : 100, pan: 64, sendA: 0, sendB: 0, mute: 0, solo: 0, filter: 0, cutoff: 127, reso: 0, duck: 0, duckKey: 0, duckRel: 62, gate: 0, gateSmooth: 47, gateS1: 21, gateS2: 21, gateS3: 5, eqLow: 64, eqMid: 64, eqFreq: 67, eqHigh: 64 }])),
     buses: [{ type: 1, ret: 100, fx: {} }, { type: 3, ret: 100, fx: {} }],   // a hall and a delay
     master: 100,
   };

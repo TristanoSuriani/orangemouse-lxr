@@ -458,6 +458,12 @@ try {
   await press('Digit1', '!', 8);   // Shift+1: step 9
   check((await mixRow(0)).startsWith('  ■■■·■·■··'), `2 and Shift+1 switch steps 2 and 9: "${await mixRow(0)}"`);
   check((await mixOf('channels.va2.gateS1')) === 23 && (await mixOf('channels.va2.gateS2')) === 17, 'and the song keeps the steps');
+  await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE: the EQ
+  check((await evaluate(`[...document.querySelectorAll('.mixer-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'LOW MID FRQ HI', 'PAGE again puts the EQ on the knobs');
+  await evaluate(`document.querySelectorAll('.mixer-knobs .pot')[0].focus()`);
+  for (let i = 0; i < 4; i++) await press('ArrowDown', 'ArrowDown');
+  await evaluate(`document.activeElement.blur()`);
+  check((await mixOf('channels.va2.eqLow')) === 48 && /EQ -3\.0 0\.0@1\.0k 0\.0/.test(await mixRow(0)), `LOW cuts the lows by 3 dB: "${await mixRow(0)}"`);
   await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE: back to the mix
   await clickPad('.mixer-pads .pad:nth-child(5)');   // FX A
   check((await mixRow(0)).startsWith('SEND A  HALL'), `FX A shows the hall: "${await mixRow(0)}"`);
