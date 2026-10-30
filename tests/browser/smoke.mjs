@@ -509,6 +509,36 @@ try {
   check(genrePeak > 0.05 && (await evaluate(`window.orangeMouse.tracker.song().name`)).startsWith('Dub Techno'),
     `the dub techno song loads from the library and plays (peak ${genrePeak.toFixed(3)})`);
 
+  console.log('== the worst case in WebAssembly (the render worker; PLAN.md Phase 7.2)');
+  {
+    const { songMessages } = await import('../../web/app/tracker/song.js');
+    const stress = (await import('../songs/stress.js')).default();
+    // as many blocks as song_render plays: the length as tools/song_stream.mjs writes it, 2 s of tail, in float
+    let length = 0;
+    for (const p of stress.order) length += (stress.patterns[p].rows * 60) / ((stress.patterns[p].bpm || stress.bpm) * 4);
+    const f = Math.fround;
+    const blocks = Math.floor(f(f(f(f(Number(length.toFixed(3))) + 2) * 44100) / 64));
+    const r = await evaluate(`(async () => {
+      const wasm = await (await fetch('studio.wasm')).arrayBuffer();
+      const worker = new Worker('render-worker.js', { type: 'module' });
+      const done = new Promise((resolve) => { worker.onmessage = ({ data }) => data.type !== 'progress' && resolve(data); });
+      worker.postMessage({ wasm, messages: ${JSON.stringify(songMessages(stress))}, blocks: ${blocks} });
+      const r = await done;
+      worker.terminate();
+      return r;
+    })()`);
+    const native = readFileSync(join(ROOT, 'tests/golden/stress.txt'), 'utf8').match(/hash (\w+)/)?.[1];
+    check(r.type === 'done' && r.nonFinite === 0 && r.peak > 0.01, `the stress song renders in the worker (${r.message ?? `peak ${r.peak?.toFixed(3)}`})`);
+    check(r.hash === native, `sample for sample as natively (hash ${r.hash}, native ${native})`);
+    const realtime = (1e6 * 64) / 44100;
+    const share = (100 * r.usPerBlock) / realtime;
+    const budgetFile = join(ROOT, 'tests/golden/stress_wasm_cpu.txt');
+    if (process.env.UPDATE_GOLDEN) writeFileSync(budgetFile, `${r.usPerBlock.toFixed(2)}\n`);
+    const budget = existsSync(budgetFile) ? Number(readFileSync(budgetFile, 'utf8')) : r.usPerBlock;
+    check(r.usPerBlock <= budget * 1.25, `${r.usPerBlock.toFixed(1)} us per 64-frame block, ${share.toFixed(0)} % of the audio thread (budget ${budget.toFixed(1)} us + 25 %)`);
+    check(share < 80, 'and it leaves the audio thread a fifth of its time');
+  }
+
   console.log('== health');
   await sleep(300);
   check(errors.length === 0, errors.length ? `errors: ${errors.slice(0, 3).join(' / ')}` : 'no errors or exceptions');

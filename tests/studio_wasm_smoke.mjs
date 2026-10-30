@@ -13,9 +13,9 @@ const wasm = readFileSync(fileURLToPath(new URL('../web/app/studio.wasm', import
 let failures = 0;
 const check = (ok, msg) => { if (!ok) { failures++; console.log('FAIL ' + msg); } };
 
-// the imports web/app/studio-worklet.js provides: the module may ask for no others
+// the imports web/app/studio-wasm.js provides (the worklet and the render worker): the module may ask for no others
 const module = new WebAssembly.Module(wasm);
-const worklet = readFileSync(fileURLToPath(new URL('../web/app/studio-worklet.js', import.meta.url)), 'utf8');
+const worklet = readFileSync(fileURLToPath(new URL('../web/app/studio-wasm.js', import.meta.url)), 'utf8');
 for (const { module: from, name } of WebAssembly.Module.imports(module)) {
   check(new RegExp(`\\b${name}: \\(`).test(worklet), `studio.wasm imports ${from}.${name}, which the worklet does not provide`);
 }

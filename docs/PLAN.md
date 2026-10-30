@@ -321,6 +321,14 @@ comes back last, once the tools it needs exist.
    (Dexed's 32 voices, both Plaits parts, the four VA slots, the LXR), both sends on reverbs and every
    channel filter on. Time it in WebAssembly, in a headless browser, against a budget, as well as
    natively. Only the electro song has a budget today, and only natively.
+   **Done 2026-10-30** (tests/songs/stress.js, web/app/render-worker.js): the LXR's seven drums rolled
+   on every row, VA2 stealing (8 notes a row for 6 voices), both Dexed parts a long pad with 16 voices
+   sounding, both Plaits parts 4-note chords, a hall and a room, and every channel through the vintage
+   ladder (measured: twice the cost of any other filter). Natively 517 µs per 64-frame block (36 % of
+   a core on this Mac); in headless Chrome 627 µs, **43 % of the audio thread**. Both have a budget,
+   and the browser test also fails above 80 %. The render worker is the browser's song_render: a
+   studio of its own in a Worker, which Phase 8.1's WAV export uses. Its render matches the native one
+   sample for sample. The worklet and the worker share studio.wasm's glue (web/app/studio-wasm.js).
 3. **Fuzzing**, as the Testing section promises and the suite doesn't yet do: random parameter sweeps
    and note and MIDI streams across all 16 tracks (note-on storms, missing note-offs, panics), each run
    through the health checks.

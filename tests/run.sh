@@ -90,10 +90,19 @@ for g in electro synthwave dubtechno; do
 done
 check songs.txt "$OUT/songs.txt"
 
+echo "== the worst case: every part at its voice limit (tests/songs/stress.js; PLAN.md Phase 7.2)"
+node tools/song_stream.mjs tests/songs/stress.js > "$OUT/songs/stress.txt"
+if ! $BIN/song_render "$OUT/songs/stress.txt" > "$OUT/songs/stress.out"; then
+  echo "   FAIL: stress:"; grep -E 'silent|not finite' "$OUT/songs/stress.out" | sed 's/^/     /'; fail=1
+fi
+grep -E '^(health|hash)' "$OUT/songs/stress.out" > "$OUT/stress.txt"
+check stress.txt "$OUT/stress.txt"
+
 echo "== CPU (best of 3)"
 cpu lxr_cpu.txt $BIN/lxr_render
 cpu studio_cpu.txt $BIN/studio_render
 cpu song_cpu.txt $BIN/song_render "$OUT/songs/electro.txt"
+cpu stress_cpu.txt $BIN/song_render "$OUT/songs/stress.txt"
 
 if command -v emcmake >/dev/null && command -v node >/dev/null; then
   echo "== WebAssembly parity"
