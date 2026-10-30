@@ -1,7 +1,12 @@
 #!/bin/bash
 # Orange Mouse tests (PLAN.md, "Testing"). Run from anywhere:
-#   tests/run.sh                    check everything against tests/golden/
-#   UPDATE_GOLDEN=1 tests/run.sh    accept the current sound and CPU as the new golden files
+#   tests/run.sh                                 check everything against tests/golden/
+#   WHY="..." UPDATE_GOLDEN=1 tests/run.sh       accept the current sound and screens as golden
+#   UPDATE_CPU=1 tests/run.sh                    accept the current CPU times as the budgets
+# Re-baselining is deliberate (PLAN.md Phase 7.5): UPDATE_GOLDEN needs a WHY,
+# and appends to tests/golden/CHANGES.md which renders changed and why; those
+# are the ones to listen to. tools/hooks/pre-commit refuses a commit that
+# changes a golden file without that entry.
 # Needs cmake, ninja and a C compiler; the WebAssembly parity checks also
 # need Emscripten (source emsdk_env.sh) and node.
 set -e -o pipefail
@@ -12,10 +17,19 @@ GOLDEN=tests/golden
 BIN=tests/host/build
 mkdir -p "$OUT" "$GOLDEN"
 fail=0
+if [ -n "$UPDATE_GOLDEN" ] && [ -z "$WHY" ]; then
+  echo "UPDATE_GOLDEN needs a reason: WHY=\"what changed the sound, on purpose\" UPDATE_GOLDEN=1 tests/run.sh"
+  exit 2
+fi
+CHANGES="$OUT/golden_changes.txt"   # this run's changed golden files, for tests/golden/CHANGES.md
+: > "$CHANGES"
 
 check() {  # name, file: compare with the golden copy, or replace it when updating
   if [ -n "$UPDATE_GOLDEN" ]; then
-    cp "$2" "$GOLDEN/$1"; echo "   updated $GOLDEN/$1"
+    if cmp -s "$2" "$GOLDEN/$1"; then echo "   ok: $1 (unchanged)"; return; fi
+    what=$(python3 -I tools/golden_changes.py "$GOLDEN/$1" "$2")
+    cp "$2" "$GOLDEN/$1"; echo "   updated $GOLDEN/$1: $what"
+    echo "- \`$1\`: $what" >> "$CHANGES"
   elif ! diff -u "$GOLDEN/$1" "$2" > "$OUT/$1.diff"; then
     echo "   FAIL: $1 differs from $GOLDEN/$1 ($(grep -c '^+[^+]' "$OUT/$1.diff") lines):"
     grep '^[-+][^-+]' "$OUT/$1.diff" | head -20
@@ -28,7 +42,7 @@ check() {  # name, file: compare with the golden copy, or replace it when updati
 cpu() {  # name, command...: best of 3 us/block against the golden budget (+25 %)
   name=$1; shift
   best=$(for i in 1 2 3; do "$@" | sed -n 's/.*, \([0-9.]*\) us\/block.*/\1/p'; done | sort -n | head -1)
-  if [ -n "$UPDATE_GOLDEN" ]; then
+  if [ -n "$UPDATE_CPU" ]; then
     echo "$best" > "$GOLDEN/$name"; echo "   $best us per 64-frame block; updated $GOLDEN/$name"
   elif [ -f "$GOLDEN/$name" ]; then
     was=$(cat "$GOLDEN/$name")
@@ -135,9 +149,16 @@ fi
 CHROME=${CHROME:-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}
 if [ -x "$CHROME" ] && [ -f web/app/studio.wasm ]; then
   echo "== the studio in headless Chrome"
-  CHROME="$CHROME" node tests/browser/smoke.mjs || fail=1
+  CHROME="$CHROME" node tests/browser/smoke.mjs | tee "$OUT/browser.txt" || fail=1
+  grep -o 'changed: tests/golden/screens/[a-z]*.png.*' "$OUT/browser.txt" | sed 's/^changed: \(tests\/golden\/\)\{0,1\}/- `/; s/\.png/.png`/' >> "$CHANGES" || true
 else
   echo "== browser test skipped: no Chrome (set CHROME) or no web/app/studio.wasm"
+fi
+
+if [ -n "$UPDATE_GOLDEN" ] && [ -s "$CHANGES" ]; then
+  { [ -f "$GOLDEN/CHANGES.md" ] || printf '# Golden changes\n\nEach re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to those.\n'
+    printf '\n## %s: %s\n\n' "$(date +%Y-%m-%d)" "$WHY"; cat "$CHANGES"; } >> "$GOLDEN/CHANGES.md"
+  echo "== recorded in $GOLDEN/CHANGES.md:"; sed 's/^/   /' "$CHANGES"
 fi
 
 [ $fail -eq 0 ] && echo "ALL PASSED" || { echo "FAILED"; exit 1; }

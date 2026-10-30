@@ -1,0 +1,12 @@
+#!/bin/sh
+# Re-baselining is deliberate (PLAN.md Phase 7.5): a commit that changes a
+# golden render or screen must also add its entry to tests/golden/CHANGES.md
+# (WHY="..." UPDATE_GOLDEN=1 tests/run.sh writes it). CPU budgets are exempt.
+# Turned on per clone: git config core.hooksPath tools/hooks
+golden=$(git diff --cached --name-only -- tests/golden | grep -v -e '_cpu\.txt$' -e '^tests/golden/CHANGES\.md$')
+[ -z "$golden" ] && exit 0
+if git diff --cached --name-only -- tests/golden/CHANGES.md | grep -q .; then exit 0; fi
+echo "pre-commit: these golden files change, but tests/golden/CHANGES.md does not say why:"
+echo "$golden" | sed 's/^/  /'
+echo "Re-run: WHY=\"...\" UPDATE_GOLDEN=1 tests/run.sh, listen to what it lists, and commit CHANGES.md too."
+exit 1

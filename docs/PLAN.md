@@ -363,6 +363,12 @@ comes back last, once the tools it needs exist.
 5. **Re-baselining is deliberate.** A commit with `UPDATE_GOLDEN=1` names the renders it changed and
    why, and the changed ones are listened to. The suite proves that nothing changed, not that it sounds
    good.
+   **Done 2026-10-30**: `UPDATE_GOLDEN=1` needs a `WHY="..."`. It replaces only the golden files that
+   differ, and appends to tests/golden/CHANGES.md the reason and, file by file, which renders changed
+   (tools/golden_changes.py), so those are the ones to listen to. CPU budgets have a switch of their
+   own (`UPDATE_CPU=1`), so a sound change can't move them. tools/hooks/pre-commit refuses a commit
+   that changes a golden render or screen without its CHANGES.md entry (on in a clone with
+   `git config core.hooksPath tools/hooks`).
 6. **Plaits' timing at 44.1 kHz.** The +1.42-semitone correction fixes pitch only: Plaits' envelopes
    and low-pass gate are built for about 47.9 kHz, so they run about 8 % slower here. Measure a
    percussive preset's decay against Plaits at its own rate and correct the time constants in the

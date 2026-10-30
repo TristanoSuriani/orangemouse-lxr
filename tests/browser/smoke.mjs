@@ -15,7 +15,7 @@
 //     help, none overlap or stick out of their panel, no pad label is cut;
 //   - axe-core (third_party/fetch.sh) finds no WCAG 2.1 A/AA problem, and Tab
 //     reaches every control of every device, each with the focus ring;
-//   - each device looks as in tests/golden/screens/ (UPDATE_GOLDEN=1 accepts
+//   - each device looks as in tests/golden/screens/ (WHY=... UPDATE_GOLDEN=1 accepts
 //     the new look).
 // Writes screenshots to tests/browser/out/ (<device>.png, guide.png).
 //
@@ -208,13 +208,14 @@ try {
     const png = Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64');
     writeFileSync(join(OUT, `${id}.png`), png);
     const golden = join(GOLDEN, `${id}.png`);
-    if (process.env.UPDATE_GOLDEN) {
+    const diff = existsSync(golden) ? pngDiff(readFileSync(golden), png) : null;
+    const same = diff && diff.size && diff.count <= 16 && diff.worst <= 8;
+    if (process.env.UPDATE_GOLDEN && !same) {
       mkdirSync(GOLDEN, { recursive: true });
       copyFileSync(join(OUT, `${id}.png`), golden);
-      console.log(`   updated tests/golden/screens/${id}.png`);
-    } else {
-      const diff = existsSync(golden) ? pngDiff(readFileSync(golden), png) : null;
-      check(diff && diff.size && diff.count <= 16 && diff.worst <= 8,
+      console.log(`   changed: tests/golden/screens/${id}.png (${diff ? `${diff.count} pixels` : 'new'})`);
+    } else if (!process.env.UPDATE_GOLDEN) {
+      check(same,
         `${id}: looks as in tests/golden/screens/${id}.png${diff ? (diff.size ? ` (${diff.count} pixels differ, by up to ${diff.worst})` : ' (another size)') : ' (no golden yet)'} (new: tests/browser/out/${id}.png)`);
     }
   }
@@ -582,7 +583,7 @@ try {
     const realtime = (1e6 * 64) / 44100;
     const share = (100 * r.usPerBlock) / realtime;
     const budgetFile = join(ROOT, 'tests/golden/stress_wasm_cpu.txt');
-    if (process.env.UPDATE_GOLDEN) writeFileSync(budgetFile, `${r.usPerBlock.toFixed(2)}\n`);
+    if (process.env.UPDATE_CPU) writeFileSync(budgetFile, `${r.usPerBlock.toFixed(2)}\n`);
     const budget = existsSync(budgetFile) ? Number(readFileSync(budgetFile, 'utf8')) : r.usPerBlock;
     check(r.usPerBlock <= budget * 1.25, `${r.usPerBlock.toFixed(1)} us per 64-frame block, ${share.toFixed(0)} % of the audio thread (budget ${budget.toFixed(1)} us + 25 %)`);
     check(share < 80, 'and it leaves the audio thread a fifth of its time');
