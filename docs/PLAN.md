@@ -399,6 +399,13 @@ comes back last, once the tools it needs exist.
    after the gap (- and =, 0 to 30 s). Shift+arrows reorder, Delete removes. STOP, playing by hand or
    loading another song ends the run. The playlist is kept with the library.
 3. **The perform view:** the big display as full-screen visuals that react to each track's level.
+   **Done 2026-10-30** (web/app/perform.js): F, or the tracker's PERF pad, fills the screen with one
+   field of amber dots (160 × 90): the song and where it plays on top; a column per track that rises
+   with its channel's level, with a peak dot; sparks thrown up when a track hits; a ring from the
+   centre on every kick. Esc or F closes it, and the studio plays on underneath. It is a dialog with
+   a close button, and its picture describes which tracks sound, for a screen reader.
+
+**Phase 8 done 2026-10-30.**
 
 ### Phase 9: the mix
 

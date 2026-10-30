@@ -15,3 +15,7 @@ Each re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to 
 - `studio_demo.txt`: 1 of 1 renders: (the file)
 - `songs.txt`: 3 of 3 renders: electro, synthwave, dubtechno
 - `stress.txt`: 1 of 1 renders: (the file)
+
+## 2026-10-30: the tracker gets a PERF pad for the perform view (Phase 8.3); its pads sit 6 px apart
+
+- `screens/tracker.png` (18436 pixels)

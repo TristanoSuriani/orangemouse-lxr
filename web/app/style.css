@@ -438,7 +438,9 @@ kbd {
 .tracker-pads { flex-wrap: nowrap; }
 .tracker-controls .device-head { margin-left: auto; gap: 10px; }
 .device.tracker { padding-top: 16px; padding-bottom: 16px; gap: 12px; }
+.tracker-pads { gap: 6px; }
 .tracker-pads .pad { min-width: 48px; padding-left: 4px; padding-right: 4px; }
+.tracker-pads .pad .label { white-space: nowrap; }   /* one line: the panel lint sees a label that doesn't fit */
 
 /* ---- the mixer ---- */
 .mixer-lcd { width: auto; align-self: center; }
@@ -449,3 +451,16 @@ kbd {
 .dexed-lcd { width: auto; }
 .device.dexed .device-pads { gap: 12px; }
 .dexed-knobs { gap: 14px; padding: 0; }
+
+/* ---- the perform view (perform.js): the big display, full screen ---- */
+.perform {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: var(--page);
+}
+.perform[hidden] { display: none; }
+.perform-lcd { border-radius: 6px; box-shadow: 0 0 0 2px var(--panel-edge); max-width: 100vw; max-height: calc(100vh - 40px); }
+.perform-close { position: absolute; top: 10px; right: 12px; }

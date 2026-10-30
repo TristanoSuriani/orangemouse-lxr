@@ -15,6 +15,7 @@ import { createTrackerDevice } from './devices/tracker.js';
 import { createMixerDevice } from './devices/mixer.js';
 import { createDexedDevice } from './devices/dexed.js';
 import { createPlaitsDevice } from './devices/plaits.js';
+import { createPerformView } from './perform.js';
 import { songMessages } from './tracker/song.js';
 import * as library from './tracker/library.js';
 import { backup } from './tracker/backup.js';
@@ -197,6 +198,17 @@ window.addEventListener('keydown', (e) => {
     showDevice((shown + (e.key === 'ArrowRight' ? 1 : devices.length - 1)) % devices.length);
     return;
   }
+  // F opens and closes the perform view; Esc closes it
+  if (e.code === 'KeyF' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.repeat && !(e.target instanceof HTMLTextAreaElement)) {
+    e.preventDefault();
+    perform.toggle();
+    return;
+  }
+  if (perform.isOpen() && e.key === 'Escape') {
+    e.preventDefault();
+    perform.hide();
+    return;
+  }
   const device = devices[shown]?.id;
   if (device === 'tracker' && tracker.handleKey(e, true)) {
     e.preventDefault();
@@ -361,7 +373,7 @@ async function switchOn() {
   }
   await context.resume();
   power.hidden = true;
-  window.orangeMouse = { context, node, va, tracker, mixer, dexed, plaits };   // for the browser tests (tests/browser/)
+  window.orangeMouse = { context, node, va, tracker, mixer, dexed, plaits, perform };   // for the browser tests (tests/browser/)
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
@@ -410,7 +422,7 @@ function onWorkletMessage(msg) {
         tracker.onState(msg.tracker);
         devices[0].mini(tracker.summary());
       }
-      if (msg.meters) mixer.onMeters(msg.meters);
+      if (msg.meters) { mixer.onMeters(msg.meters); perform.onMeters(msg.meters); }
       if (msg.lxrKit) tracker.keepLxrKit(msg.lxrKit);
       if (msg.lxrPots) {
         lxrPots = msg.lxrPots;
@@ -479,7 +491,7 @@ const help = new HelpStrip(document.getElementById('help'),
 
 buildPanel();
 describeLxr();
-const tracker = createTrackerDevice({ send, help, sdImage: () => store.image });   // WAV export renders with the LXR's card
+const tracker = createTrackerDevice({ send, help, sdImage: () => store.image, onPerform: () => perform.show() });   // WAV export renders with the LXR's card
 // VA's slots are part of the song: its changes go through the tracker, which saves them
 const va = createVaDevice({ send: tracker.send, help, song: tracker.song });
 // the mix is part of the song: its changes go through the tracker, which saves them
@@ -487,6 +499,10 @@ const mixer = createMixerDevice({ send: tracker.send, help, song: tracker.song }
 const dexed = createDexedDevice({ send: tracker.send, help, song: tracker.song });
 const plaits = createPlaitsDevice({ send: tracker.send, help, song: tracker.song });
 tracker.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); va.load(s); });
+// the perform view: the tracks' levels as visuals, full screen (F, or the Perform button)
+const perform = createPerformView({ song: tracker.song, playing: tracker.playing });
+document.body.append(perform.el);
+
 // an empty song at once; when the library answers, the song last edited,
 // else the library's newest, takes its place
 tracker.load(library.migrate({}));

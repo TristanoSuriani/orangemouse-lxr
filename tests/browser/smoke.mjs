@@ -339,7 +339,7 @@ try {
   console.log('== the song library');
   const trackerText = () => evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`);
   await sleep(1000);   // the demo song saves itself
-  await clickPad('.tracker-pads .pad:last-child');   // SONGS
+  await clickPad('.tracker-pads .pad:nth-last-child(2)');   // SONGS (PERF is last)
   await sleep(300);
   const listed = await trackerText();
   check(['ELECTRO', 'SYNTHWAVE', 'DUB TECHNO'].every((g) => listed.toUpperCase().includes(g)) && !/TRANCE|FIRST STEPS/.test(listed.toUpperCase()),
@@ -573,7 +573,7 @@ try {
       t.playlist.add('pl-one'); t.playlist.add('pl-two'); t.playlist.setGap(1);
     })()`);
     await evaluate(`window.orangeMouseUi.showDevice(0)`);
-    await clickPad('.tracker-pads .pad:last-child');   // SONGS
+    await clickPad('.tracker-pads .pad:nth-last-child(2)');   // SONGS (PERF is last)
     await sleep(300);
     await press('KeyL', 'l');
     await sleep(300);
@@ -641,6 +641,27 @@ try {
     const budget = existsSync(budgetFile) ? Number(readFileSync(budgetFile, 'utf8')) : r.usPerBlock;
     check(r.usPerBlock <= budget * 1.25, `${r.usPerBlock.toFixed(1)} us per 64-frame block, ${share.toFixed(0)} % of the audio thread (budget ${budget.toFixed(1)} us + 25 %)`);
     check(share < 80, 'and it leaves the audio thread a fifth of its time');
+  }
+
+  console.log('== the perform view (PLAN.md Phase 8.3)');
+  {
+    // the dub techno song (the electro one was replaced by a test song above)
+    await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(await lib.load('genre-dubtechno')); })()`);
+    await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'song', from: 0 })`);
+    await sleep(1500);
+    await press('KeyF', 'f');
+    await sleep(400);
+    const open = await evaluate(`({ shown: !document.querySelector('.perform').hidden, focus: document.activeElement?.className })`);
+    check(open.shown && /perform-close/.test(open.focus ?? ''), 'F opens the perform view, focus on its close button');
+    const counts = [];
+    for (let i = 0; i < 6; i++) { counts.push(await evaluate('window.orangeMouse.perform.lit()')); await sleep(150); }
+    const rises = counts.slice(1).filter((c, i) => c > counts[i]).length;
+    check(Math.min(...counts) > 100 && rises > 0, `its dots follow the music, rising on the hits (lit: ${counts.join(', ')})`);
+    writeFileSync(join(OUT, 'perform.png'), Buffer.from((await cdp('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+    await press('Escape', 'Escape');
+    await sleep(100);
+    check(await evaluate(`document.querySelector('.perform').hidden`), 'Esc closes it');
+    await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
   }
 
   console.log('== health');

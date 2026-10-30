@@ -63,7 +63,7 @@ const GUIDE = [
   { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
-export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () => null }) {
+export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () => null, onPerform = () => {} }) {
   const song = { value: null };
   // every change to the song is sent to the worklet, and saves the song a moment later
   let saveTimer = null;
@@ -602,6 +602,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     ['octUp', 'OCT +', 'The keys play an octave higher (]).', () => { state.octs[state.cur.k] = Math.min(8, state.octs[state.cur.k] + 1); render(); }],
     ['step', 'STEP', 'How far the cursor moves after a note: 0, 1, 2, 4, 8 (- and =).', () => { state.step = STEPS[(STEPS.indexOf(state.step) + 1) % STEPS.length]; render(); }],
     ['songs', 'SONGS', 'The library on the display: load, new, duplicate, rename, delete, export, import, share codes, the backup folder.', () => openSongs()],
+    ['perform', 'PERF', 'The perform view (F): the tracks as visuals on the whole screen, while the studio plays. F or Esc closes it.', () => onPerform()],
   ];
   for (const [id, label, text, action] of PADS) {
     const pad = makePad(label, { kind: 'small', onChange: (down) => down && action() });
@@ -793,7 +794,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   }
 
   // send: changes to the song (the mixer's too) go through it, so they save
-  return { el, load, onState, handleKey, send, keepLxrKit, exportWav, playlist, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
+  return { el, load, onState, handleKey, send, keepLxrKit, exportWav, playlist, playing: () => state.playing, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
     song.value.name.toUpperCase(),
     `P${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
   ] };
