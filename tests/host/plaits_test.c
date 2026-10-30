@@ -3,10 +3,11 @@
  *
  * Plaits in the studio (engines/plaits/): every preset sounds at a low, a
  * middle and a high note, stays finite and bounded, and falls silent after
- * its note off; A4 is 440 Hz at the studio's 44.1 kHz (Plaits tunes itself
- * for 47872 Hz); a part plays 4-note chords and steals a voice for a fifth;
- * the parts are separate stems; every engine with all its knobs at 0 and at
- * 127 stays finite. Exit code 0 when every check passes.
+ * its note off; A4 is 440 Hz at the studio's 44.1 kHz; a part plays 4-note
+ * chords and steals a voice for a fifth; the parts are separate stems; every
+ * engine with all its knobs at 0 and at 127 stays finite; percussive presets
+ * decay as fast, in seconds, as at Plaits' own rate (it runs at that rate,
+ * resampled). Exit code 0 when every check passes.
  *
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
@@ -132,8 +133,62 @@ static void wavs(const char *dir)
 	}
 }
 
+// How long a preset takes, in seconds, to fall 40 dB after its note off
+// (from its level then), at a sample rate: the decay as heard. Levels are
+// the RMS of 10 ms windows, the crossing interpolated between them in dB.
+static float decaySeconds(float rate, int preset, uint8_t note)
+{
+	OmStudio *st = om_studio_create(rate);
+	om_studio_add_engine(st, &om_plaits_engine);
+	setAll(st, 0, om_plaits_presets[preset].p);
+	run(st, 10, NULL);
+	om_studio_note_on(st, om_studio_frame(st), 0, 0, note, 110);
+	run(st, (int)(0.05f * rate / OM_MAX_BLOCK), NULL);   // held 50 ms
+	om_studio_note_off(st, om_studio_frame(st), 0, 0, note);
+	const int window = (int)(0.01f * rate + 0.5f);
+	double energy = 0.0, first = 0.0, before = 0.0;
+	int n = 0, w = 0;
+	float seconds = 10.f;
+	for (int b = 0; b < (int)(10.f * rate / OM_MAX_BLOCK) && seconds == 10.f; b++)
+	{
+		om_studio_render(st, L, R, OM_MAX_BLOCK);
+		for (int i = 0; i < OM_MAX_BLOCK && seconds == 10.f; i++)
+		{
+			energy += (double)L[i] * L[i];
+			if (++n < window) continue;
+			const double db = 10.0 * log10(energy / n + 1e-30);
+			energy = 0.0, n = 0;
+			if (w == 0) first = db;
+			else if (db < first - 40.0)
+				seconds = (float)(0.01 * (w - 1 + (before - (first - 40.0)) / (before - db)));
+			before = db;
+			w++;
+		}
+	}
+	om_studio_destroy(st);
+	return seconds;
+}
+
+// Plaits' envelopes and low-pass gate are timed for its own 47872 Hz: in
+// seconds, a preset's decay must be the same here as there (PLAN.md 7.6).
+static void timing(void)
+{
+	static const char *names[] = {"Pluck", "FM bell", "Dub stab", "Ping", "Glass keys"};
+	for (int i = 0; i < 5; i++)
+	{
+		int k = 0;
+		while (k < om_plaits_num_presets && strcmp(om_plaits_presets[k].name, names[i])) k++;
+		if (k == om_plaits_num_presets) { CHECK(0, "no preset %s", names[i]); continue; }
+		const float here = decaySeconds(RATE, k, 60), there = decaySeconds(47872.34f, k, 60);
+		printf("%s: falls 40 dB in %.3f s here, %.3f s at Plaits' own rate (%+.1f %%)\n", names[i], here, there, 100.f * (here / there - 1.f));
+		CHECK(fabsf(here / there - 1.f) < 0.03f, "%s decays in %.3f s, %.3f s at Plaits' own rate", names[i], here, there);
+	}
+}
+
 int main(void)
 {
+	if (getenv("PLAITS_TIMING")) { timing(); return failures ? 1 : 0; }
+	timing();
 	if (getenv("PLAITS_LOUDNESS")) { loudness(); return 0; }
 	if (getenv("PLAITS_WAVS")) { wavs(getenv("PLAITS_WAVS")); return 0; }
 	// every preset, three notes: sound, bounded, then silence (pads within 9 s)

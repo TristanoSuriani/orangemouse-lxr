@@ -195,8 +195,8 @@ nothing built earlier has to be redone.
      samples. At 48 kHz its filters would sit 1.5 semitones higher and its transients and envelopes would
      run 9 % faster, unless the whole firmware were audited.
    - VA, Dexed and the Surge effects take the rate as a parameter.
-   - Plaits is the only engine designed for about 48 kHz (47.9 kHz). Its adapter corrects its pitch
-     (+1.42 semitones, measured in Phase 5), or resamples that one voice.
+   - Plaits is the only engine designed for about 48 kHz (47.9 kHz). Its adapter corrected its pitch
+     (+1.42 semitones, measured in Phase 5); since Phase 7.6 it runs at its own rate, resampled.
    - The browser converts 44.1 kHz to the sound card's rate.
    - `REAL_FS` (44140 on the hardware, whose clock cannot make 44100) is 44100 in our builds, so the LXR
      is in tune with the other engines. That moved its pitch by 1.6 cents and was re-baselined on purpose.
@@ -265,7 +265,7 @@ waveshaper, 2-op FM, phase distortion, wavetable, chords, string machine, speech
 particles; the drums stay with the LXR). engines/plaits/om_plaits_voice.cc is a copy of Plaits' voice
 with only those engines, float output (no 16-bit clip) and no trigger delay. Two parts, PL1 and PL2, of
 four voices each, on tracker tracks 14 and 15; the gate drives Plaits' trigger and, through an attack
-envelope and the velocity, its low-pass gate. Every note is corrected by +1.42 semitones for 44.1 kHz:
+envelope and the velocity, its low-pass gate. Every note was corrected by +1.42 semitones for 44.1 kHz (until Phase 7.6 made Plaits run at its own rate):
 A4 measures 440.0 Hz. Six presets per genre (engines/plaits/plaits_presets.c), starting points for the
 genre packs to tune by ear. The device lists every preset in a column per genre and names the three
 macro knobs in each engine's words.
@@ -373,6 +373,17 @@ comes back last, once the tools it needs exist.
    and low-pass gate are built for about 47.9 kHz, so they run about 8 % slower here. Measure a
    percussive preset's decay against Plaits at its own rate and correct the time constants in the
    adapter if the difference can be heard.
+   **Done 2026-10-30**: measured (tests/host/plaits_test.c, the RMS of 10 ms windows): every
+   percussive preset took 6 to 9 % longer to fall 40 dB than on Plaits at its own rate. Scaling the
+   voice's decays fixed three of five, not the engines' own (Ping, the modal engine, stayed 17 % slow
+   by peaks). So Plaits now **runs at its own 47,872 Hz** and a 32-tap windowed-sinc resampler
+   brings each part to 44.1 kHz (engines/plaits/plaits_engine.cpp). Its tuning, envelopes, low-pass
+   gate and engines are those of the module; the +1.42-semitone correction is gone; the decays match
+   within 1.2 %, and the test checks it. The cost: about 8 % more Plaits CPU (the electro song 59 to
+   63 µs per block). Re-baselined on purpose (tests/golden/CHANGES.md); to listen:
+   docs/listening/phase7.md.
+
+**Phase 7 done 2026-10-30.** Waiting for your ears: docs/listening/phase7.md.
 
 ### Phase 8: what the plan promised
 

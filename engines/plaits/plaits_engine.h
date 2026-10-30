@@ -8,8 +8,8 @@
  * trigger and, through an attack envelope and the velocity, its low-pass
  * gate: DECAY sets how notes fade after their note off.
  *
- * Plaits tunes itself for its hardware's 47872 Hz; the studio runs at
- * 44.1 kHz, so every note is corrected (PLAN.md: only Plaits needs it).
+ * Plaits is timed for its hardware's 47872 Hz (tuning, envelopes, filters):
+ * it runs at that rate here too, resampled to the studio's 44.1 kHz.
  *
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
