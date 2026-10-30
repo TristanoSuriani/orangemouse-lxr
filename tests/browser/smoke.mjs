@@ -477,6 +477,18 @@ try {
     return (await lib.load(lib.currentId())).mix; })()`);
   check(savedMix.channels.va2.sendA === 20 && savedMix.buses[0].type === 1 && savedMix.channels.va2.filter === 2, 'the mix saves with the song, its filters too');
 
+  console.log('== a MIDI knob box (PLAN.md 10.5)');
+  {
+    await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('mixer'))`);
+    // knob 1's value, as its slider tells a screen reader when focused
+    const knob1 = () => evaluate(`(() => { const p = document.querySelector('.mixer-knobs .pot'); p.focus(); const v = Number(p.getAttribute('aria-valuenow')); p.blur(); return v; })()`);
+    const before = await knob1();
+    await evaluate(`window.orangeMouseUi.midiIn([0xb0, 21, 50])`);   // the first value only sets where the knob is
+    await evaluate(`window.orangeMouseUi.midiIn([0xb0, 21, 53])`);
+    const after = await knob1();
+    check(after === before + 3, `CC 21 turns the mixer's knob 1 by 3: ${before} to ${after}`);
+  }
+
   console.log('== Dexed');
   await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('dexed'))`);
   const dxText = async () => (await evaluate(`document.querySelector('.dexed-lcd').getAttribute('aria-label')`)).replace(/^Display: /, '');

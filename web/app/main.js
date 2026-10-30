@@ -86,6 +86,7 @@ function buildPanel() {
       send({ type: 'pot', pot: i, degrees });
     };
     makeRotary(pot, (px) => turn(px * POT_DEGREES_PER_PIXEL));
+    pot.turn = (steps) => turn(steps * 6);   // a MIDI knob box (midiIn)
     pot.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); turn(6); }
       if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); turn(-6); }
@@ -293,7 +294,7 @@ async function setUpMidi() {
   inSel.addEventListener('change', () => {
     if (midi.input) midi.input.onmidimessage = null;
     midi.input = midi.access.inputs.get(inSel.value) || null;
-    if (midi.input) midi.input.onmidimessage = (e) => send({ type: 'midi', bytes: Array.from(e.data) });
+    if (midi.input) midi.input.onmidimessage = (e) => midiIn(Array.from(e.data));
   });
   outSel.addEventListener('change', () => {
     midi.output = midi.access.outputs.get(outSel.value) || null;
@@ -303,6 +304,26 @@ async function setUpMidi() {
 // The firmware sends a running byte stream (DIN MIDI); Web MIDI wants whole
 // messages, so split it up again.
 const midiOutParser = { status: 0, data: [], sysex: null };
+
+// MIDI in (PLAN.md 10.5): a knob box's CC 21-28 turn knobs 1-8 of the device
+// on show (in the panel's order), whatever it is; everything else goes to the
+// LXR, as on the hardware. The studio's knobs are endless: a CC turns its knob
+// by how far it moved since its last value, so nothing jumps.
+const KNOB_CCS = 21;
+const lastCc = new Map();
+function midiIn(bytes) {
+  const [status, cc, value] = bytes;
+  if ((status & 0xf0) === 0xb0 && cc >= KNOB_CCS && cc < KNOB_CCS + 8) {
+    const key = `${status & 0x0f}:${cc}`;
+    const before = lastCc.get(key);
+    lastCc.set(key, value);
+    const device = devices[shown]?.el;
+    const pot = device && [...device.querySelectorAll('.pot')].filter((p) => p.offsetParent !== null)[cc - KNOB_CCS];
+    if (pot?.turn && before !== undefined && value !== before) pot.turn(value - before);
+    return;
+  }
+  send({ type: 'midi', bytes });
+}
 
 function sendMidiBytes(bytes) {
   if (!midi.output) return;
@@ -389,6 +410,7 @@ function describeLxr() {
     if (!info) return `Pot ${i + 1}: a setting of this page (the display shows its name and value).`;
     return `Pot ${i + 1} (${info.part ? info.part + ' ' : ''}${info.group}): ${helpLine(info, lxrPots.values[i])}`;
   }));
+  describe(document.getElementById('midiIn'), help, 'MIDI in: a knob box on CC 21-28 turns knobs 1-8 of the device on show; notes and the other CCs play the LXR.');
   describe(document.getElementById('encoder'), help, 'Data encoder: turn it to move the cursor on the display, or to change the value. Click (or Enter) switches between the two.');
   document.querySelectorAll('.fader').forEach((f, i) => describe(f, help, `${FADERS[i]} volume fader.`));
   const pads = [
@@ -584,7 +606,7 @@ function showDevice(i) {
 let saved = null;
 try { saved = localStorage.getItem('om.device'); } catch { /* as above */ }
 showDevice(Math.max(0, devices.findIndex((d) => d.id === saved)));
-window.orangeMouseUi = { showDevice, devices: devices.map((d) => d.id), lxrPots: () => lxrPots };   // for the browser tests
+window.orangeMouseUi = { showDevice, devices: devices.map((d) => d.id), lxrPots: () => lxrPots, midiIn };   // for the browser tests
 
 setUpMidi();
 // #preview: the panels without the switch-on overlay and without audio, for

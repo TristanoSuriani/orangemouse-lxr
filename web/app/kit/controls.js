@@ -139,15 +139,18 @@ export function makeKnob(label, { onStep, onReset = () => {} }) {
     }
   });
   pot.addEventListener('dblclick', () => onReset());
+  // a turn by whole steps, as the arrow keys and a MIDI knob box turn it (main.js)
+  pot.turn = (steps) => {
+    spin(steps * 6);
+    onStep(steps);
+  };
   pot.addEventListener('keydown', (e) => {
     const up = e.key === 'ArrowUp' || e.key === 'ArrowRight';
     const down = e.key === 'ArrowDown' || e.key === 'ArrowLeft';
     if (!up && !down) return;
     e.preventDefault();
     e.stopPropagation();
-    const steps = (up ? 1 : -1) * (e.shiftKey ? 1 : 4);
-    spin(steps * 6);
-    onStep(steps);
+    pot.turn((up ? 1 : -1) * (e.shiftKey ? 1 : 4));
   });
   return { wrap, pot };
 }

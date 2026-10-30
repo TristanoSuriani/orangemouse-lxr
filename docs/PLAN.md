@@ -469,6 +469,12 @@ comes back last, once the tools it needs exist.
    them. No render changed.
 5. **A MIDI controller:** the registry's CC map mapped to the soft knobs of the device in focus, so a
    physical knob box plays the studio.
+   **Done 2026-10-30** (main.js `midiIn`): CC 21-28 on any channel turn knobs 1-8 of the device on
+   show, in the panel's order: the same `turn` the arrow keys use, so every knob of every device
+   (the LXR's pots too) answers a knob box. The knobs are endless, so a CC turns by how far it moved
+   since its last value: switching devices makes nothing jump. Every other MIDI message plays the LXR,
+   as before. There was no CC map in the registry to read; a fixed one is simpler to explain, and a
+   learn mode can follow if a controller doesn't send 21-28.
 6. **Trance, version 3**, with ducking, the gate and the effect column, listened to like the others.
 
 ## Testing: as much as possible without a browser or ears
