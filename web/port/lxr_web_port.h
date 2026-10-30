@@ -64,6 +64,15 @@ DWT_Type *web_dwt_access(void);
 // is no flags register here, it also checks for the wrap explicitly.
 #define __get_APSR() 0u
 
+// The Cortex-M7's CLZ gives 32 for 0 (fast_log2(0) in Oscillator.c relies
+// on it); __builtin_clz(0) is undefined in C, so say it (found by the fuzz).
+static inline uint8_t web_clz(uint32_t value)
+{
+	return value ? (uint8_t)__builtin_clz(value) : 32u;
+}
+#undef __CLZ
+#define __CLZ web_clz
+
 // cmsis_gcc.h only defines these for __ARM_FEATURE_DSP. __SSAT and __CLZ
 // already have portable versions there.
 #define __PKHBT(ARG1, ARG2, ARG3) ((((uint32_t)(ARG1)) & 0x0000FFFFUL) | \

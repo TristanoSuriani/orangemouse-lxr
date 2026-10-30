@@ -15,12 +15,16 @@
 set -e
 cd "$(dirname "$0")"
 
+# patches/<name>.patch, if there is one, is applied to the checkout: our fixes
+# to upstream bugs (each hunk says what and why). The checkout is reset first.
 pin() {  # dir url commit
   if [ ! -d "$1/.git" ]; then
     rm -rf "$1"; git init -q "$1"; git -C "$1" remote add origin "$2"
   fi
   git -C "$1" fetch -q --depth 1 origin "$3"
-  git -C "$1" -c advice.detachedHead=false checkout -q FETCH_HEAD
+  git -C "$1" -c advice.detachedHead=false checkout -q -f FETCH_HEAD
+  patch="patches/$(echo "$1" | tr / -).patch"
+  if [ -f "$patch" ]; then git -C "$1" apply "$PWD/$patch"; echo "$1: applied $patch"; fi
   echo "$1 $(git -C "$1" rev-parse --short HEAD)"
 }
 

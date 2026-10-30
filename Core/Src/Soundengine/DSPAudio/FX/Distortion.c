@@ -139,6 +139,10 @@ float diode(float in)
 	//float index = (in+4.2f) * 30.47f; // [0:256]
 
 	uint16_t itg = (int16_t) index;
+	// in = 1 gives index 256, the table's last entry: [itg + 1] was past its
+	// end, weighted by 0 (found by tests/host/fuzz.c)
+	if (itg >= 256)
+		return table_1n914[256];
 	float frac = index - itg;
 	return lerp(table_1n914[itg], table_1n914[itg+1], frac);
 

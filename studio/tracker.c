@@ -235,6 +235,7 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 
 static void start(OmTracker *t)
 {
+	om_studio_cancel_after(t->studio, om_studio_frame(t->studio));   // the last row's hits still to come
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 		release(t, k, om_studio_frame(t->studio));
 	t->row = 0;
@@ -270,6 +271,7 @@ void om_tracker_stop(OmTracker *t)
 	if (t->playing)
 		om_studio_clock(t->studio, om_studio_frame(t->studio), OM_CLOCK_STOP);
 	t->playing = 0;
+	om_studio_cancel_after(t->studio, om_studio_frame(t->studio));   // the row's hits still to come
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 		release(t, k, om_studio_frame(t->studio));
 }

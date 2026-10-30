@@ -114,6 +114,17 @@ void loadPatch(Part &p)
 	p.lfo.reset(p.patch + 137);
 }
 
+// Dx7Note's constructor leaves fb_buf_ (the feedback operator's last two
+// samples) unset, so a voice's first note started its feedback from whatever
+// the memory held (tests/host/fuzz.c under AddressSanitizer). The note is
+// built in zeroed memory instead.
+Dx7Note *newNote(std::shared_ptr<TuningState> tuning)
+{
+	void *mem = ::operator new(sizeof(Dx7Note));
+	memset(mem, 0, sizeof(Dx7Note));
+	return new (mem) Dx7Note(tuning, nullptr);
+}
+
 void *dexedCreate(float rate)
 {
 	if (created)
@@ -146,7 +157,7 @@ void *dexedCreate(float rate)
 		c.mpeEnabled = false;
 		c.refresh();
 		for (Voice &v : p.voice)
-			v.note.reset(new Dx7Note(d->tuning, nullptr));
+			v.note.reset(newNote(d->tuning));
 		for (int i = 0; i < DEXED_NUM_PARAMS; i++)
 			p.value[i] = om_dexed_params[i].def;
 		loadPatch(p);

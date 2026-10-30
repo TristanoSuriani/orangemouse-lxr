@@ -205,19 +205,43 @@ static int push(OmStudio *st, uint8_t engine, Event ev)
 	return 0;
 }
 
+// Notes are MIDI notes: one above 127 could never be ended by a panic (the
+// fuzz found VA holding one), so it is refused, as a velocity above 127 is.
 int om_studio_note_on(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t note, uint8_t velocity)
 {
+	if (note > 127 || velocity > 127)
+		return -1;
 	return push(st, engine, (Event){.frame = frame, .type = EV_NOTE_ON, .part = part, .note = note, .value = velocity});
 }
 
 int om_studio_note_off(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t note)
 {
+	if (note > 127)
+		return -1;
 	return push(st, engine, (Event){.frame = frame, .type = EV_NOTE_OFF, .part = part, .note = note});
 }
 
 int om_studio_set_param(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint16_t param, uint8_t value)
 {
 	return push(st, engine, (Event){.frame = frame, .type = EV_PARAM, .part = part, .param = param, .value = value});
+}
+
+void om_studio_cancel_after(OmStudio *st, uint64_t frame)
+{
+	for (uint32_t e = 0; e < st->engines; e++)
+	{
+		Engine *en = &st->engine[e];
+		uint32_t kept = 0;
+		for (uint32_t i = 0; i < en->count; i++)
+		{
+			const Event ev = en->queue[(en->head + i) % OM_MAX_EVENTS];
+			const int later = ev.frame > frame;
+			if (later && (ev.type == EV_NOTE_ON || (ev.type == EV_CLOCK && ev.note == OM_CLOCK_TICK)))
+				continue;
+			en->queue[(en->head + kept++) % OM_MAX_EVENTS] = ev;
+		}
+		en->count = kept;
+	}
 }
 
 uint8_t om_studio_get_param(OmStudio *st, uint8_t engine, uint8_t part, uint16_t param)

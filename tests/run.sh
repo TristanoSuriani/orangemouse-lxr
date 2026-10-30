@@ -98,6 +98,9 @@ fi
 grep -E '^(health|hash)' "$OUT/songs/stress.out" > "$OUT/stress.txt"
 check stress.txt "$OUT/stress.txt"
 
+echo "== fuzz: random parameters, note storms, songs and MIDI, then a panic (tests/host/fuzz.c)"
+$BIN/fuzz 4 1 | sed 's/^/   /' || fail=1
+
 echo "== CPU (best of 3)"
 cpu lxr_cpu.txt $BIN/lxr_render
 cpu studio_cpu.txt $BIN/studio_render

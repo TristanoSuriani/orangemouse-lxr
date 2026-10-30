@@ -6,6 +6,7 @@ __pycache__/
 /.idea/
 /third_party/*
 !/third_party/fetch.sh
+!/third_party/patches/
 /spikes/out/
 /spikes/dexed/carts/
 /tests/host/build/

@@ -1,0 +1,40 @@
+diff --git a/plaits/dsp/engine/wavetable_engine.cc b/plaits/dsp/engine/wavetable_engine.cc
+index 44accd7..03be011 100644
+--- a/plaits/dsp/engine/wavetable_engine.cc
++++ b/plaits/dsp/engine/wavetable_engine.cc
+@@ -138,12 +138,15 @@ void WavetableEngine::Render(
+   y_fractional += quantization * (Clamp(y_fractional, 16.0f) - y_fractional);
+   z_fractional += quantization * (Clamp(z_fractional, 16.0f) - z_fractional);
+   
++  // Orange Mouse: below 7. With the quantization, a fractional part of 1.0
++  // made x (or y, z) exactly 7, and Render() read wave 8 of a row of 8: past
++  // wave_map_ for the last row (a crash, found by tests/host/fuzz.c).
+   ParameterInterpolator x_modulation(
+-      &previous_x_, static_cast<float>(x_integral) + x_fractional, size);
++      &previous_x_, min(static_cast<float>(x_integral) + x_fractional, 6.9999f), size);
+   ParameterInterpolator y_modulation(
+-      &previous_y_, static_cast<float>(y_integral) + y_fractional, size);
++      &previous_y_, min(static_cast<float>(y_integral) + y_fractional, 6.9999f), size);
+   ParameterInterpolator z_modulation(
+-      &previous_z_, static_cast<float>(z_integral) + z_fractional, size);
++      &previous_z_, min(static_cast<float>(z_integral) + z_fractional, 6.9999f), size);
+ 
+   ParameterInterpolator f0_modulation(&previous_f0_, f0, size);
+   
+diff --git a/plaits/dsp/speech/lpc_speech_synth.h b/plaits/dsp/speech/lpc_speech_synth.h
+index 5f5bfc3..0097440 100644
+--- a/plaits/dsp/speech/lpc_speech_synth.h
++++ b/plaits/dsp/speech/lpc_speech_synth.h
+@@ -75,9 +75,11 @@ class LPCSpeechSynth {
+     if (!interpolate) {
+       frame_fractional = 0.0f;
+     }
++    // Orange Mouse: the next frame only when it counts. Unblended, [+ 1] was
++    // read for the last frame too, past the table (found by tests/host/fuzz.c).
+     PlayFrame(
+         frames[frame_integral],
+-        frames[frame_integral + 1],
++        frames[frame_integral + (frame_fractional > 0.0f ? 1 : 0)],
+         frame_fractional);
+   }
+ 

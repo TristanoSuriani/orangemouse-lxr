@@ -332,6 +332,26 @@ comes back last, once the tools it needs exist.
 3. **Fuzzing**, as the Testing section promises and the suite doesn't yet do: random parameter sweeps
    and note and MIDI streams across all 16 tracks (note-on storms, missing note-offs, panics), each run
    through the health checks.
+   **Done 2026-10-30** (tests/host/fuzz.c; tests/run.sh runs 4 rounds, tests/fuzz_asan.sh 20 seeds
+   under AddressSanitizer). Each round: every engine's, the mixer's and the effects' parameters at
+   random (now and then out of range), a 1,500-note storm with no note-offs, a random song on all 16
+   tracks (invalid routes, retrigs, switches, stops), random MIDI bytes into the LXR, then a panic,
+   after which every channel must fall below -80 dBFS. It found, and these are fixed:
+   - **LXR firmware (also on the hardware):** a CC 0 (bank select) wrote 64 KB past
+     `midiParser_originalCcValues`; an NRPN above 127 wrote past it too; LXR parameter 255 wrote one
+     past it into voice 1's MIDI channel, and the next note-on then wrote out of bounds. The
+     wavetable, FM and PWM oscillators read one sample past their waves at the wrap (now they wrap:
+     the "busy" kit's sweep renders changed, by nothing measurable in peak or DC). The distortion's
+     diode table was read one past its end at full drive (no change in sound).
+   - **The studio:** STOP (and PLAY while playing) left a row's later retrig hits queued: they
+     played after the stop as notes nothing ended (`om_studio_cancel_after`). Notes above 127 were
+     taken, and could never be ended by a panic.
+   - **Plaits (upstream, third_party/patches/eurorack.patch):** the wavetable engine crashed with
+     a high HARMONICS and TIMBRE (it read a wave past its bank); the speech engine read past its
+     phonemes on its last consonant.
+   - **Dexed (upstream):** a voice's feedback memory started uninitialised.
+   - Kept, as on the hardware: the LXR's drums ignore note-offs, and a DX7 release can last a minute,
+     so a hit or note made under an extreme setting rings on after a panic.
 4. **The accessibility tests** the plan promises: an axe-core audit and a Tab-order walk in the
    browser test.
 5. **Re-baselining is deliberate.** A commit with `UPDATE_GOLDEN=1` names the renders it changed and

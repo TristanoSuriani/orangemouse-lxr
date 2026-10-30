@@ -169,9 +169,9 @@ IN_ITCM_RAM void calcFmBlock(OscInfo* osc, const int16_t table[][1024], int16_t*
 	#if INTERPOLATE_FM_OSC
 		oscOut = table[osc->tableOffset][itg++];
 		//const float frac	= (index&0x003FFFFF)*2.38418579101562e-07f;
-		//oscOut += frac*(table[osc->tableOffset][itg] - oscOut);
+		//oscOut += frac*(table[osc->tableOffset][itg & 1023] - oscOut);
 		uint32_t frac = index & 0x3FFFFF;
-		oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg] - oscOut) * frac)   >>22);
+		oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg & 1023] - oscOut) * frac)   >>22);
 
 	#else
 		oscOut = table[overtoneIndex][itg];
@@ -199,15 +199,15 @@ void calcPwmFmBlock(OscInfo* osc, int16_t* modBuffer, int16_t* buf, uint8_t size
 	#if INTERPOLATE_FM_OSC
 		oscOut = sawTable[osc->tableOffset][itg++];
 		//const float frac	= (index&0x003FFFFF)*2.38418579101562e-07f;
-		//oscOut += frac*(sawTable[osc->tableOffset][itg] - oscOut);
+		//oscOut += frac*(sawTable[osc->tableOffset][itg & 1023] - oscOut);
 		uint32_t frac = index & 0x3FFFFF;
-		oscOut = oscOut + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg] - oscOut) * frac)   >>22);
+		oscOut = oscOut + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg & 1023] - oscOut) * frac)   >>22);
 
 		int16_t osc2Out = sawTable[osc->tableOffset][itg2++];// * -1;
 		//const float frac	= (index&0x003FFFFF)*2.38418579101562e-07f;
 		frac = index2 & 0x3FFFFF;
 		//osc2Out += frac*(sawTable[osc->tableOffset][itg2] * -1 - osc2Out);
-		osc2Out = osc2Out + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg2] - osc2Out) * frac)   >>22);
+		osc2Out = osc2Out + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg2 & 1023] - osc2Out) * frac)   >>22);
 
 		oscOut =  __QSUB16(oscOut,osc2Out);
 
@@ -235,9 +235,9 @@ int16_t calcFm(OscInfo* osc, OscInfo* modOsc, const int16_t table[][1024])
 #if INTERPOLATE_FM_OSC
 	oscOut = table[osc->tableOffset][itg++];
 	//const float frac	= (index&0x003FFFFF)*2.38418579101562e-07f;
-	//oscOut += frac*(table[osc->tableOffset][itg] - oscOut);
+	//oscOut += frac*(table[osc->tableOffset][itg & 1023] - oscOut);
 	uint32_t frac = index & 0x3FFFFF;
-	oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg] - oscOut) * frac)   >>22);
+	oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg & 1023] - oscOut) * frac)   >>22);
 #else
 	oscOut = table[overtoneIndex][itg];
 #endif
@@ -459,9 +459,11 @@ IN_ITCM_RAM void calcWavetableOscBlock(OscInfo* osc, const int16_t table[][1024]
 			//todo use ldm instead of ldr to load multiple values from memory
 			oscOut = table[osc->tableOffset][itg++];
 			//const float frac = (itg&0x003FFFFF)*2.38418579101562e-07f; //2.38... => 1.f/0x3fffff
-			//oscOut += frac*(table[osc->tableOffset][itg] - oscOut);
+			//oscOut += frac*(table[osc->tableOffset][itg & 1023] - oscOut);
 			uint32_t frac = oscPhase & 0x3FFFFF;
-			oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg] - oscOut) * frac)   >>22);
+			// the next sample wraps to the wave's start: [1024] read the next wave's first
+			// sample, and past the last wave's end (found by tests/host/fuzz.c)
+			oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg & 1023] - oscOut) * frac)   >>22);
 		#else
 			oscOut = table[osc->tableOffset][itg];
 		#endif
@@ -483,9 +485,9 @@ int16_t calcWavetableOsc(OscInfo* osc,  const int16_t table[][1024])
 	//todo use ldm instead of ldr to laod multiple values from memory
 	oscOut = table[osc->tableOffset][itg++];
 	//const float frac = (itg&0x003FFFFF)*2.38418579101562e-07f; //2.38... => 1.f/0x3fffff
-	//oscOut += frac*(table[osc->tableOffset][itg] - oscOut);
+	//oscOut += frac*(table[osc->tableOffset][itg & 1023] - oscOut);
 	uint32_t frac = oscPhase & 0x3FFFFF;
-	oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg] - oscOut) * frac)   >>22);
+	oscOut = oscOut + (int16_t)(((int64_t)(table[osc->tableOffset][itg & 1023] - oscOut) * frac)   >>22);
 #else
 	oscOut = table[osc->tableOffset][itg];
 #endif
@@ -672,15 +674,15 @@ IN_ITCM_RAM void calcPwmBlock(OscInfo* osc, int16_t* buf, uint8_t size ,const fl
 			oscOut = sawTable[osc->tableOffset][itg++];
 			//const float frac	= (oscPhase&0x003FFFFF)*2.38418579101562e-07f;
 			//const float frac = (itg&0x003FFFFF)*2.38418579101562e-07f;
-			//oscOut += frac*(sawTable[osc->tableOffset][itg] - oscOut);
+			//oscOut += frac*(sawTable[osc->tableOffset][itg & 1023] - oscOut);
 			uint32_t frac = oscPhase & 0x3FFFFF;
-			oscOut = oscOut + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg] - oscOut) * frac)   >>22);
+			oscOut = oscOut + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg & 1023] - oscOut) * frac)   >>22);
 
 			int16_t osc2Out = sawTable[osc->tableOffset][itg2++] ;//* -1;
 			//const float frac	= (index&0x003FFFFF)*2.38418579101562e-07f;
 			//osc2Out += frac*(sawTable[osc->tableOffset][itg2] * -1 - osc2Out);
 			frac = oscPhase2 & 0x3FFFFF;
-			osc2Out = osc2Out + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg2++] - osc2Out) * frac)   >>22);
+			osc2Out = osc2Out + (int16_t)(((int64_t)(sawTable[osc->tableOffset][itg2 & 1023] - osc2Out) * frac)   >>22);
 
 			oscOut =  __QSUB16(oscOut,osc2Out);
 

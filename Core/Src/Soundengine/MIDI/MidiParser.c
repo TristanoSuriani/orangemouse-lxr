@@ -34,7 +34,9 @@
 
 static uint16_t midiParser_activeNrpnNumber = 0;
 
-uint8_t midiParser_originalCcValues[0xff];
+// 256: CC2 values sit at data1 + 128, up to 255 (with 0xff the last one overwrote
+// midi_MidiChannels[0]; found by tests/host/fuzz.c)
+uint8_t midiParser_originalCcValues[0x100];
 
 // this will be set to some value if we are ignoring all mtc messages until the next 0 message
 static uint8_t midiParser_mtcIgnore=1;
@@ -165,8 +167,10 @@ void midiParser_ccHandler(MidiMsg msg, uint8_t updateOriginalValue, uint8_t isFl
 	{
 
 		const uint16_t paramNr = msg.data1-1;
+		// [data1], not [paramNr + 1]: for CC 0 (bank select) paramNr wraps to
+		// 0xFFFF, and the write landed 64 KB past the array (found by tests/host/fuzz.c)
 		if(updateOriginalValue && !isFloatModulator) {
-			midiParser_originalCcValues[paramNr+1] = value.itg;
+			midiParser_originalCcValues[msg.data1] = value.itg;
 		}
 
 		switch(msg.data1)
@@ -907,7 +911,9 @@ void midiParser_ccHandler(MidiMsg msg, uint8_t updateOriginalValue, uint8_t isFl
 	{
 		const uint16_t paramNr = msg.data1 + 1 + 127;
 
-		if(updateOriginalValue && !isFloatModulator) {
+		// an NRPN number above 127 arrives here as data1 up to 255 (midiParser_nrpnHandler):
+		// only real parameters have a value to keep (found by tests/host/fuzz.c)
+		if(updateOriginalValue && !isFloatModulator && paramNr < sizeof midiParser_originalCcValues) {
 			midiParser_originalCcValues[paramNr] = value.itg;
 		}
 		switch(msg.data1)
