@@ -267,6 +267,48 @@ int main(void)
 		}
 		#undef PAD
 	}
+	{   // the trance gate (PLAN.md 9.2): the 8ths pattern chops a held pad on the tempo, or on the clock
+		enum { LONG = 96000 };
+		static float gl[LONG], gr[LONG];
+		const OmEngineClass cls = mockClass(0);
+		#define AT(f) gl[(f) + OM_STUDIO_LATENCY]
+		for (int mode = 0; mode < 3; mode++)
+		{
+			OmStudio *st = mockStudio();
+			om_studio_add_engine(st, &cls);
+			om_studio_set_tempo(st, 120.f);   // a 16th: 6000 frames at 48 kHz
+			om_studio_mix(st, 0, OM_MIX_GATE, mode == 0 ? 0 : 127);
+			om_studio_mix(st, 0, OM_MIX_GATE_SMOOTH, 0);
+			om_studio_note_on(st, 0, 0, 0, 60, 100);
+			if (mode == 2)   // the tracker's clock: a start at 1000, then a tick every 1000 frames (a 16th: 6000)
+			{
+				om_studio_clock(st, 1000, OM_CLOCK_START);
+				for (int t = 0; t < 40; t++) om_studio_clock(st, 1000 + 1000 * (uint64_t)t, OM_CLOCK_TICK);
+			}
+			om_studio_render(st, gl, gr, 48000);
+			if (mode == 0)
+				CHECK(AT(3000) == MOCK && AT(9000) == MOCK, "gate 0 leaves the pad alone: %g %g", AT(3000), AT(9000));
+			else if (mode == 1)
+				CHECK(fabsf(AT(3000) - MOCK) < 0.001f && AT(9000) < 0.001f && fabsf(AT(15000) - MOCK) < 0.001f,
+				      "on the tempo: step 1 on (%g), 2 off (%g), 3 on (%g)", AT(3000), AT(9000), AT(15000));
+			else
+				CHECK(fabsf(AT(1000 + 3000) - MOCK) < 0.001f && AT(1000 + 9000) < 0.001f && fabsf(AT(1000 + 15000) - MOCK) < 0.001f,
+				      "on the clock: on (%g), off (%g), on (%g) from its start", AT(4000), AT(10000), AT(16000));
+			om_studio_destroy(st);
+		}
+		{   // smoothing: a long one rounds the step's edges
+			OmStudio *st = mockStudio();
+			om_studio_add_engine(st, &cls);
+			om_studio_set_tempo(st, 120.f);
+			om_studio_mix(st, 0, OM_MIX_GATE, 127);
+			om_studio_mix(st, 0, OM_MIX_GATE_SMOOTH, 127);   // 64 ms
+			om_studio_note_on(st, 0, 0, 0, 60, 100);
+			om_studio_render(st, gl, gr, 24000);
+			CHECK(AT(6000 + 480) > 0.2f && AT(6000 + 480) < 0.5f, "64 ms of smoothing: 10 ms into an off step the pad is still at %g", AT(6480));
+			om_studio_destroy(st);
+		}
+		#undef AT
+	}
 	{   // every channel filter filters: low-passes cut a high sine, high-passes a low one,
 		// band-passes both, the notch its own frequency; with full resonance and
 		// noise they stay finite and bounded

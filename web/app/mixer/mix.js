@@ -31,17 +31,18 @@ export const CHANNELS = [
 
 // studio.h: the controls, and the targets besides the channels
 export const MIX = { LEVEL: 0, PAN: 1, SEND_A: 2, SEND_B: 3, MUTE: 4, SOLO: 5, FX_TYPE: 6, RETURN: 7, FILTER: 8, CUTOFF: 9, RESONANCE: 10,
-  DUCK: 11, DUCK_KEY: 12, DUCK_RELEASE: 13 };
+  DUCK: 11, DUCK_KEY: 12, DUCK_RELEASE: 13, GATE: 14, GATE_SMOOTH: 15, GATE_STEPS1: 16, GATE_STEPS2: 17, GATE_STEPS3: 18 };
 export const BUS_A = 0xf0;
 export const MASTER = 0xff;
 export const FX_TYPES = fxRegistry.parts;   // 'Off', 'Hall', ...
 // a channel's fields and their controls (studio.h)
-const CHANNEL_FIELDS = { level: 0, pan: 1, sendA: 2, sendB: 3, mute: 4, solo: 5, filter: 8, cutoff: 9, reso: 10, duck: 11, duckKey: 12, duckRel: 13 };
+const CHANNEL_FIELDS = { level: 0, pan: 1, sendA: 2, sendB: 3, mute: 4, solo: 5, filter: 8, cutoff: 9, reso: 10, duck: 11, duckKey: 12, duckRel: 13,
+  gate: 14, gateSmooth: 15, gateS1: 16, gateS2: 17, gateS3: 18 };
 
 export function newMix() {
   return {
     // VA's slots start at -6 dB: they are loud next to the LXR
-    channels: Object.fromEntries(CHANNELS.map((c) => [c.key, { level: c.engine === 1 ? 79 : 100, pan: 64, sendA: 0, sendB: 0, mute: 0, solo: 0, filter: 0, cutoff: 127, reso: 0, duck: 0, duckKey: 0, duckRel: 62 }])),
+    channels: Object.fromEntries(CHANNELS.map((c) => [c.key, { level: c.engine === 1 ? 79 : 100, pan: 64, sendA: 0, sendB: 0, mute: 0, solo: 0, filter: 0, cutoff: 127, reso: 0, duck: 0, duckKey: 0, duckRel: 62, gate: 0, gateSmooth: 47, gateS1: 21, gateS2: 21, gateS3: 5 }])),
     buses: [{ type: 1, ret: 100, fx: {} }, { type: 3, ret: 100, fx: {} }],   // a hall and a delay
     master: 100,
   };
@@ -79,3 +80,17 @@ export function mixMessages(mix) {
   msgs.push({ type: 'mix', target: MASTER, param: MIX.LEVEL, value: mix.master });
   return msgs;
 }
+
+// The trance gate's 16 steps: the channel's three step bytes (6, 6 and 4 bits).
+export const gateSteps = (ch) => Array.from({ length: 16 }, (_, i) =>
+  Boolean((i < 6 ? ch.gateS1 >> i : i < 12 ? ch.gateS2 >> (i - 6) : ch.gateS3 >> (i - 12)) & 1));
+export function setGateSteps(ch, steps) {
+  const bits = (from, n) => steps.slice(from, from + n).reduce((b, on, i) => b | (on ? 1 << i : 0), 0);
+  ch.gateS1 = bits(0, 6); ch.gateS2 = bits(6, 6); ch.gateS3 = bits(12, 4);
+}
+// patterns to start from (x on, . off)
+export const GATE_PATTERNS = [
+  ['8ths', 'x.x.x.x.x.x.x.x.'], ['offbeats', '..x...x...x...x.'], ['trance', 'x.xx.xx.x.xx.xx.'],
+  ['skip', 'xx.xx.x.xx.xx.x.'], ['stutter', 'x.x.xxx.x.x.xxx.'], ['dotted', 'x..x..x..x..x..x'],
+  ['chop', 'xx..xx..xx..xx..'], ['gallop', 'x.xxx.xxx.xxx.xx'], ['half bar', 'xxxxxxxx........'],
+].map(([name, p]) => ({ name, steps: [...p].map((c) => c === 'x') }));

@@ -419,6 +419,13 @@ comes back last, once the tools it needs exist.
    changed. The genre songs don't use it yet: that is for your ears (and trance, Phase 10.6).
 2. **A trance gate** as a channel insert next to the filter: a 16-step gate pattern in tempo, with
    depth and smoothing.
+   **Done 2026-10-30** (studio/studio.c `gate`, `clockBlock`): after each channel's filter, GATE (how
+   far the off steps cut), SMOOTH (0.5 to 64 ms) and 16 steps (three bytes of the song's mix). The
+   gate follows the tracker's clock (a step every 6 ticks, from its start), and runs on the tempo
+   when nothing plays. PAGE three times on a mixer channel: GAT, SMO and PAT (9 patterns to start
+   from: 8ths, offbeats, trance, skip, stutter, dotted, chop, gallop, half bar); the display's top
+   line shows the steps, and a click, or 1-8 and Shift+1-8, switches one. At GATE 0 nothing is
+   computed: no render changed.
 3. **An EQ** on every channel: low shelf, a sweepable mid and a high shelf (Phase 3's "Not yet").
 
 ### Phase 10: the tracker, for the genres

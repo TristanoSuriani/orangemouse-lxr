@@ -24,7 +24,7 @@ import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
 import { addGuide } from '../kit/guide.js';
-import { CHANNELS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage } from '../mixer/mix.js';
+import { CHANNELS, gateSteps, setGateSteps, GATE_PATTERNS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage } from '../mixer/mix.js';
 
 const COLS = 84;
 const ROWS = 16;
@@ -44,8 +44,14 @@ const STRIPS = [
 ];
 const P = Object.fromEntries(mixRegistry.params.map((p) => [p.id.replace('OM_MIX_', ''), p]));
 const FIELD = { LEVEL: 'level', PAN: 'pan', SEND_A: 'sendA', SEND_B: 'sendB', MUTE: 'mute', SOLO: 'solo',
-  FILTER: 'filter', CUTOFF: 'cutoff', RESONANCE: 'reso', DUCK: 'duck', DUCK_KEY: 'duckKey', DUCK_RELEASE: 'duckRel' };
-const CH_PAGES = ['the mix', 'the filter', 'the ducking'];
+  FILTER: 'filter', CUTOFF: 'cutoff', RESONANCE: 'reso', DUCK: 'duck', DUCK_KEY: 'duckKey', DUCK_RELEASE: 'duckRel',
+  GATE: 'gate', GATE_SMOOTH: 'gateSmooth' };
+const CH_PAGES = ['the mix', 'the filter', 'the ducking', 'the gate'];
+// the gate page's third knob: a pattern to start from (it sets all 16 steps)
+const PATTERN = { id: 'PATTERN', short: 'PAT', name: 'Gate pattern', min: 0, max: GATE_PATTERNS.length - 1,
+  display: { kind: 'enum', values: GATE_PATTERNS.map((p) => p.name) },
+  help: 'A pattern for the gate\'s 16 steps to start from; click a step on the display (or 1-8, Shift 9-16) to change it.' };
+const STEPS_AT = 2;   // where the gate's steps start on the display's top line, after the strip's name
 const typeParams = FX_TYPES.map((name) =>
   fxRegistry.params.map((p, index) => ({ ...p, index })).filter((p) => p.group === name));
 
@@ -55,6 +61,7 @@ const GUIDE = [
   { title: 'Effects', text: 'Send A is a hall reverb, send B a delay on the song\'s tempo. Turn a channel\'s SDA or SDB up to send it there. FX A / FX B open the effect: TYPE - and TYPE + change it (hall, room, delay, chorus, phaser, flanger), the knobs its settings, PAGE the next four.' },
   { title: 'Filters', text: 'Every channel has one of Surge\'s filters. Press PAGE on a channel: the knobs become FLT (the type: low-passes, ladders, high-passes, band-pass, notch), CUT and RES. Sweep CUT for build-ups; FLT off leaves the sound untouched.' },
   { title: 'Ducking', text: 'PAGE twice on a channel puts its ducking on the knobs: DCK, how far it dips when its KEY hits (the kick, drum 1, at first), and REL, how fast it comes back. Pads and basses that pump with the kick are trance\'s and synthwave\'s sound. A muted key still keys.' },
+  { title: 'The gate', text: 'PAGE three times on a channel: the trance gate. GAT is how far the steps that are off cut the sound, SMO how softly, PAT a pattern to start from. The display\'s top line shows the 16 steps, in time with the song: click one (or 1-8, Shift 9-16) to switch it.' },
   { title: 'Loud enough', text: 'The master has a limiter: the mix never goes past -0.2 dB. GR on the OUT strip shows how much it holds back; a few dB on the loudest hits is fine, more means turn something down.' },
   { title: 'Saved with the song', text: 'The mix is part of the song: it saves as you change it, and loads with the song.' },
 ];
@@ -135,6 +142,10 @@ export function createMixerDevice({ send, help, song }) {
         return [filter, knob('CUTOFF'), knob('RESONANCE'), null];
       }
       if (state.chPage === 2) return [knob('DUCK'), knob('DUCK_KEY'), knob('DUCK_RELEASE'), null];
+      if (state.chPage === 3) {
+        const now = () => Math.max(0, GATE_PATTERNS.findIndex((p) => p.steps.every((on, i) => on === gateSteps(ch)[i])));
+        return [knob('GATE'), knob('GATE_SMOOTH'), [PATTERN, now, (v) => sendSteps(s, ch, GATE_PATTERNS[v].steps)], null];
+      }
       return ['LEVEL', 'PAN', 'SEND_A', 'SEND_B'].map(knob);
     }
     if (s.kind === 'bus') {
@@ -149,6 +160,23 @@ export function createMixerDevice({ send, help, song }) {
       (v) => { mix().master = v; send({ type: 'mix', target: 0xff, param: MIX.LEVEL, value: v }); }], null, null, null];
   }
 
+  function sendSteps(s, ch, steps) {
+    setGateSteps(ch, steps);
+    send(channelMessage(s.index, 'gateS1', ch.gateS1));
+    send(channelMessage(s.index, 'gateS2', ch.gateS2));
+    send(channelMessage(s.index, 'gateS3', ch.gateS3));
+  }
+  // switches gate step i (0-15) of the selected channel
+  function toggleStep(i) {
+    const s = strip();
+    if (s.kind !== 'channel') return;
+    const ch = mix().channels[s.key];
+    const steps = gateSteps(ch);
+    steps[i] = !steps[i];
+    sendSteps(s, ch, steps);
+    render();
+  }
+
   function setType(bus, type) {
     const b = mix().buses[bus];
     b.type = Math.max(0, Math.min(FX_TYPES.length - 1, type));
@@ -161,12 +189,17 @@ export function createMixerDevice({ send, help, song }) {
     const s = strip();
     const m = mix();
     let words;
-    if (s.kind === 'channel') {
+    if (s.kind === 'channel' && state.chPage === 3) {
+      const ch = m.channels[s.key];
+      words = `${' '.repeat(STEPS_AT)}${gateSteps(ch).map((on) => (on ? '■' : '·')).join('')}  ${s.short} GATE ${formatValue(P.GATE, ch.gate)}` +
+        `  SMOOTH ${formatValue(P.GATE_SMOOTH, ch.gateSmooth)}  (click a step, or 1-8, Shift 9-16)`;
+    } else if (s.kind === 'channel') {
       const ch = m.channels[s.key];
       words = `${s.name.toUpperCase()}  LEVEL ${formatValue(P.LEVEL, ch.level)}  PAN ${formatValue(P.PAN, ch.pan)}` +
         `  A ${formatValue(P.SEND_A, ch.sendA)}  B ${formatValue(P.SEND_B, ch.sendB)}` +
         (ch.filter ? `  ${formatShort(P.FILTER, ch.filter).toUpperCase()} ${formatShort(P.CUTOFF, ch.cutoff)}` : '') +
         (ch.duck ? `  DUCK ${formatShort(P.DUCK, ch.duck)} ${formatShort(P.DUCK_KEY, ch.duckKey)}` : '') +
+        (ch.gate ? `  GATE ${formatShort(P.GATE, ch.gate)}` : '') +
         `${ch.mute ? '  MUTED' : ''}${ch.solo ? '  SOLO' : ''}`;
     } else if (s.kind === 'bus') {
       const b = m.buses[s.bus];
@@ -329,7 +362,7 @@ export function createMixerDevice({ send, help, song }) {
     ['typeDown', 'TYPE -', 'The previous effect on this send (with FX A or FX B lit).', () => changeType(-1)],
     ['typeUp', 'TYPE +', 'The next effect on this send: hall, room, delay, chorus, phaser, flanger.', () => changeType(1)],
     ['page', 'PAGE', () => (state.fx !== null ? 'The next four settings of the effect on the knobs.'
-      : `A channel's knobs: its mix (level, pan, sends), its filter (type, cutoff, resonance) or its ducking (amount, key, release). Now: ${CH_PAGES[state.chPage]}.`),
+      : `A channel's knobs: its mix (level, pan, sends), its filter (type, cutoff, resonance), its ducking (amount, key, release) or its gate (depth, smoothing, pattern). Now: ${CH_PAGES[state.chPage]}.`),
     () => nextPage()],
   ];
   const pads = {};
@@ -378,12 +411,15 @@ export function createMixerDevice({ send, help, song }) {
       }
       return;
     }
+    if (row === 0 && state.chPage === 3 && col >= STEPS_AT && col < STEPS_AT + 16) { toggleStep(col - STEPS_AT); return; }
     select(Math.min(STRIPS.length - 1, Math.max(0, Math.floor(col / W))));
   });
   let hover = null;
   canvas.addEventListener('pointermove', (e) => { hover = cellAt(e); help.refresh(); });
   canvas.addEventListener('pointerleave', () => { hover = null; });
   describe(canvas, help, () => {
+    if (hover && hover.row === 0 && state.chPage === 3 && strip().kind === 'channel' && hover.col >= STEPS_AT && hover.col < STEPS_AT + 16)
+      return `Gate step ${hover.col - STEPS_AT + 1}: click to switch it. Lit steps let the sound through; the others cut it by GATE.`;
     if (state.fx !== null) return 'The effect\'s settings. The highlighted four are on the knobs; click a setting to put its four there.';
     const x = hover ? STRIPS[Math.min(STRIPS.length - 1, Math.floor(hover.col / W))] : strip();
     if (x.kind === 'channel') return `${x.name}: click to put its level, pan and sends on the knobs.`;
@@ -399,6 +435,7 @@ export function createMixerDevice({ send, help, song }) {
     else if (e.key === 'ArrowRight') select(state.sel + 1);
     else if (k === 'm') toggle('mute');
     else if (k === 's') toggle('solo');
+    else if (state.chPage === 3 && state.fx === null && /^Digit[1-8]$/.test(e.code)) toggleStep(Number(e.code[5]) - 1 + (e.shiftKey ? 8 : 0));
     else if (e.key === 'Escape' && state.fx !== null) openFx(state.fx);
     else return false;
     return true;

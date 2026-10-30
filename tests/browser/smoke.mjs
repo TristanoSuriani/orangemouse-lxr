@@ -451,6 +451,13 @@ try {
   for (let i = 0; i < 8; i++) await press('ArrowUp', 'ArrowUp');
   await evaluate(`document.activeElement.blur()`);
   check((await mixOf('channels.va2.duck')) === 32 && (await mixRow(0)).includes('DUCK 25% DR1'), `the knob ducks VA2 under drum 1: "${await mixRow(0)}"`);
+  await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE: the gate
+  check((await evaluate(`[...document.querySelectorAll('.mixer-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'GAT SMO PAT -', 'PAGE again puts the gate on the knobs');
+  check((await mixRow(0)).startsWith('  ■·■·■·■·■·■·■·■·'), `the display shows its 16 steps: "${await mixRow(0)}"`);
+  await press('Digit2', '2');
+  await press('Digit1', '!', 8);   // Shift+1: step 9
+  check((await mixRow(0)).startsWith('  ■■■·■·■··'), `2 and Shift+1 switch steps 2 and 9: "${await mixRow(0)}"`);
+  check((await mixOf('channels.va2.gateS1')) === 23 && (await mixOf('channels.va2.gateS2')) === 17, 'and the song keeps the steps');
   await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE: back to the mix
   await clickPad('.mixer-pads .pad:nth-child(5)');   // FX A
   check((await mixRow(0)).startsWith('SEND A  HALL'), `FX A shows the hall: "${await mixRow(0)}"`);

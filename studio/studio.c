@@ -43,13 +43,20 @@ typedef struct
 typedef struct
 {
 	uint8_t engine, stem;
-	uint8_t value[OM_MIX_DUCK_RELEASE + 1];
+	uint8_t value[OM_MIX_LAST + 1];
 	OmFilter *filter;
 	Gain left, right, sendA, sendB;
 	float peak;
 	float duck;       // the key's envelope, 0..1
 	float duckRel;    // its release, per frame
+	float gate;       // the gate's gain now
+	float gateCoef;   // its smoothing, per frame
 } Channel;
+
+// the clock the gates follow: the tracker's (24 ticks a beat, a gate step
+// every 6), or the tempo when nothing plays
+#define CLOCK_QUEUE 256
+typedef struct { uint64_t frame; uint8_t event; } ClockEvent;
 
 // ducking: the key's level that dips a channel by the whole DUCK amount
 #define DUCK_FULL   0.25f   // -12 dBFS
@@ -86,6 +93,11 @@ struct OmStudio
 	float dcIn[2], dcOut[2], dcPole;   // the DC blocker before it
 	int dcOn;
 	float peakL, peakR, lowestGain;
+	ClockEvent clock[CLOCK_QUEUE];   // sorted, from clockHead
+	uint32_t clockHead, clockCount;
+	double ticks;                    // where the clock is, in ticks
+	uint32_t tickCount;              // ticks since the last start
+	uint8_t step[OM_MAX_BLOCK];      // the gate step of each frame of this block
 };
 
 // a fader's byte as a gain: 100 is 0 dB (registry/mix.json "fader")
@@ -165,6 +177,10 @@ int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 		}
 		ch->value[OM_MIX_CUTOFF] = 127;
 		om_studio_mix(st, c, OM_MIX_DUCK_RELEASE, 62);   // 150 ms (registry/mix.json)
+		om_studio_mix(st, c, OM_MIX_GATE_SMOOTH, 47);    // 3 ms
+		ch->value[OM_MIX_GATE_STEPS1] = ch->value[OM_MIX_GATE_STEPS2] = 21;   // the 8ths: x.x.x.x.x.x.x.x.
+		ch->value[OM_MIX_GATE_STEPS3] = 5;
+		ch->gate = 1.f;
 		om_studio_mix(st, c, OM_MIX_LEVEL, 100);
 		om_studio_mix(st, c, OM_MIX_PAN, 64);
 		ch->left.now = ch->left.to;
@@ -249,6 +265,15 @@ void om_studio_cancel_after(OmStudio *st, uint64_t frame)
 		}
 		en->count = kept;
 	}
+	uint32_t kept = 0;   // the gates' clock too
+	for (uint32_t i = 0; i < st->clockCount; i++)
+	{
+		const ClockEvent ev = st->clock[(st->clockHead + i) % CLOCK_QUEUE];
+		if (ev.frame > frame && ev.event == OM_CLOCK_TICK)
+			continue;
+		st->clock[(st->clockHead + kept++) % CLOCK_QUEUE] = ev;
+	}
+	st->clockCount = kept;
 }
 
 uint8_t om_studio_get_param(OmStudio *st, uint8_t engine, uint8_t part, uint16_t param)
@@ -265,6 +290,16 @@ const OmEngineClass *om_studio_engine(const OmStudio *st, uint8_t engine)
 
 void om_studio_clock(OmStudio *st, uint64_t frame, uint8_t event)
 {
+	if (st->clockCount < CLOCK_QUEUE)   // the gates' copy, sorted as the engines' queues are
+	{
+		uint32_t i = st->clockCount++;
+		while (i > 0 && st->clock[(st->clockHead + i - 1) % CLOCK_QUEUE].frame > frame)
+		{
+			st->clock[(st->clockHead + i) % CLOCK_QUEUE] = st->clock[(st->clockHead + i - 1) % CLOCK_QUEUE];
+			i--;
+		}
+		st->clock[(st->clockHead + i) % CLOCK_QUEUE] = (ClockEvent){frame, event};
+	}
 	for (uint8_t e = 0; e < st->engines; e++)
 		if (st->engine[e].cls->clock)
 			push(st, e, (Event){.frame = frame, .type = EV_CLOCK, .note = event});
@@ -332,15 +367,18 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 		}
 		return;
 	}
-	const int isChannelParam = param <= OM_MIX_SOLO || (param >= OM_MIX_FILTER && param <= OM_MIX_DUCK_RELEASE);
+	const int isChannelParam = param <= OM_MIX_SOLO || (param >= OM_MIX_FILTER && param <= OM_MIX_LAST);
 	if (target >= st->channels || !isChannelParam)
 		return;
 	Channel *ch = &st->channel[target];
 	const uint8_t max = param == OM_MIX_MUTE || param == OM_MIX_SOLO ? 1 : param == OM_MIX_FILTER ? OM_FILTER_TYPES - 1
-		: param == OM_MIX_DUCK_KEY ? OM_MAX_CHANNELS - 1 : 127;
+		: param == OM_MIX_DUCK_KEY ? OM_MAX_CHANNELS - 1 : param == OM_MIX_GATE_STEPS3 ? 15
+		: param == OM_MIX_GATE_STEPS1 || param == OM_MIX_GATE_STEPS2 ? 63 : 127;
 	ch->value[param] = value > max ? max : value;
 	if (param == OM_MIX_DUCK_RELEASE)   // 20 ms .. 1.28 s (registry "exp")
 		ch->duckRel = expf(-1.f / (0.02f * exp2f(ch->value[param] * 6.f / 127.f) * st->rate));
+	else if (param == OM_MIX_GATE_SMOOTH)   // 0.5 .. 64 ms
+		ch->gateCoef = 1.f - expf(-1.f / (0.0005f * exp2f(ch->value[param] * 7.f / 127.f) * st->rate));
 	else if (param >= OM_MIX_DUCK)
 		return;
 	else if (param >= OM_MIX_FILTER)   // cutoff: semitones from A4, -60 .. 70 (registry "exp", 13.75 Hz up)
@@ -359,7 +397,7 @@ uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param)
 		const Bus *bus = &st->bus[target - OM_MIX_BUS_A];
 		return param == OM_MIX_FX_TYPE ? bus->type : param == OM_MIX_RETURN ? bus->ret : 0;
 	}
-	return target < st->channels && param <= OM_MIX_DUCK_RELEASE && (param <= OM_MIX_SOLO || param >= OM_MIX_FILTER)
+	return target < st->channels && param <= OM_MIX_LAST && (param <= OM_MIX_SOLO || param >= OM_MIX_FILTER)
 		? st->channel[target].value[param] : 0;
 }
 
@@ -507,6 +545,52 @@ static void renderEngine(Engine *en, uint64_t start)
 	}
 }
 
+// The clock for this block's frames: each frame's gate step (a 16th: 6
+// ticks, 16 to the bar). The tracker's ticks set it; between them, and when
+// nothing plays, it runs on at the tempo.
+static void clockBlock(OmStudio *st)
+{
+	const double perFrame = st->bpm * 24.0 / 60.0 / st->rate;
+	for (int i = 0; i < OM_MAX_BLOCK; i++)
+	{
+		const uint64_t frame = st->frame + (uint64_t)i;
+		int ticked = 0;
+		while (st->clockCount && st->clock[st->clockHead].frame <= frame)
+		{
+			const ClockEvent ev = st->clock[st->clockHead];
+			st->clockHead = (st->clockHead + 1) % CLOCK_QUEUE;
+			st->clockCount--;
+			if (ev.event == OM_CLOCK_START) { st->tickCount = 0; st->ticks = 0.0; }
+			else if (ev.event == OM_CLOCK_TICK) { st->ticks = st->tickCount++; ticked = 1; }
+		}
+		if (!ticked)
+			st->ticks += perFrame;
+		st->step[i] = (uint8_t)((uint64_t)(st->ticks / 6.0) & 15);
+	}
+}
+
+// The trance gate: the steps that are off cut the channel by GATE, smoothed.
+static void gate(OmStudio *st, Channel *ch, float *sl, float *sr)
+{
+	const uint8_t *v = ch->value;
+	if (!v[OM_MIX_GATE])
+	{
+		ch->gate = 1.f;
+		return;
+	}
+	const uint32_t steps = (uint32_t)v[OM_MIX_GATE_STEPS1] | (uint32_t)v[OM_MIX_GATE_STEPS2] << 6 | (uint32_t)v[OM_MIX_GATE_STEPS3] << 12;
+	const float closed = 1.f - v[OM_MIX_GATE] / 127.f;
+	float g = ch->gate;
+	for (int i = 0; i < OM_MAX_BLOCK; i++)
+	{
+		const float to = (steps >> st->step[i]) & 1 ? 1.f : closed;
+		g += (to - g) * ch->gateCoef;
+		sl[i] *= g;
+		sr[i] *= g;
+	}
+	ch->gate = g;
+}
+
 // Sidechain ducking: the channel dips as its key channel (after its filter,
 // before its fader) gets loud, by up to the DUCK amount, and comes back with
 // the RELEASE. A channel keys from its own key, never itself. Skipped at DUCK 0.
@@ -547,12 +631,14 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 			memset(st->bus[b].buf, 0, sizeof(st->bus[b].buf));
 		for (int e = 0; e < st->engines; e++)
 			renderEngine(&st->engine[e], st->frame);
-		// every channel's insert first: a key is heard after its filter
+		// every channel's inserts first, the filter then the gate: a key is heard after them
+		clockBlock(st);
 		for (int c = 0; c < st->channels; c++)
 		{
 			Channel *ch = &st->channel[c];
 			Engine *en = &st->engine[ch->engine];
 			om_filter_process(ch->filter, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1], OM_MAX_BLOCK);
+			gate(st, ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
 		}
 		for (int c = 0; c < st->channels; c++)
 		{

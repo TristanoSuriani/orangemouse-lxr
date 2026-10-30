@@ -283,6 +283,74 @@ export default {
     "unit": "s"
    },
    "help": "How fast the channel comes back after a dip: short is a tight pump, long a slow swell."
+  },
+  {
+   "id": "OM_MIX_GATE",
+   "short": "GAT",
+   "name": "Gate",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 0,
+   "display": {
+    "kind": "percent"
+   },
+   "help": "The trance gate: how far the steps that are off cut the sound, in time with the song."
+  },
+  {
+   "id": "OM_MIX_GATE_SMOOTH",
+   "short": "SMO",
+   "name": "Gate smoothing",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 47,
+   "display": {
+    "kind": "exp",
+    "base": 0.0005,
+    "octaves": 7,
+    "unit": "s"
+   },
+   "help": "How softly the gate opens and closes: short is a hard chop, long a soft pulse."
+  },
+  {
+   "id": "OM_MIX_GATE_STEPS1",
+   "short": "ST1",
+   "name": "Gate steps 1-6",
+   "group": "Channel",
+   "min": 0,
+   "max": 63,
+   "default": 21,
+   "display": {
+    "kind": "raw"
+   },
+   "help": "Steps 1 to 6 of the gate, a bit each (the display shows them as a row of steps)."
+  },
+  {
+   "id": "OM_MIX_GATE_STEPS2",
+   "short": "ST2",
+   "name": "Gate steps 7-12",
+   "group": "Channel",
+   "min": 0,
+   "max": 63,
+   "default": 21,
+   "display": {
+    "kind": "raw"
+   },
+   "help": "Steps 7 to 12 of the gate, a bit each."
+  },
+  {
+   "id": "OM_MIX_GATE_STEPS3",
+   "short": "ST3",
+   "name": "Gate steps 13-16",
+   "group": "Channel",
+   "min": 0,
+   "max": 15,
+   "default": 5,
+   "display": {
+    "kind": "raw"
+   },
+   "help": "Steps 13 to 16 of the gate, a bit each."
   }
  ]
 };
