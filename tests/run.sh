@@ -68,6 +68,7 @@ echo "== parameter registry"
 
 echo "== songs can't be lost (the backup folder, the export reminder)"
 node tests/backup_test.mjs | sed 's/^/   /' || fail=1
+node tests/playlist_test.mjs | sed 's/^/   /' || fail=1
 
 echo "== studio, tracker, clock, Dexed and Plaits tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1

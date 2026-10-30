@@ -559,6 +559,36 @@ try {
   check(genrePeak > 0.05 && (await evaluate(`window.orangeMouse.tracker.song().name`)).startsWith('Dub Techno'),
     `the dub techno song loads from the library and plays (peak ${genrePeak.toFixed(3)})`);
 
+  console.log('== the playlist (PLAN.md Phase 8.2)');
+  {
+    await evaluate(`(async () => {
+      const lib = await import('./tracker/library.js');
+      const t = window.orangeMouse.tracker;
+      for (const [id, name] of [['pl-one', 'Playlist one'], ['pl-two', 'Playlist two']]) {
+        const s = lib.migrate({ name, bpm: 240, patterns: [{ rows: 16, cells: { '0:0': { notes: [36] }, '8:0': { notes: [36] } } }] });
+        s.id = id;
+        await lib.save(s);
+      }
+      t.playlist.state.items = [];
+      t.playlist.add('pl-one'); t.playlist.add('pl-two'); t.playlist.setGap(1);
+    })()`);
+    await evaluate(`window.orangeMouseUi.showDevice(0)`);
+    await clickPad('.tracker-pads .pad:last-child');   // SONGS
+    await sleep(300);
+    await press('KeyL', 'l');
+    await sleep(300);
+    check((await trackerText()).includes('PLAYLIST') && (await trackerText()).includes('Playlist two'), 'L shows the playlist with its songs');
+    await press('Enter', 'Enter');
+    await sleep(500);
+    check((await evaluate(`window.orangeMouse.tracker.song().name`)) === 'Playlist one', 'Enter plays its first song');
+    await sleep(2200);   // 1 s of song, 1 s of gap
+    check((await evaluate(`window.orangeMouse.tracker.song().name`)) === 'Playlist two', `after it and the gap, the next: "${await evaluate(`window.orangeMouse.tracker.song().name`)}"`);
+    await sleep(2500);
+    check(!(await evaluate(`window.orangeMouse.tracker.playlist.state.active`)), 'after the last, the playlist stops');
+    await press('Escape', 'Escape');
+    await press('Escape', 'Escape');
+  }
+
   console.log('== WAV export (PLAN.md Phase 8.1)');
   {
     const wav = await evaluate(`(async () => {

@@ -394,6 +394,10 @@ comes back last, once the tools it needs exist.
    while the studio keeps playing. The display shows `RENDERING… n %`, then the length and peak; the
    file is 24-bit stereo at 44.1 kHz (web/app/tracker/wav.js).
 2. **The playlist:** songs queued one after another with a set gap, reorderable, startable anywhere.
+   **Done 2026-10-30** (web/app/tracker/playlist.js): in SONGS, Q queues the chosen song and L shows
+   the playlist on the display. Enter plays from the chosen entry: each song to its end, then the next
+   after the gap (- and =, 0 to 30 s). Shift+arrows reorder, Delete removes. STOP, playing by hand or
+   loading another song ends the run. The playlist is kept with the library.
 3. **The perform view:** the big display as full-screen visuals that react to each track's level.
 
 ### Phase 9: the mix

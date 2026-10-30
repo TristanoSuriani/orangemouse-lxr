@@ -22,6 +22,7 @@ import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, newPattern, getCell, songMe
 import * as library from '../tracker/library.js';
 import { backup } from '../tracker/backup.js';
 import { renderSong, wavFile } from '../tracker/wav.js';
+import { createPlaylist } from '../tracker/playlist.js';
 
 const COLS = 84;
 const ROWS = 20;
@@ -57,6 +58,7 @@ const GUIDE = [
   { title: 'Select, copy, paste', text: 'Without a selection, Cmd/Ctrl C and V copy one cell. Shift+arrows or a drag select a block; paste lands at the cursor. Cmd+Shift+V pastes back into the same tracks. Cmd+A: the track, again: everything. Cmd+Z undoes.' },
   { title: 'Play', text: 'Space plays the song from the order position you chose (click it on the ORDER row), or stops. Enter (LOOP) repeats the pattern you edit. PAT -/+ choose the pattern; PAT + past the last makes a new one; Cmd+D duplicates it. ORD + adds it to the order list. BPM sets the pattern\'s tempo.' },
   { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, W renders a WAV file, C copies a share code, V loads one.' },
+  { title: 'The playlist', text: 'In SONGS, Q queues the chosen song and L shows the playlist: Enter plays from there, each song to its end and then the next after the gap (- and =). Shift+arrows reorder, Delete removes. STOP ends it.' },
   { title: 'Keeping songs safe', text: 'The browser may clear its storage. B picks a backup folder: every song is copied there as .json each time it saves (after a reload, B lets it write again). A exports every song in one file, which I imports. The display says when the songs are not safe.' },
   { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
@@ -92,6 +94,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     confirm: null,            // a song id waiting for its second Delete
     message: '',              // a short note on the status row (songs mode)
     banner: '',               // the same in pattern mode: a WAV being rendered, then its result
+    plCur: 0,                 // the chosen playlist entry
   };
 
   const el = document.createElement('section');
@@ -133,6 +136,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
 
     const play = state.playing[0] ? `▶ ${state.playing[1] === state.p ? 'HERE' : `P${hex(state.playing[1])}`} POS ${hex(state.playing[2])}` : 'STOPPED';
     if (state.mode === 'songs') { renderSongs(play); return; }
+    if (state.mode === 'playlist') { renderPlaylist(play); return; }
     const bpm = pt.bpm || s.bpm;
     display.line(0, state.banner || `PAT ${hex(state.p)}/${hex(s.patterns.length - 1)} LEN ${pt.rows} BPM ${Math.round(bpm)}  ${play.padEnd(16)}`
       + ` ${state.edit ? 'EDIT' : 'JAM '} STEP ${state.step} OCT ${state.octs[state.cur.k]}  T${state.view ? '9-16' : '1-8'}`);
@@ -189,7 +193,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   let orderStarts = [];
   function renderSongs(play) {
     display.uninvert();
-    display.line(0, `SONGS ${state.message || 'N new D dup R rename DEL delete E/I json W wav C/V code A all B folder'}`.slice(0, COLS));
+    display.line(0, `SONGS ${state.message || 'N new D dup R rename DEL del E/I json W wav C/V code A all B folder Q/L list'}`.slice(0, COLS));
     display.line(1, `   ${'NAME'.padEnd(40)}SAVED`);
     const list = state.songs;
     const top = Math.max(0, Math.min(list.length - VISIBLE, state.songCur - Math.floor(VISIBLE / 2)));
@@ -237,6 +241,73 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     } finally {
       rendering = false;
     }
+  }
+
+  // ---- the playlist on the display (L in SONGS) ----
+  const playlist = createPlaylist({ kept: { get: library.getKept, set: library.setKept } });
+  playlist.restore().then(() => render());
+  let gapTimer = null, fromPlaylist = false;
+  function renderPlaylist(play) {
+    const pl = playlist.state;
+    const names = Object.fromEntries(state.songs.map((x) => [x.id, x.name]));
+    display.uninvert();
+    display.line(0, `PLAYLIST ${state.message || 'Enter plays from here  Shift+arrows move  DEL removes  - = gap'}`.slice(0, COLS));
+    display.line(1, `    #  ${'SONG'.padEnd(40)}`);
+    const top = Math.max(0, Math.min(pl.items.length - VISIBLE, state.plCur - Math.floor(VISIBLE / 2)));
+    for (let i = 0; i < VISIBLE; i++) {
+      const k = top + i;
+      const id = pl.items[k];
+      if (id === undefined) { display.line(FIRST + i, ''); continue; }
+      const mark = pl.active && pl.current === k ? '▶' : ' ';
+      display.line(FIRST + i, ` ${mark} ${String(k + 1).padStart(2)}  ${(names[id] ?? '(deleted)').slice(0, 40)}`);
+      if (k === state.plCur) display.invert(FIRST + i, 7, 40);
+    }
+    display.line(ROWS - 2, `${pl.items.length ? `${pl.items.length} IN THE PLAYLIST` : 'EMPTY: Q IN SONGS QUEUES A SONG'}   GAP ${pl.gap} S   ${pl.active ? `PLAYING ${pl.current + 1}` : play}`);
+    display.line(ROWS - 1, 'L (or Esc) goes back to the songs');
+    display.draw();
+    help.refresh();
+  }
+  async function openPlaylist(on) {
+    state.mode = on ? 'playlist' : 'songs';
+    state.message = '';
+    state.songs = await library.list();
+    playlist.prune(state.songs.map((x) => x.id));
+    state.plCur = Math.max(0, Math.min(state.plCur, playlist.state.items.length - 1));
+    render();
+  }
+  // plays entry i from its start; when it ends on its own, the next follows
+  async function startEntry(i) {
+    clearTimeout(gapTimer);
+    const id = playlist.start(i);
+    const s = id && (await library.load(id));
+    if (!s) { playlist.stop(); return note('THAT SONG IS GONE'); }
+    s.id = id;
+    fromPlaylist = true;
+    load(s);
+    fromPlaylist = false;
+    loopMode = false;
+    send({ type: 'tracker', op: 'play', mode: 'song', from: 0 });
+    render();
+  }
+  function stopPlaylist() {
+    clearTimeout(gapTimer);
+    playlist.stop();
+  }
+  function playlistKey(e) {
+    const pl = playlist.state;
+    const n = pl.items.length;
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      const d = e.key === 'ArrowUp' ? -1 : 1;
+      state.plCur = e.shiftKey ? playlist.move(state.plCur, d) : Math.max(0, Math.min(n - 1, state.plCur + d));
+    } else if (e.key === 'Enter' && n) return startEntry(state.plCur);
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && n) {
+      playlist.remove(state.plCur);
+      state.plCur = Math.max(0, Math.min(state.plCur, pl.items.length - 1));
+    } else if (e.key === '-' || e.key === '=') playlist.setGap(pl.gap + (e.key === '=' ? 1 : -1));
+    else if (e.key === 'Escape' || e.key.toLowerCase() === 'l') return openPlaylist(false);
+    else return false;
+    render();
+    return true;
   }
 
   async function openSongs(on = state.mode !== 'songs') {
@@ -295,6 +366,11 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
       Object.assign(document.createElement('a'), { href: url, download: `${s.name}.json` }).click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       return note('EXPORTED');
+    } else if (k === 'q' && item) {
+      playlist.add(item.id);
+      return note(`QUEUED ${item.name.toUpperCase()}: ${playlist.state.items.length} IN THE PLAYLIST (L SHOWS IT)`);
+    } else if (k === 'l') {
+      return openPlaylist(true);
     } else if (k === 'w' && item) {
       const s = item.id === song.value.id ? song.value : await library.load(item.id);
       if (s) exportWav(s);
@@ -456,6 +532,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     render();
   }
   function play(mode) {
+    stopPlaylist();   // playing by hand ends a playlist's run
     if (state.playing[0]) { send({ type: 'tracker', op: 'stop' }); return; }
     loopMode = mode === 'pattern';
     send({ type: 'tracker', op: 'play', mode, from: mode === 'song' ? state.pos : state.p });
@@ -514,7 +591,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   const PADS = [
     ['play', 'PLAY', 'Plays the song from the order position you chose (click it on the ORDER row), or stops (Space).', () => play('song')],
     ['loop', 'LOOP', 'Repeats the pattern you edit, or stops (Enter).', () => play('pattern')],
-    ['stop', 'STOP', 'Stops and releases every note.', () => send({ type: 'tracker', op: 'stop' })],
+    ['stop', 'STOP', 'Stops and releases every note (and a playlist).', () => { stopPlaylist(); send({ type: 'tracker', op: 'stop' }); }],
     ['edit', 'EDIT', 'On: the keys write notes at the cursor. Off: they only play (Esc).', () => { state.edit = !state.edit; render(); }],
     ['patDown', 'PAT -', 'The previous pattern.', () => choosePattern(-1)],
     ['patUp', 'PAT +', 'The next pattern; past the last, a new empty one.', () => choosePattern(1)],
@@ -586,7 +663,8 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   describe(canvas, help, () => {
-    if (state.mode === 'songs') return 'The songs: arrows choose, Enter loads, N new, D duplicate, R rename, Delete twice deletes, E/I export/import .json, C/V share code, W renders it as a WAV file, A exports every song, B picks a backup folder. Esc goes back.';
+    if (state.mode === 'playlist') return 'The playlist: arrows choose, Enter plays from that song, Shift+arrows move it, Delete removes it, - and = set the gap between songs. Each song plays to its end, then the next. STOP ends it. L or Esc goes back.';
+    if (state.mode === 'songs') return 'The songs: Q queues one in the playlist, L shows it; arrows choose, Enter loads, N new, D duplicate, R rename, Delete twice deletes, E/I export/import .json, C/V share code, W renders it as a WAV file, A exports every song, B picks a backup folder. Esc goes back.';
     if (!hover) return 'The pattern: click a cell to move there, drag to select. Click a track name to mute it, right-click to solo it.';
     if (hover.order !== undefined) return `Order position ${hover.order + 1}: pattern ${hex(song.value.order[hover.order])}. Click: PLAY starts here, and you edit that pattern.`;
     const t = song.value.tracks[hover.k];
@@ -598,9 +676,9 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   // ---- the computer keyboard (while the tracker is shown) ----
   function handleKey(e, down) {
     const mod = e.metaKey || e.ctrlKey;
-    if (state.mode === 'songs') {
+    if (state.mode === 'songs' || state.mode === 'playlist') {
       if (!down || mod || e.altKey) return false;
-      songKey(e);
+      if (state.mode === 'playlist') playlistKey(e); else songKey(e);
       return true;
     }
     if (!down) {
@@ -668,6 +746,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
 
   // ---- the song, and the worklet ----
   function load(s) {
+    if (!fromPlaylist) stopPlaylist();   // another song, by hand
     if (song.value) sendToWorklet({ type: 'tracker', op: 'stop' });
     song.value = s;
     editor = new Editor(s, send);
@@ -684,6 +763,11 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   // where the worklet's tracker plays: [playing, pattern, order position, row, bpm].
   // While the song plays, the display follows it into each next pattern.
   function onState(tracker) {
+    // a playlist's song ended on its own (a stop by hand ended the run first): the next, after the gap
+    if (state.playing[0] && !tracker[0] && playlist.state.active) {
+      clearTimeout(gapTimer);
+      gapTimer = setTimeout(() => { if (playlist.next()) startEntry(playlist.state.current); else render(); }, playlist.state.gap * 1000);
+    }
     const playedRow = tracker[3] !== state.playing[3] || tracker[0] !== state.playing[0];
     const nextPattern = tracker[0] && tracker[1] !== state.p && song.value.patterns[tracker[1]];
     state.playing = tracker;
@@ -709,7 +793,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   }
 
   // send: changes to the song (the mixer's too) go through it, so they save
-  return { el, load, onState, handleKey, send, keepLxrKit, exportWav, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
+  return { el, load, onState, handleKey, send, keepLxrKit, exportWav, playlist, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
     song.value.name.toUpperCase(),
     `P${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
   ] };
