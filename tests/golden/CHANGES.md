@@ -24,3 +24,7 @@ Each re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to 
 
 - `screens/tracker.png` (32717 pixels)
 - `screens/mixer.png` (21973 pixels)
+
+## 2026-10-30: trance comes back as version 3, a new regression song (Phase 10.6): listen to it
+
+- `songs.txt`: 1 of 4 renders (new): trance

@@ -342,8 +342,8 @@ try {
   await clickPad('.tracker-pads .pad:nth-last-child(2)');   // SONGS (PERF is last)
   await sleep(300);
   const listed = await trackerText();
-  check(['ELECTRO', 'SYNTHWAVE', 'DUB TECHNO'].every((g) => listed.toUpperCase().includes(g)) && !/TRANCE|FIRST STEPS/.test(listed.toUpperCase()),
-    'SONGS lists the three genre songs, and not the retired ones');
+  check(['ELECTRO', 'SYNTHWAVE', 'DUB TECHNO', 'DAWN RUN 3'].every((g) => listed.toUpperCase().includes(g)) && !/FIRST STEPS|DAWN RUN(?! 3)/.test(listed.toUpperCase()),
+    'SONGS lists the four genre songs, and not the retired ones');
   const songCount = Number(/(\d+) SONGS/.exec(listed)?.[1]);
   await press('KeyN', 'n');
   await sleep(400);

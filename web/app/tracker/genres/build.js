@@ -6,7 +6,8 @@
 // tools/song_stream.mjs). A song made here is an ordinary song: it opens in
 // the tracker, and every instrument's sound is in it.
 
-import { newSong, newPattern, cellKey } from '../song.js';
+import { newSong, newPattern, cellKey, FX_NAMES } from '../song.js';
+import { setGateSteps } from '../../mixer/mix.js';
 import lxrRegistry from '../../registry/lxr.js';
 
 // the tracks, as web/port/web_studio.c routes them
@@ -72,6 +73,25 @@ export function lxrKit(changes = {}) {
     kit[ids[id]] = v;
   }
   return kit;
+}
+
+// An effect on a cell (PLAN.md 10.1), kept with any note there: one of the
+// track's mixer controls ('level', 'pan', 'send A', 'send B', 'cutoff',
+// 'resonance') set to value at the row; slide: glide to the track's next one.
+export function effect(s, p, row, track, control, value, slide = false) {
+  const fx = FX_NAMES.findIndex((f) => f?.name === control);
+  if (fx < 1) throw new Error(`no effect ${control}`);
+  const key = cellKey(row, track);
+  const c = s.patterns[p].cells[key] ?? { notes: [] };
+  s.patterns[p].cells[key] = { ...c, fx, fxv: value, ...(slide ? { fxs: true } : {}) };
+}
+
+// a mixer channel's trance gate (PLAN.md 9.2): depth 0..127, a pattern of
+// 16 x and ., smoothing (registry/mix.json)
+export function gate(s, key, { depth, pattern, smooth = 47 }) {
+  const ch = s.mix.channels[key];
+  Object.assign(ch, { gate: depth, gateSmooth: smooth });
+  setGateSteps(ch, [...pattern].map((x) => x === 'x'));
 }
 
 // a mixer channel's settings (song.mix.channels[key])

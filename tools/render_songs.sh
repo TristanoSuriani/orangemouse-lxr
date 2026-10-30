@@ -10,7 +10,7 @@ cd "$ROOT"
 cmake -S tests/host -B tests/host/build -G Ninja >/dev/null
 cmake --build tests/host/build >/dev/null
 mkdir -p renders
-for g in electro synthwave dubtechno; do
+for g in electro synthwave dubtechno trance; do
   node tools/song_stream.mjs web/app/tracker/genres/$g.js > renders/$g.txt
   tests/host/build/song_render renders/$g.txt --wav renders/$g.wav | sed "s/^/$g: /"
   rm renders/$g.txt

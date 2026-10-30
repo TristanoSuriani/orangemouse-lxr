@@ -4,3 +4,5 @@ synthwave health: 0 not finite, peak 0.844, 0.00 % of samples at the limiter, DC
 synthwave hash 350c487e83a2f08c
 dubtechno health: 0 not finite, peak 0.514, 0.00 % of samples at the limiter, DC -0.00000, RMS -16.8 dBFS
 dubtechno hash b665f9827adea83e
+trance health: 0 not finite, peak 0.977, 0.00 % of samples at the limiter, DC -0.00000, RMS -15.5 dBFS
+trance hash c383df4b874d7256

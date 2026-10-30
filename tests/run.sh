@@ -96,7 +96,7 @@ check studio_demo.txt "$OUT/studio_demo.txt"
 echo "== the genre songs (whole, through the whole studio; PLAN.md Phase 6)"
 mkdir -p "$OUT/songs"
 : > "$OUT/songs.txt"
-for g in electro synthwave dubtechno; do
+for g in electro synthwave dubtechno trance; do
   node tools/song_stream.mjs web/app/tracker/genres/$g.js > "$OUT/songs/$g.txt"
   if ! $BIN/song_render "$OUT/songs/$g.txt" > "$OUT/songs/$g.out"; then
     echo "   FAIL: $g:"; grep -E 'silent|not finite' "$OUT/songs/$g.out" | sed 's/^/     /'; fail=1

@@ -476,6 +476,15 @@ comes back last, once the tools it needs exist.
    as before. There was no CC map in the registry to read; a fixed one is simpler to explain, and a
    learn mode can follow if a controller doesn't send 21-28.
 6. **Trance, version 3**, with ducking, the gate and the effect column, listened to like the others.
+   **Built 2026-10-30, waiting for your ears** (web/app/tracker/genres/trance.js, a new song,
+   `genre-trance-3`): held supersaw chords through VA2's mixer gate; the pads, the bass and the
+   string pad ducking under the kick; the build opening the pads' filter with an effect-column
+   slide, the breakdown sweeping the string pad's; the anthem gliding into some notes; conditions on
+   the open hats and ghost snares. A regression song too (tests/run.sh), at -15.5 dBFS RMS. To
+   listen: docs/listening/phase10.md.
+
+**Phases 7 to 10 done 2026-10-30.** "Later" waits, as it says, for the listening checklists:
+docs/listening/phase7.md and phase10.md.
 
 ## Testing: as much as possible without a browser or ears
 
