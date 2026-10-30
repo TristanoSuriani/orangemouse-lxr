@@ -11,7 +11,7 @@
 //
 // The module's default export is a function returning the song. Lines:
 //   T clear | T tempo <bpm> | T pattern <p> <rows> <bpm> | T order <pos> <p>
-//   T cell <p> <row> <track> <n0> <n1> <n2> <n3> <vel> <retrig>
+//   T cell <p> <row> <track> <n0> <n1> <n2> <n3> <vel> <retrig> <fx> <fxv>
 //   T route <track> <engine> <part> | T mute <track> <0|1> | T solo <track> <0|1>
 //   P <engine> <part> <param> <value>      an engine's parameter
 //   M <target> <param> <value>             the mixer
@@ -33,7 +33,7 @@ const lines = [];
 for (const m of songMessages(song)) {
   if (m.type === 'tracker') {
     const args = { clear: () => [], tempo: () => [m.bpm], pattern: () => [m.p, m.rows, m.bpm ?? 0], order: () => [m.position, m.p],
-      cell: () => [m.p, m.row, m.track, ...m.notes, m.vel, m.retrig], route: () => [m.track, m.engine, m.part],
+      cell: () => [m.p, m.row, m.track, ...m.notes, m.vel, m.retrig, m.fx, m.fxv], route: () => [m.track, m.engine, m.part],
       mute: () => [m.track, m.on ? 1 : 0], solo: () => [m.track, m.on ? 1 : 0] }[m.op];
     if (args) lines.push(['T', m.op, ...args()].join(' '));
   } else if (m.type === 'param') lines.push(`P ${m.engine} ${m.part} ${m.param} ${m.value}`);

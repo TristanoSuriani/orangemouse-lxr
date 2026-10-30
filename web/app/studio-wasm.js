@@ -73,7 +73,7 @@ export function applyMessage(w, msg) {
         case 'clear': w.om_web_tracker_clear(); break;
         case 'tempo': w.om_web_tracker_tempo(msg.bpm); break;
         case 'pattern': w.om_web_tracker_length(msg.p, msg.rows); w.om_web_tracker_pattern_tempo(msg.p, msg.bpm); break;
-        case 'cell': w.om_web_tracker_cell(msg.p, msg.row, msg.track, ...msg.notes, msg.vel, msg.retrig); break;
+        case 'cell': w.om_web_tracker_cell(msg.p, msg.row, msg.track, ...msg.notes, msg.vel, msg.retrig, msg.fx ?? 0, msg.fxv ?? 0); break;
         case 'order': w.om_web_tracker_order(msg.position, msg.p); break;
         case 'route': w.om_web_tracker_route(msg.track, msg.engine, msg.part); break;
         case 'mute': w.om_web_tracker_mute(msg.track, msg.on ? 1 : 0); break;

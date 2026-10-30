@@ -440,6 +440,14 @@ comes back last, once the tools it needs exist.
 1. **An effect column** in the cell: a parameter (cutoff, resonance, send, level...) set on a row, with
    a slide to the next value, for the sweeps dub techno and trance live on. Patterns' own effects stay,
    for the jumps on the downbeat.
+   **Done 2026-10-30**: a cell can set one of its track's mixer controls at its row: L level, P pan,
+   A and B the sends, C cutoff, R resonance, 0-7F. With a slide (`>`) it glides, block by block and
+   between the byte values (om_studio_mix_fine), to the track's next effect on that control in the
+   pattern. Stopping (or the song's end, or a new start) puts the song's own values back, as
+   automation does. \` shows the effect column: the cell reads `C-4³ C40>`, and the knobs are FX,
+   VAL, SLD, LEN; in the note view a cell with an effect shows its letter. A cell may hold only an
+   effect. The C cell carries it (studio/tracker.h), the stream and the page too; the fuzz plays
+   random effects. No render changed.
 2. **Swing** per pattern, for electro and dub techno.
 3. **Glide and note length** for the mono VA slots, for acid and rubbery bass lines.
 4. **Probability and conditions** on a cell (play 50 %, every 2nd time...), so long dub techno loops

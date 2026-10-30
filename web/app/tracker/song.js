@@ -6,7 +6,15 @@
 // in the worklet) gets a copy of every change to play.
 //
 // A cell is null (empty) or { notes: [up to 4 MIDI notes], off: true (a note
-// off), vel: 1..127 (0: 100), retrig: 0 or 2..8 }.
+// off), vel: 1..127 (0: 100), retrig: 0 or 2..8 }, and maybe an effect (PLAN.md
+// 10.1): fx 1..6 (FX_NAMES: one of the track's mixer controls), fxv 0..127,
+// fxs true to slide to the track's next effect on that control. A cell with
+// only an effect has no notes ([]).
+
+// the effect column's controls (studio/tracker.h OM_FX_*), as the display shows them
+export const FX_NAMES = [null, { key: 'L', name: 'level' }, { key: 'P', name: 'pan' }, { key: 'A', name: 'send A' },
+  { key: 'B', name: 'send B' }, { key: 'C', name: 'cutoff' }, { key: 'R', name: 'resonance' }];
+export const FX_SLIDE = 0x80;
 
 import { newMix, mixMessages } from '../mixer/mix.js';
 import plaitsRegistry from '../registry/plaits.js';
@@ -83,7 +91,8 @@ function cellMessage(p, row, track, cell) {
   const notes = [EMPTY_NOTE, EMPTY_NOTE, EMPTY_NOTE, EMPTY_NOTE];
   if (cell?.off) notes[0] = OFF_NOTE;
   else if (cell) cell.notes.slice(0, CHORD).forEach((n, i) => { notes[i] = n; });
-  return { type: 'tracker', op: 'cell', p, row, track, notes, vel: cell?.vel ?? 0, retrig: cell?.retrig ?? 0 };
+  return { type: 'tracker', op: 'cell', p, row, track, notes, vel: cell?.vel ?? 0, retrig: cell?.retrig ?? 0,
+    fx: cell?.fx ? cell.fx | (cell.fxs ? FX_SLIDE : 0) : 0, fxv: cell?.fxv ?? 0 };
 }
 
 // Every message that makes the worklet's tracker and mixer a copy of the song.

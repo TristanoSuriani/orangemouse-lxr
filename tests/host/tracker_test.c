@@ -244,8 +244,33 @@ int main(void)
 		CHECK(stops == 1 && stopAt == 12000, "the clock stops %d times, at frame %llu (12000 expected)", stops, (unsigned long long)stopAt);
 	}
 
+	{   // the effect column (PLAN.md 10.1): a cutoff slide from 20 at row 0 to 100 at row 4, then put back
+		fresh();
+		om_tracker_set_tempo(tr, 120.f);   // a row: 6000 frames at 48 kHz
+		OmCell a = {{OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY}, 0, 0, OM_FX_CUTOFF | OM_FX_SLIDE, 20};
+		OmCell b = a;
+		b.fx = OM_FX_CUTOFF;
+		b.fxValue = 100;
+		om_tracker_set_cell(tr, 0, 0, 0, &a);
+		om_tracker_set_cell(tr, 0, 4, 0, &b);
+		const uint8_t before = om_studio_mix_value(st, 0, OM_MIX_CUTOFF);
+		om_tracker_play_song(tr, 0);
+		run(640);
+		const uint8_t at0 = om_studio_mix_value(st, 0, OM_MIX_CUTOFF);
+		run(12000 - 640);
+		const uint8_t mid = om_studio_mix_value(st, 0, OM_MIX_CUTOFF);
+		run(12000 + 640);
+		const uint8_t at4 = om_studio_mix_value(st, 0, OM_MIX_CUTOFF);
+		om_tracker_stop(tr);
+		const uint8_t after = om_studio_mix_value(st, 0, OM_MIX_CUTOFF);
+		CHECK(at0 >= 20 && at0 <= 22 && mid >= 58 && mid <= 62 && at4 == 100, "the slide: %d at row 0, %d at row 2, %d at row 4", at0, mid, at4);
+		CHECK(before == 127 && after == 127, "the stop puts the song's cutoff back: %d before, %d after", before, after);
+		CHECK(nevs == 0, "a cell with only an effect plays no note (%d events)", nevs);
+	}
+
 	om_tracker_destroy(tr);
 	om_studio_destroy(st);
+
 	if (failures)
 	{
 		printf("%d tracker check(s) failed\n", failures);

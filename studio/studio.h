@@ -83,6 +83,9 @@ int om_studio_channel(const OmStudio *st, uint8_t engine, uint8_t stem);   // -1
 // (LEVEL); bytes as in registry/mix.json. Bus A starts as a hall, B a delay.
 void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value);
 uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param);
+// A channel's level, pan, sends, cutoff or resonance between two byte values
+// (0..127): the tracker's slides. om_studio_mix_value gives the nearest byte.
+void om_studio_mix_fine(OmStudio *st, uint8_t target, uint8_t param, float value);
 // A send effect's parameter (fx.h, registry/fx.json); bus 0 is A, 1 is B.
 void om_studio_fx(OmStudio *st, uint8_t bus, uint16_t param, uint8_t value);
 uint8_t om_studio_fx_value(const OmStudio *st, uint8_t bus, uint16_t param);

@@ -550,6 +550,25 @@ try {
   check(retired.removed === 2 && retired.again === 0 && !retired.names.includes('First steps') && retired.names.includes('Keep me'),
     `the retired songs leave the library once, the others stay (${retired.removed} removed)`);
 
+  console.log('== the effect column (PLAN.md 10.1)');
+  {
+    await evaluate(`window.orangeMouseUi.showDevice(0)`);
+    await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(lib.migrate({ name: 'Fx test' })); })()`);
+    await press('Backquote', '`');
+    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[0].focus()`);
+    for (let i = 0; i < 5; i++) await press('ArrowUp', 'ArrowUp', 8);   // FX: level, pan, send A, send B, cutoff
+    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[2].focus()`);
+    await press('ArrowUp', 'ArrowUp', 8);   // SLD on
+    await evaluate(`document.activeElement.blur()`);
+    const cellNow = await evaluate(`JSON.stringify(window.orangeMouse.tracker.song().patterns[0].cells['0:0'])`);
+    check(cellNow === '{"notes":[],"fx":5,"fxv":64,"fxs":true}', `the FX knobs give the empty cell a cutoff slide: ${cellNow}`);
+    check((await trackerRow(0)).includes('···  C40>'), `the display shows it: "${await trackerRow(0)}"`);
+    check((await evaluate(`[...document.querySelectorAll('.tracker-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'FX VAL SLD LEN', 'the knobs are FX, VAL, SLD, LEN');
+    await evaluate(`document.querySelector('.tracker-lcd').dispatchEvent(new PointerEvent('pointermove', { clientX: 1, clientY: 1 }))`);
+    await press('Backquote', '`');
+    check((await trackerRow(0)).includes('···  ·· C'), `back in the note view, the cell shows its effect's letter: "${await trackerRow(0)}"`);
+  }
+
   console.log('== the tracker follows the song');
   await evaluate(`(async () => {
     const { newSong, newPattern } = await import('./tracker/song.js');

@@ -26,7 +26,15 @@ typedef struct
 	uint8_t muted, solo;
 	uint8_t sounding[OM_CHORD];   // notes playing, to release
 	uint8_t count;                // how many
+	// a slide of the effect column: param from `from` to `to` over `frames` from `start`
+	uint8_t sliding, param;
+	float from, to;
+	uint64_t start;
+	double frames;
 } Track;
+
+// the mixer control each effect sets
+static const uint8_t FX_PARAM[OM_FX_COUNT] = {0, OM_MIX_LEVEL, OM_MIX_PAN, OM_MIX_SEND_A, OM_MIX_SEND_B, OM_MIX_CUTOFF, OM_MIX_RESONANCE};
 
 struct OmTracker
 {
@@ -43,9 +51,12 @@ struct OmTracker
 	int16_t row;           // the next row to start
 	uint8_t lastRow;
 	double nextFrame;      // when it starts
+	// the song's own mixer values the effects changed, to put back when it stops
+	uint8_t saved[OM_MAX_CHANNELS][OM_FX_COUNT];
+	uint8_t touched[OM_MAX_CHANNELS];   // bit e: effect e changed this channel
 };
 
-static const OmCell EMPTY = {{OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY}, 0, 0};
+static const OmCell EMPTY = {{OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY}, 0, 0, 0, 0};
 
 OmTracker *om_tracker_create(OmStudio *studio, float sampleRate)
 {
@@ -76,6 +87,10 @@ void om_tracker_clear(OmTracker *t)
 	memset(t->order, OM_ORDER_END, sizeof(t->order));
 	t->order[0] = 0;
 	t->bpm = 120.f;
+	// a new song brings its own mix: what the effects changed is forgotten, not put back
+	memset(t->touched, 0, sizeof(t->touched));
+	for (int k = 0; k < OM_TRACKS; k++)
+		t->track[k].sliding = 0;
 }
 
 void om_tracker_set_cell(OmTracker *t, uint8_t pattern, uint8_t row, uint8_t track, const OmCell *cell)
@@ -162,6 +177,80 @@ static uint8_t audible(const OmTracker *t, uint8_t k)
 	return t->track[k].routed && !t->track[k].muted && (!anySolo || t->track[k].solo);
 }
 
+// the mixer channel a track plays on (-1: none): the LXR's hihats share a stem
+static int channelOf(const OmTracker *t, const Track *tr)
+{
+	if (!tr->routed)
+		return -1;
+	return om_studio_channel(t->studio, tr->engine, tr->engine == 0 && tr->part == 6 ? 5 : tr->part);
+}
+
+// A row's effect on track k: set the control now, and slide to the next one if asked.
+static void playEffect(OmTracker *t, uint8_t k, uint8_t row, const OmCell *c, uint64_t frame, double length)
+{
+	Track *tr = &t->track[k];
+	const uint8_t e = c->fx & 0x7f;
+	const int ch = channelOf(t, tr);
+	if (!e || e >= OM_FX_COUNT || ch < 0)
+		return;
+	const uint8_t param = FX_PARAM[e];
+	if (!(t->touched[ch] & (1u << e)))
+	{
+		t->saved[ch][e] = om_studio_mix_value(t->studio, (uint8_t)ch, param);
+		t->touched[ch] |= (uint8_t)(1u << e);
+	}
+	const uint8_t v = c->fxValue > 127 ? 127 : c->fxValue;
+	om_studio_mix_fine(t->studio, (uint8_t)ch, param, v);
+	tr->sliding = 0;
+	if (!(c->fx & OM_FX_SLIDE))
+		return;
+	const Pattern *pt = &t->pattern[t->current];
+	for (int r = row + 1; r < pt->rows; r++)
+	{
+		const OmCell *n = &pt->cell[r][k];
+		if ((n->fx & 0x7f) == e)
+		{
+			tr->sliding = 1;
+			tr->param = param;
+			tr->from = v;
+			tr->to = n->fxValue > 127 ? 127 : n->fxValue;
+			tr->start = frame;
+			tr->frames = (r - row) * length;   // at the pattern's tempo
+			return;
+		}
+	}
+}
+
+// the slides, at the start of each block
+static void slide(OmTracker *t, uint64_t now)
+{
+	for (uint8_t k = 0; k < OM_TRACKS; k++)
+	{
+		Track *tr = &t->track[k];
+		const int ch = channelOf(t, tr);
+		if (!tr->sliding || ch < 0 || now < tr->start)
+			continue;
+		const double f = tr->frames > 0.0 ? (double)(now - tr->start) / tr->frames : 1.0;
+		om_studio_mix_fine(t->studio, (uint8_t)ch, tr->param, f >= 1.0 ? tr->to : tr->from + (tr->to - tr->from) * (float)f);
+		if (f >= 1.0)
+			tr->sliding = 0;
+	}
+}
+
+// the song's own values back, after the effects changed them
+static void restore(OmTracker *t)
+{
+	for (uint8_t k = 0; k < OM_TRACKS; k++)
+		t->track[k].sliding = 0;
+	for (int ch = 0; ch < OM_MAX_CHANNELS; ch++)
+	{
+		for (uint8_t e = 1; e < OM_FX_COUNT; e++)
+			if (t->touched[ch] & (1u << e))
+				om_studio_mix(t->studio, (uint8_t)ch, FX_PARAM[e], t->saved[ch][e]);
+		t->touched[ch] = 0;
+	}
+}
+
 // Plays one row of the current pattern at `frame`.
 static void playRow(OmTracker *t, uint8_t row, uint64_t frame, double length)
 {
@@ -172,6 +261,8 @@ static void playRow(OmTracker *t, uint8_t row, uint64_t frame, double length)
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 	{
 		const OmCell *c = &t->pattern[t->current].cell[row][k];
+		if (c->fx)
+			playEffect(t, k, row, c, frame, length);
 		if (c->note[0] == OM_NOTE_EMPTY)
 			continue;
 		Track *tr = &t->track[k];
@@ -216,6 +307,7 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 {
 	const uint64_t now = om_studio_frame(t->studio);
 	const uint64_t end = now + frames;
+	slide(t, now);
 	while (t->playing && t->nextFrame < (double)end)
 	{
 		const uint64_t at = t->nextFrame < (double)now ? now : (uint64_t)(t->nextFrame + 0.5);
@@ -229,6 +321,7 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 			for (uint8_t k = 0; k < OM_TRACKS; k++)
 				release(t, k, (uint64_t)(t->nextFrame + 0.5));
 			om_studio_clock(t->studio, (uint64_t)(t->nextFrame + 0.5), OM_CLOCK_STOP);
+			restore(t);
 		}
 	}
 }
@@ -236,6 +329,7 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 static void start(OmTracker *t)
 {
 	om_studio_cancel_after(t->studio, om_studio_frame(t->studio));   // the last row's hits still to come
+	restore(t);   // the song's own mix, before its first row's effects
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 		release(t, k, om_studio_frame(t->studio));
 	t->row = 0;
@@ -274,6 +368,7 @@ void om_tracker_stop(OmTracker *t)
 	om_studio_cancel_after(t->studio, om_studio_frame(t->studio));   // the row's hits still to come
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 		release(t, k, om_studio_frame(t->studio));
+	restore(t);
 }
 
 OmTrackerState om_tracker_state(const OmTracker *t)

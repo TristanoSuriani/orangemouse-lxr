@@ -52,6 +52,8 @@ typedef struct
 {
 	uint8_t engine, stem;
 	uint8_t value[OM_MIX_LAST + 1];
+	float fine[OM_MIX_RESONANCE + 1];   // level..send B, cutoff, resonance as the DSP uses them: the
+	                                    // bytes, or between them during a tracker slide (om_studio_mix_fine)
 	OmFilter *filter;
 	Gain left, right, sendA, sendB;
 	float peak;
@@ -110,7 +112,7 @@ struct OmStudio
 };
 
 // a fader's byte as a gain: 100 is 0 dB (registry/mix.json "fader")
-static float fader(uint8_t v)
+static float fader(float v)
 {
 	const float x = v / 100.f;
 	return x * x * x;
@@ -185,6 +187,7 @@ int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 			return -1;
 		}
 		ch->value[OM_MIX_CUTOFF] = 127;
+		ch->fine[OM_MIX_CUTOFF] = 127.f;
 		om_studio_mix(st, c, OM_MIX_DUCK_RELEASE, 62);   // 150 ms (registry/mix.json)
 		om_studio_mix(st, c, OM_MIX_GATE_SMOOTH, 47);    // 3 ms
 		ch->value[OM_MIX_GATE_STEPS1] = ch->value[OM_MIX_GATE_STEPS2] = 21;   // the 8ths: x.x.x.x.x.x.x.x.
@@ -341,14 +344,15 @@ static void retarget(OmStudio *st)
 	{
 		Channel *ch = &st->channel[c];
 		const uint8_t *v = ch->value;
-		const float level = v[OM_MIX_MUTE] || (anySolo && !v[OM_MIX_SOLO]) ? 0.f : fader(v[OM_MIX_LEVEL]);
+		const float *f = ch->fine;
+		const float level = v[OM_MIX_MUTE] || (anySolo && !v[OM_MIX_SOLO]) ? 0.f : fader(f[OM_MIX_LEVEL]);
 		// balance: the far side is turned down, the near side stays
-		float b = (v[OM_MIX_PAN] - 64) / 63.f;
+		float b = (f[OM_MIX_PAN] - 64.f) / 63.f;
 		b = b < -1.f ? -1.f : b > 1.f ? 1.f : b;
 		ch->left.to = level * (b > 0.f ? 1.f - b : 1.f);
 		ch->right.to = level * (b < 0.f ? 1.f + b : 1.f);
-		ch->sendA.to = level * fader(v[OM_MIX_SEND_A]);   // after the fader, before the pan
-		ch->sendB.to = level * fader(v[OM_MIX_SEND_B]);
+		ch->sendA.to = level * fader(f[OM_MIX_SEND_A]);   // after the fader, before the pan
+		ch->sendB.to = level * fader(f[OM_MIX_SEND_B]);
 	}
 }
 
@@ -421,6 +425,8 @@ static void eqProcess(Channel *ch, float *sl, float *sr)
 	}
 }
 
+static void channelChanged(OmStudio *st, Channel *ch, uint8_t param);
+
 void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 {
 	if (target == OM_MIX_MASTER)
@@ -455,6 +461,14 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 		: param == OM_MIX_DUCK_KEY ? OM_MAX_CHANNELS - 1 : param == OM_MIX_GATE_STEPS3 ? 15
 		: param == OM_MIX_GATE_STEPS1 || param == OM_MIX_GATE_STEPS2 ? 63 : 127;
 	ch->value[param] = value > max ? max : value;
+	if (param <= OM_MIX_SEND_B || param == OM_MIX_CUTOFF || param == OM_MIX_RESONANCE)
+		ch->fine[param] = ch->value[param];
+	channelChanged(st, ch, param);
+}
+
+// What a change of a channel's control changes in the DSP.
+static void channelChanged(OmStudio *st, Channel *ch, uint8_t param)
+{
 	if (param == OM_MIX_DUCK_RELEASE)   // 20 ms .. 1.28 s (registry "exp")
 		ch->duckRel = expf(-1.f / (0.02f * exp2f(ch->value[param] * 6.f / 127.f) * st->rate));
 	else if (param >= OM_MIX_EQ_LOW)
@@ -464,10 +478,21 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 	else if (param >= OM_MIX_DUCK)
 		return;
 	else if (param >= OM_MIX_FILTER)   // cutoff: semitones from A4, -60 .. 70 (registry "exp", 13.75 Hz up)
-		om_filter_set(ch->filter, ch->value[OM_MIX_FILTER], -60.f + ch->value[OM_MIX_CUTOFF] * (130.f / 127.f),
-		              ch->value[OM_MIX_RESONANCE] / 127.f);
+		om_filter_set(ch->filter, ch->value[OM_MIX_FILTER], -60.f + ch->fine[OM_MIX_CUTOFF] * (130.f / 127.f),
+		              ch->fine[OM_MIX_RESONANCE] / 127.f);
 	else
 		retarget(st);
+}
+
+void om_studio_mix_fine(OmStudio *st, uint8_t target, uint8_t param, float value)
+{
+	if (target >= st->channels || !(param <= OM_MIX_SEND_B || param == OM_MIX_CUTOFF || param == OM_MIX_RESONANCE))
+		return;
+	Channel *ch = &st->channel[target];
+	value = value < 0.f ? 0.f : value > 127.f ? 127.f : value;
+	ch->fine[param] = value;
+	ch->value[param] = (uint8_t)(value + 0.5f);
+	channelChanged(st, ch, param);
 }
 
 uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param)

@@ -40,11 +40,19 @@
 #define OM_NOTE_OFF      0xFE
 #define OM_ORDER_END     0xFF
 
+// A cell's effect (PLAN.md 10.1): one of the track's mixer controls set at the
+// row, OM_FX_SLIDE: gliding from there to the track's next effect on the same
+// control in the pattern. Stopping puts the song's own values back.
+enum { OM_FX_NONE, OM_FX_LEVEL, OM_FX_PAN, OM_FX_SEND_A, OM_FX_SEND_B, OM_FX_CUTOFF, OM_FX_RESONANCE, OM_FX_COUNT };
+#define OM_FX_SLIDE 0x80
+
 typedef struct
 {
 	uint8_t note[OM_CHORD];   // MIDI notes, OM_NOTE_EMPTY, or note[0] = OM_NOTE_OFF
 	uint8_t velocity;         // 1..127; 0: 100
 	uint8_t retrig;           // 0 or 1: one hit; 2..8 hits in the row
+	uint8_t fx;               // OM_FX_*, with OM_FX_SLIDE
+	uint8_t fxValue;          // 0..127
 } OmCell;
 
 typedef struct OmTracker OmTracker;

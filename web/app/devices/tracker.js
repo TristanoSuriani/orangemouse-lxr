@@ -18,7 +18,7 @@ import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed } from '../kit/controls.js';
 import { addGuide } from '../kit/guide.js';
 import { KEY_SEMITONES } from '../kit/keybed.js';
-import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, newPattern, getCell, songMessages, Editor } from '../tracker/song.js';
+import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, FX_NAMES, newPattern, getCell, songMessages, Editor } from '../tracker/song.js';
 import * as library from '../tracker/library.js';
 import { backup } from '../tracker/backup.js';
 import { renderSong, wavFile } from '../tracker/wav.js';
@@ -37,18 +37,25 @@ const STEPS = [0, 1, 2, 4, 8];
 const hex = (n) => n.toString(16).toUpperCase().padStart(2, '0');
 const noteName = (n) => NOTE_NAMES[n % 12] + (n < 12 ? '-' : String(Math.floor(n / 12) - 1));
 
-function cellText(cell) {
-  if (!cell) return '···  ·· ·';
-  if (cell.off) return 'OFF  ·· ·';
-  const n = cell.notes;
-  return `${noteName(n[0])}${SUPERSCRIPT[n.length] || ' '} ${cell.vel ? hex(cell.vel) : '··'} ${cell.retrig >= 2 ? cell.retrig : '·'}`;
+// the effect in 4 characters: "C40>" (control, value in hex, > for a slide), or "····"
+const fxText = (cell) => (cell?.fx ? `${FX_NAMES[cell.fx].key}${hex(cell.fxv ?? 0)}${cell.fxs ? '>' : ' '}` : '····');
+
+// fx: the effect view, where the effect takes the velocity's and retrigger's place
+function cellText(cell, fx = false) {
+  const note = !cell ? '···' : cell.off ? 'OFF' : cell.notes.length ? noteName(cell.notes[0]) : '···';
+  const chord = cell && !cell.off ? SUPERSCRIPT[cell.notes.length] || ' ' : ' ';
+  if (fx) return `${note}${chord} ${fxText(cell)}`;
+  if (!cell || cell.off || !cell.notes.length) return `${note}  ·· ${cell?.fx ? FX_NAMES[cell.fx].key : '·'}`;
+  return `${note}${chord} ${cell.vel ? hex(cell.vel) : '··'} ${cell.retrig >= 2 ? cell.retrig : cell.fx ? FX_NAMES[cell.fx].key : '·'}`;
 }
 
 function cellWords(cell) {
   if (!cell) return 'empty';
-  if (cell.off) return 'note off: ends the note playing';
+  const fx = cell.fx ? `; sets the ${FX_NAMES[cell.fx].name} to ${cell.fxv ?? 0}${cell.fxs ? ', sliding to the next' : ''}` : '';
+  if (cell.off) return `note off: ends the note playing${fx}`;
+  if (!cell.notes.length) return `no note${fx}`;
   const chord = cell.notes.length > 1 ? ` (a chord: ${cell.notes.map(noteName).join(' ')})` : '';
-  return `${noteName(cell.notes[0])}${chord}, velocity ${cell.vel || 100}${cell.retrig >= 2 ? `, ${cell.retrig} hits` : ''}`;
+  return `${noteName(cell.notes[0])}${chord}, velocity ${cell.vel || 100}${cell.retrig >= 2 ? `, ${cell.retrig} hits` : ''}${fx}`;
 }
 
 const GUIDE = [
@@ -60,6 +67,7 @@ const GUIDE = [
   { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, W renders a WAV file, C copies a share code, V loads one.' },
   { title: 'The playlist', text: 'In SONGS, Q queues the chosen song and L shows the playlist: Enter plays from there, each song to its end and then the next after the gap (- and =). Shift+arrows reorder, Delete removes. STOP ends it.' },
   { title: 'Keeping songs safe', text: 'The browser may clear its storage. B picks a backup folder: every song is copied there as .json each time it saves (after a reload, B lets it write again). A exports every song in one file, which I imports. The display says when the songs are not safe.' },
+  { title: 'Effects', text: 'The \` key (left of 1) shows the effect column: a cell can set one of its track\'s mixer controls at its row (L level, P pan, A/B sends, C cutoff, R resonance), "C40" sets the cutoff to 64. With SLD on (">") it slides to the track\'s next effect on that control: a sweep. The knobs become FX, VAL, SLD. Stopping puts the mix back.' },
   { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
@@ -95,6 +103,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     message: '',              // a short note on the status row (songs mode)
     banner: '',               // the same in pattern mode: a WAV being rendered, then its result
     plCur: 0,                 // the chosen playlist entry
+    fxView: false,            // the effect column on the display, and on the knobs (\`)
   };
 
   const el = document.createElement('section');
@@ -157,7 +166,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
       const row = FIRST + i;
       if (r >= pt.rows) { display.line(row, ''); continue; }
       let text = `${hex(r)}${r % 4 === 0 ? '·' : ' '}`;
-      for (let j = 0; j < SHOWN; j++) text += cellText(cell(r, state.view * SHOWN + j)) + ' ';
+      for (let j = 0; j < SHOWN; j++) text += cellText(cell(r, state.view * SHOWN + j), state.fxView) + ' ';
       display.line(row, text);
       if (isPlayingHere() && state.playing[3] === r) display.invert(row, 0, 2);
       for (let j = 0; j < SHOWN; j++) {
@@ -178,9 +187,13 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
 
     // the knobs' values
     const c = cell();
-    const vel = c && !c.off ? (c.vel || 100) : '-';
-    const rtg = c && !c.off ? (c.retrig >= 2 ? c.retrig : 'off') : '-';
-    display.line(ROWS - 1, [`VEL ${vel}`, `RTG ${rtg}`, `BPM ${Math.round(bpm)}`, `LEN ${pt.rows}`].map((x) => x.padEnd(21)).join(''));
+    const vel = c && !c.off && c.notes.length ? (c.vel || 100) : '-';
+    const rtg = c && !c.off && c.notes.length ? (c.retrig >= 2 ? c.retrig : 'off') : '-';
+    const knobText = state.fxView
+      ? [`FX ${c?.fx ? FX_NAMES[c.fx].name.toUpperCase() : 'none'}`, `VAL ${c?.fx ? c.fxv ?? 0 : '-'}`, `SLD ${c?.fx ? (c.fxs ? 'on' : 'off') : '-'}`, `LEN ${pt.rows}`]
+      : [`VEL ${vel}`, `RTG ${rtg}`, `BPM ${Math.round(bpm)}`, `LEN ${pt.rows}`];
+    display.line(ROWS - 1, knobText.map((x) => x.padEnd(21)).join(''));
+    knobCaptions.forEach((cap, i) => { cap.textContent = (state.fxView ? FX_KNOBS : KNOBS)[i][0]; });
     display.draw();
     help.refresh();
     setLed(pads.edit, state.edit);
@@ -458,6 +471,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     } else {
       next = { notes: [note], vel: old && !old.off ? old.vel : 0, retrig: old && !old.off ? old.retrig : 0 };
     }
+    if (old?.fx) Object.assign(next, { fx: old.fx, fxv: old.fxv, fxs: old.fxs });   // a note keeps the cell's effect
     apply([{ p: state.p, row: state.cur.r, track: state.cur.k, cell: next }]);
     if (!stack) move(state.step, 0);
   }
@@ -574,14 +588,33 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     ['LEN', 'The pattern\'s length in rows (sixteenths): 16 is a bar, 64 four bars.',
       (n) => { pat().rows = Math.max(1, Math.min(MAX_ROWS, pat().rows + n)); send({ type: 'tracker', op: 'pattern', p: state.p, rows: pat().rows, bpm: pat().bpm }); state.cur.r = clampRow(state.cur.r); render(); }],
   ];
+  // the effect view's knobs (\`): the effect of the cell (or the selected cells)
+  const withFx = (c, fn) => fn(c && (c.off || c.notes) ? { ...c } : { notes: [] });
+  const FX_KNOBS = [
+    ['FX', 'The effect: which of the track\'s mixer controls the cell sets (level, pan, send A, send B, cutoff, resonance), or none.',
+      (n) => setInCells((c) => withFx(c, (x) => {
+        x.fx = Math.max(0, Math.min(FX_NAMES.length - 1, (x.fx ?? 0) + Math.sign(n)));
+        if (!x.fx) { delete x.fx; delete x.fxv; delete x.fxs; }
+        else x.fxv ??= 64;
+        return !x.off && !x.notes.length && !x.fx ? null : x;
+      }))],
+    ['VAL', 'The value the effect sets, 0 to 127 (as the mixer\'s knob: 100 is 0 dB on a level, 64 the centre on a pan).',
+      (n) => setInCells((c) => (c?.fx ? { ...c, fxv: Math.max(0, Math.min(127, (c.fxv ?? 0) + n)) } : c))],
+    ['SLD', 'Slide: from this value to the track\'s next effect on the same control, over the rows between (a sweep).',
+      (n) => setInCells((c) => (c?.fx ? { ...c, fxs: n > 0 } : c))],
+  ];
+  FX_KNOBS.push(KNOBS[3]);   // LEN
   const knobs = el.querySelector('.tracker-knobs');
-  KNOBS.forEach(([label, text, onStep]) => {
-    const { wrap, pot } = makeKnob(label, { onStep: (s) => onStep(Math.sign(s) * Math.max(1, Math.abs(s) >> 1)) });
+  const knobCaptions = [];
+  KNOBS.forEach(([label, text], i) => {
+    const step = (s) => (state.fxView ? FX_KNOBS : KNOBS)[i][2](Math.sign(s) * Math.max(1, Math.abs(s) >> 1));
+    const { wrap, pot } = makeKnob(label, { onStep: step });
     const cap = document.createElement('span');
     cap.className = 'caption';
     cap.textContent = label;
     wrap.append(cap);
-    describe(pot, help, `${label}: ${text}`);
+    knobCaptions.push(cap);
+    describe(pot, help, () => { const [l, t] = (state.fxView ? FX_KNOBS : KNOBS)[i]; return `${l}: ${t}`; });
     knobs.append(wrap);
   });
 
@@ -739,6 +772,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
         return true;
       case '[': state.octs[state.cur.k] = Math.max(0, state.octs[state.cur.k] - 1); render(); return true;
       case ']': state.octs[state.cur.k] = Math.min(8, state.octs[state.cur.k] + 1); render(); return true;
+      case '`': state.fxView = !state.fxView; render(); return true;   // the effect column
       case '-': state.step = STEPS[Math.max(0, STEPS.indexOf(state.step) - 1)]; render(); return true;
       case '=': state.step = STEPS[Math.min(STEPS.length - 1, STEPS.indexOf(state.step) + 1)]; render(); return true;
     }
