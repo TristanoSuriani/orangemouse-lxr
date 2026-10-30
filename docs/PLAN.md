@@ -389,6 +389,10 @@ comes back last, once the tools it needs exist.
 
 1. **WAV export** from the tracker: the offline render `song_render` already does natively, run in
    WebAssembly, with `RENDERING…` on the display first.
+   **Done 2026-10-30**: W in SONGS renders the chosen song in the render worker (Phase 7.2's: a studio
+   of its own, sample for sample as song_render, with the LXR's SD card as the live studio has it)
+   while the studio keeps playing. The display shows `RENDERING… n %`, then the length and peak; the
+   file is 24-bit stereo at 44.1 kHz (web/app/tracker/wav.js).
 2. **The playlist:** songs queued one after another with a set gap, reorderable, startable anywhere.
 3. **The perform view:** the big display as full-screen visuals that react to each track's level.
 

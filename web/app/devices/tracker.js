@@ -21,6 +21,7 @@ import { KEY_SEMITONES } from '../kit/keybed.js';
 import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, newPattern, getCell, songMessages, Editor } from '../tracker/song.js';
 import * as library from '../tracker/library.js';
 import { backup } from '../tracker/backup.js';
+import { renderSong, wavFile } from '../tracker/wav.js';
 
 const COLS = 84;
 const ROWS = 20;
@@ -55,12 +56,12 @@ const GUIDE = [
   { title: 'Step', text: 'STEP (or - and =) sets how far the cursor moves after a note: 1 fills every row, 4 writes on the beat, 0 keeps it still for auditioning.' },
   { title: 'Select, copy, paste', text: 'Without a selection, Cmd/Ctrl C and V copy one cell. Shift+arrows or a drag select a block; paste lands at the cursor. Cmd+Shift+V pastes back into the same tracks. Cmd+A: the track, again: everything. Cmd+Z undoes.' },
   { title: 'Play', text: 'Space plays the song from the order position you chose (click it on the ORDER row), or stops. Enter (LOOP) repeats the pattern you edit. PAT -/+ choose the pattern; PAT + past the last makes a new one; Cmd+D duplicates it. ORD + adds it to the order list. BPM sets the pattern\'s tempo.' },
-  { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, C copies a share code, V loads one.' },
+  { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, W renders a WAV file, C copies a share code, V loads one.' },
   { title: 'Keeping songs safe', text: 'The browser may clear its storage. B picks a backup folder: every song is copied there as .json each time it saves (after a reload, B lets it write again). A exports every song in one file, which I imports. The display says when the songs are not safe.' },
   { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
-export function createTrackerDevice({ send: sendToWorklet, help }) {
+export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () => null }) {
   const song = { value: null };
   // every change to the song is sent to the worklet, and saves the song a moment later
   let saveTimer = null;
@@ -90,6 +91,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
     songCur: 0,
     confirm: null,            // a song id waiting for its second Delete
     message: '',              // a short note on the status row (songs mode)
+    banner: '',               // the same in pattern mode: a WAV being rendered, then its result
   };
 
   const el = document.createElement('section');
@@ -132,7 +134,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
     const play = state.playing[0] ? `▶ ${state.playing[1] === state.p ? 'HERE' : `P${hex(state.playing[1])}`} POS ${hex(state.playing[2])}` : 'STOPPED';
     if (state.mode === 'songs') { renderSongs(play); return; }
     const bpm = pt.bpm || s.bpm;
-    display.line(0, `PAT ${hex(state.p)}/${hex(s.patterns.length - 1)} LEN ${pt.rows} BPM ${Math.round(bpm)}  ${play.padEnd(16)}`
+    display.line(0, state.banner || `PAT ${hex(state.p)}/${hex(s.patterns.length - 1)} LEN ${pt.rows} BPM ${Math.round(bpm)}  ${play.padEnd(16)}`
       + ` ${state.edit ? 'EDIT' : 'JAM '} STEP ${state.step} OCT ${state.octs[state.cur.k]}  T${state.view ? '9-16' : '1-8'}`);
 
     let head = '   ';
@@ -187,7 +189,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   let orderStarts = [];
   function renderSongs(play) {
     display.uninvert();
-    display.line(0, `SONGS ${state.message || 'N new D dup R rename DEL delete E/I export/import C/V code A all B folder'}`.slice(0, COLS));
+    display.line(0, `SONGS ${state.message || 'N new D dup R rename DEL delete E/I json W wav C/V code A all B folder'}`.slice(0, COLS));
     display.line(1, `   ${'NAME'.padEnd(40)}SAVED`);
     const list = state.songs;
     const top = Math.max(0, Math.min(list.length - VISIBLE, state.songCur - Math.floor(VISIBLE / 2)));
@@ -205,6 +207,36 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
     display.line(ROWS - 1, 'SONGS again (or Esc) goes back to the pattern');
     display.draw();
     help.refresh();
+  }
+
+  // W in SONGS: the song as a WAV file, rendered offline (the studio keeps playing)
+  let rendering = false, bannerTimer = null;
+  const say = (text, keep = false) => {   // on the status row in either mode
+    clearTimeout(bannerTimer);
+    state.banner = text;
+    if (!keep) bannerTimer = setTimeout(() => { state.banner = ''; render(); }, 4000);
+    note(text);
+  };
+  async function exportWav(s) {
+    if (rendering) return null;
+    rendering = true;
+    say(`RENDERING ${s.name.toUpperCase()}…`, true);
+    try {
+      const card = sdImage();
+      const r = await renderSong(s, { sdImage: card ? card.slice().buffer : null,
+        onProgress: (done) => say(`RENDERING ${s.name.toUpperCase()}… ${Math.round(done * 100)} %`, true) });
+      const blob = wavFile(r.left, r.right, r.rate);
+      const url = URL.createObjectURL(blob);
+      Object.assign(document.createElement('a'), { href: url, download: `${s.name}.wav` }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      say(`WAV EXPORTED: ${Math.round(r.seconds)} S, PEAK ${(20 * Math.log10(r.peak + 1e-9)).toFixed(1)} DB`);
+      return blob;
+    } catch (e) {
+      say(`THE WAV FAILED: ${String(e.message ?? e).toUpperCase()}`);
+      return null;
+    } finally {
+      rendering = false;
+    }
   }
 
   async function openSongs(on = state.mode !== 'songs') {
@@ -263,6 +295,10 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
       Object.assign(document.createElement('a'), { href: url, download: `${s.name}.json` }).click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       return note('EXPORTED');
+    } else if (k === 'w' && item) {
+      const s = item.id === song.value.id ? song.value : await library.load(item.id);
+      if (s) exportWav(s);
+      return;
     } else if (k === 'a' && list.length) {
       const all = (await Promise.all(list.map(({ id }) => library.load(id)))).filter(Boolean);
       const url = URL.createObjectURL(new Blob([library.allSongsFile(all)], { type: 'application/json' }));
@@ -550,7 +586,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   describe(canvas, help, () => {
-    if (state.mode === 'songs') return 'The songs: arrows choose, Enter loads, N new, D duplicate, R rename, Delete twice deletes, E/I export/import .json, C/V share code, A exports every song, B picks a backup folder. Esc goes back.';
+    if (state.mode === 'songs') return 'The songs: arrows choose, Enter loads, N new, D duplicate, R rename, Delete twice deletes, E/I export/import .json, C/V share code, W renders it as a WAV file, A exports every song, B picks a backup folder. Esc goes back.';
     if (!hover) return 'The pattern: click a cell to move there, drag to select. Click a track name to mute it, right-click to solo it.';
     if (hover.order !== undefined) return `Order position ${hover.order + 1}: pattern ${hex(song.value.order[hover.order])}. Click: PLAY starts here, and you edit that pattern.`;
     const t = song.value.tracks[hover.k];
@@ -673,7 +709,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   }
 
   // send: changes to the song (the mixer's too) go through it, so they save
-  return { el, load, onState, handleKey, send, keepLxrKit, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
+  return { el, load, onState, handleKey, send, keepLxrKit, exportWav, onLoad: (fn) => loadListeners.push(fn), song: () => song.value, summary: () => [
     song.value.name.toUpperCase(),
     `P${hex(state.p)} ${state.playing[0] ? '▶ ROW ' + hex(state.playing[3]) : 'STOPPED'}`,
   ] };

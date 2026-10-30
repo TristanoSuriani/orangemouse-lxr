@@ -13,6 +13,7 @@
 //     messages,      // songMessages(song)
 //     seconds,       // how long to render (or blocks: how many 64-frame blocks)
 //     samples,       // true: send back the left and right channels
+//     sdImage,       // optional: the LXR's SD card (its samples), else an empty one
 //   })
 // It answers { type: 'progress', done } (0..1) now and then, and at the end
 // { type: 'done', blocks, usPerBlock, hash, peak, nonFinite, left, right }, or
@@ -52,8 +53,11 @@ self.onmessage = ({ data }) => {
     const w = new WebAssembly.Instance(new WebAssembly.Module(data.wasm), imports).exports;
     memory = w.memory;
     w._initialize();
-    const sd = w.web_sd_alloc(SD_SECTORS);
-    new Uint8Array(w.memory.buffer).fill(0, sd, sd + SD_SECTORS * 512);   // empty: formatted on boot
+    const card = data.sdImage ? new Uint8Array(data.sdImage) : null;
+    const sectors = card ? card.length / 512 : SD_SECTORS;
+    const sd = w.web_sd_alloc(sectors);
+    if (card) new Uint8Array(w.memory.buffer).set(card, sd);
+    else new Uint8Array(w.memory.buffer).fill(0, sd, sd + SD_SECTORS * 512);   // empty: formatted on boot
     if (w.om_web_init(RATE, 1) !== 0) throw new Error('the studio did not start');
     for (const m of data.messages) applyMessage(w, m);
     const n = w.om_web_block_size();

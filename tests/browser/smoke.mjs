@@ -559,6 +559,30 @@ try {
   check(genrePeak > 0.05 && (await evaluate(`window.orangeMouse.tracker.song().name`)).startsWith('Dub Techno'),
     `the dub techno song loads from the library and plays (peak ${genrePeak.toFixed(3)})`);
 
+  console.log('== WAV export (PLAN.md Phase 8.1)');
+  {
+    const wav = await evaluate(`(async () => {
+      const lib = await import('./tracker/library.js');
+      const s = lib.migrate({ name: 'Wav test', bpm: 120, patterns: [{ rows: 16, cells: { '0:0': { notes: [36] }, '4:7': { notes: [48] }, '8:13': { notes: [60] } } }] });
+      let sawRendering = false;
+      const watch = setInterval(() => { if (document.querySelector('.tracker-lcd').getAttribute('aria-label').includes('RENDERING')) sawRendering = true; }, 20);
+      const blob = await window.orangeMouse.tracker.exportWav(s);
+      clearInterval(watch);
+      if (!blob) return { error: document.querySelector('.tracker-lcd').getAttribute('aria-label').split('\\n')[0] };
+      const v = new DataView(await blob.arrayBuffer());
+      const tag = (at) => String.fromCharCode(...[0, 1, 2, 3].map((i) => v.getUint8(at + i)));
+      let peak = 0;
+      for (let at = 44; at + 2 < v.byteLength; at += 3) { const x = (v.getUint8(at) | (v.getUint8(at + 1) << 8) | (v.getInt8(at + 2) << 16)); peak = Math.max(peak, Math.abs(x)); }
+      return { riff: tag(0) + tag(8), rate: v.getUint32(24, true), bits: v.getUint16(34, true), bytes: v.getUint32(40, true), peak: peak / 8388607, sawRendering,
+        after: document.querySelector('.tracker-lcd').getAttribute('aria-label').split('\\n')[0] };
+    })()`);
+    const frames = Math.floor((4 * 44100) / 64) * 64;   // 2 s of song (16 rows at 120 BPM) and 2 s of tail
+    check(!wav.error && wav.riff === 'RIFFWAVE' && wav.rate === 44100 && wav.bits === 24 && wav.bytes === frames * 6,
+      `the song renders to a 24-bit WAV of ${frames} frames (${wav.error ?? `${wav.bytes / 6} frames, ${wav.bits} bits at ${wav.rate} Hz`})`);
+    check(wav.peak > 0.01, `it holds the song's drum, bass and Plaits notes (peak ${wav.peak?.toFixed(3)})`);
+    check(wav.sawRendering && /WAV EXPORTED/.test(wav.after ?? ''), `the display says RENDERING, then "${wav.after}"`);
+  }
+
   console.log('== the worst case in WebAssembly (the render worker; PLAN.md Phase 7.2)');
   {
     const { songMessages } = await import('../../web/app/tracker/song.js');

@@ -479,7 +479,7 @@ const help = new HelpStrip(document.getElementById('help'),
 
 buildPanel();
 describeLxr();
-const tracker = createTrackerDevice({ send, help });
+const tracker = createTrackerDevice({ send, help, sdImage: () => store.image });   // WAV export renders with the LXR's card
 // VA's slots are part of the song: its changes go through the tracker, which saves them
 const va = createVaDevice({ send: tracker.send, help, song: tracker.song });
 // the mix is part of the song: its changes go through the tracker, which saves them
