@@ -53,6 +53,9 @@ typedef struct
 	uint8_t retrig;           // 0 or 1: one hit; 2..8 hits in the row
 	uint8_t fx;               // OM_FX_*, with OM_FX_SLIDE
 	uint8_t fxValue;          // 0..127
+	uint8_t length;           // the notes end after this many quarter rows (1..64); 0: at the next
+	uint8_t glide;            // 1: the notes start over the ones before, which end after: legato,
+	                          // a mono synth glides (PLAN.md 10.3)
 } OmCell;
 
 typedef struct OmTracker OmTracker;

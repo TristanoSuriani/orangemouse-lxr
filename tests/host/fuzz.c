@@ -208,6 +208,8 @@ static void phaseTracker(int round)
 					c.note[j] = (uint8_t)below(128);
 			if (chance(20))
 				c.retrig = (uint8_t)(chance(10) ? below(256) : 2 + below(7));
+			if (chance(20)) c.length = (uint8_t)(chance(5) ? below(256) : below(65));   // note lengths, glides
+			if (chance(20)) c.glide = (uint8_t)(chance(5) ? below(256) : 1);
 			if (chance(15))   // the effect column: any control (now and then out of range), slides
 				c.fx = (uint8_t)((chance(5) ? below(128) : below(OM_FX_COUNT)) | (chance(50) ? OM_FX_SLIDE : 0)), c.fxValue = (uint8_t)below(256);
 			om_tracker_set_cell(tr, (uint8_t)p, (uint8_t)below(rows + 2), (uint8_t)below(OM_TRACKS + 2), &c);

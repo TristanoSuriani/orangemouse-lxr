@@ -258,6 +258,30 @@ int main(void)
 		      "swung rows start at %llu %llu %llu %llu (0, 7920, 12000, 19920)", a ? (unsigned long long)a->frame : 0,
 		      b ? (unsigned long long)b->frame : 0, d ? (unsigned long long)d->frame : 0, e ? (unsigned long long)e->frame : 0);
 	}
+	{   // note length and glide (PLAN.md 10.3)
+		fresh();
+		om_tracker_set_tempo(tr, 120.f);   // a row: 6000 frames
+		OmCell a = notes(60, OM_NOTE_EMPTY, OM_NOTE_EMPTY, 0), b = notes(64, OM_NOTE_EMPTY, OM_NOTE_EMPTY, 0);
+		a.length = 2;   // half a row
+		om_tracker_set_cell(tr, 0, 0, 0, &a);
+		b.glide = 1;
+		OmCell c0 = notes(48, OM_NOTE_EMPTY, OM_NOTE_EMPTY, 0);
+		om_tracker_set_cell(tr, 0, 4, 1, &c0);
+		om_tracker_set_cell(tr, 0, 5, 1, &b);
+		om_tracker_play_song(tr, 0);
+		run(40000);
+		const Ev *off = nth(0, 0, 0);
+		CHECK(off && off->note == 60 && off->frame / 64 == 3000 / 64, "a half-row note ends at frame %llu (3000)", off ? (unsigned long long)off->frame : 0);
+		// the glide: 64 starts before 48 ends, both at row 5
+		int on64 = -1, off48 = -1;
+		for (int i = 0; i < nevs; i++)
+		{
+			if (evs[i].part == 1 && evs[i].on && evs[i].note == 64 && on64 < 0) on64 = i;
+			if (evs[i].part == 1 && !evs[i].on && evs[i].note == 48 && off48 < 0) off48 = i;
+		}
+		CHECK(on64 >= 0 && off48 > on64 && evs[on64].frame / 64 == 30000 / 64 && evs[off48].frame == evs[on64].frame,
+		      "a glide plays its note first and then ends the one before (events %d, %d)", on64, off48);
+	}
 	{   // the effect column (PLAN.md 10.1): a cutoff slide from 20 at row 0 to 100 at row 4, then put back
 		fresh();
 		om_tracker_set_tempo(tr, 120.f);   // a row: 6000 frames at 48 kHz

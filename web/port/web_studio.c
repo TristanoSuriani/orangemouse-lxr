@@ -153,9 +153,9 @@ WEB_EXPORT const char *om_web_dexed_program_name(int bank, int program)
 
 WEB_EXPORT void om_web_tracker_cell(uint8_t pattern, uint8_t row, uint8_t track,
                                     uint8_t n0, uint8_t n1, uint8_t n2, uint8_t n3, uint8_t velocity, uint8_t retrig,
-                                    uint8_t fx, uint8_t fxValue)
+                                    uint8_t fx, uint8_t fxValue, uint8_t length, uint8_t glide)
 {
-	const OmCell c = {{n0, n1, n2, n3}, velocity, retrig, fx, fxValue};
+	const OmCell c = {{n0, n1, n2, n3}, velocity, retrig, fx, fxValue, length, glide};
 	om_tracker_set_cell(tracker, pattern, row, track, &c);
 }
 

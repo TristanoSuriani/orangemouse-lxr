@@ -9,7 +9,9 @@
 // off), vel: 1..127 (0: 100), retrig: 0 or 2..8 }, and maybe an effect (PLAN.md
 // 10.1): fx 1..6 (FX_NAMES: one of the track's mixer controls), fxv 0..127,
 // fxs true to slide to the track's next effect on that control. A cell with
-// only an effect has no notes ([]).
+// only an effect has no notes ([]). len 1..64: the notes end after that many
+// quarter rows (else at the next cell); glide: they start over the notes
+// before (legato: a mono synth glides; PLAN.md 10.3).
 
 // the effect column's controls (studio/tracker.h OM_FX_*), as the display shows them
 export const FX_NAMES = [null, { key: 'L', name: 'level' }, { key: 'P', name: 'pan' }, { key: 'A', name: 'send A' },
@@ -93,7 +95,7 @@ function cellMessage(p, row, track, cell) {
   if (cell?.off) notes[0] = OFF_NOTE;
   else if (cell) cell.notes.slice(0, CHORD).forEach((n, i) => { notes[i] = n; });
   return { type: 'tracker', op: 'cell', p, row, track, notes, vel: cell?.vel ?? 0, retrig: cell?.retrig ?? 0,
-    fx: cell?.fx ? cell.fx | (cell.fxs ? FX_SLIDE : 0) : 0, fxv: cell?.fxv ?? 0 };
+    fx: cell?.fx ? cell.fx | (cell.fxs ? FX_SLIDE : 0) : 0, fxv: cell?.fxv ?? 0, len: cell?.len ?? 0, glide: cell?.glide ? 1 : 0 };
 }
 
 // Every message that makes the worklet's tracker and mixer a copy of the song.

@@ -453,6 +453,12 @@ comes back last, once the tools it needs exist.
    takes that share of the pair's time (studio/tracker.c `rowFrames`), so the clock, the LXR following
    it and the gates swing too. A fifth knob on the tracker, SWG; saved with the pattern.
 3. **Glide and note length** for the mono VA slots, for acid and rubbery bass lines.
+   **Done 2026-10-30**: a cell has a note length (a quarter row to 16 rows, or until the next cell) and
+   a glide: its notes start over the ones before, which end just after, so a mono VA slot in legato
+   mode slides to them (the Acid preset is legato with glide already). \` now cycles three views:
+   notes, effects, and length (`C-4³~ 1.5`, knobs VEL NLN GLD SWG LEN). The C tracker ends a
+   cell's notes at its length in time order with the rows; tracker_test checks both, the fuzz plays
+   them. No render changed.
 4. **Probability and conditions** on a cell (play 50 %, every 2nd time...), so long dub techno loops
    don't sound static.
 5. **A MIDI controller:** the registry's CC map mapped to the soft knobs of the device in focus, so a

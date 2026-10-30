@@ -27,6 +27,7 @@ typedef struct
 	uint8_t muted, solo;
 	uint8_t sounding[OM_CHORD];   // notes playing, to release
 	uint8_t count;                // how many
+	double offAt;                 // when they end (a cell's length), or -1: at the next cell
 	// a slide of the effect column: param from `from` to `to` over `frames` from `start`
 	uint8_t sliding, param;
 	float from, to;
@@ -57,7 +58,7 @@ struct OmTracker
 	uint8_t touched[OM_MAX_CHANNELS];   // bit e: effect e changed this channel
 };
 
-static const OmCell EMPTY = {{OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY}, 0, 0, 0, 0};
+static const OmCell EMPTY = {{OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY}, 0, 0, 0, 0, 0, 0};
 
 OmTracker *om_tracker_create(OmStudio *studio, float sampleRate)
 {
@@ -66,6 +67,8 @@ OmTracker *om_tracker_create(OmStudio *studio, float sampleRate)
 		return NULL;
 	t->studio = studio;
 	t->rate = sampleRate;
+	for (int k = 0; k < OM_TRACKS; k++)
+		t->track[k].offAt = -1.0;
 	om_tracker_clear(t);
 	return t;
 }
@@ -180,6 +183,15 @@ static void release(OmTracker *t, uint8_t k, uint64_t frame)
 	for (uint8_t i = 0; i < tr->count; i++)
 		om_studio_note_off(t->studio, frame, tr->engine, tr->part, tr->sounding[i]);
 	tr->count = 0;
+	tr->offAt = -1.0;
+}
+
+// the notes whose cell's length ends before `frame` end then
+static void releaseEnded(OmTracker *t, double frame)
+{
+	for (uint8_t k = 0; k < OM_TRACKS; k++)
+		if (t->track[k].offAt >= 0.0 && t->track[k].offAt <= frame)
+			release(t, k, (uint64_t)(t->track[k].offAt + 0.5));
 }
 
 static uint8_t audible(const OmTracker *t, uint8_t k)
@@ -279,7 +291,17 @@ static void playRow(OmTracker *t, uint8_t row, uint64_t frame, double length)
 		if (c->note[0] == OM_NOTE_EMPTY)
 			continue;
 		Track *tr = &t->track[k];
-		release(t, k, frame);
+		// a glide keeps the notes before until the new ones have started
+		const int legato = c->glide && c->note[0] < 128 && tr->count && audible(t, k);
+		uint8_t before[OM_CHORD], held = 0;
+		if (legato)
+		{
+			held = tr->count;
+			memcpy(before, tr->sounding, sizeof before);
+			tr->count = 0;
+		}
+		else
+			release(t, k, frame);
 		if (c->note[0] == OM_NOTE_OFF || !audible(t, k))
 			continue;
 		const uint8_t vel = c->velocity ? c->velocity : 100;
@@ -295,6 +317,14 @@ static void playRow(OmTracker *t, uint8_t row, uint64_t frame, double length)
 				tr->sounding[tr->count++] = c->note[i];
 			}
 		}
+		for (uint8_t i = 0; i < held; i++)   // after the new notes: legato
+		{
+			int same = 0;
+			for (uint8_t j = 0; j < tr->count; j++) same |= tr->sounding[j] == before[i];
+			if (!same)
+				om_studio_note_off(t->studio, frame, tr->engine, tr->part, before[i]);
+		}
+		tr->offAt = c->length ? (double)frame + c->length * length / 4.0 : -1.0;
 	}
 }
 
@@ -325,6 +355,7 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 	{
 		const uint64_t at = t->nextFrame < (double)now ? now : (uint64_t)(t->nextFrame + 0.5);
 		const double length = rowFrames(t);
+		releaseEnded(t, (double)at);   // the notes whose length ends first
 		t->lastRow = (uint8_t)t->row;
 		playRow(t, (uint8_t)t->row, at, length);
 		t->nextFrame += length;
@@ -337,6 +368,7 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 			restore(t);
 		}
 	}
+	releaseEnded(t, (double)end - 1.0);   // and those that end in this block
 }
 
 static void start(OmTracker *t)
