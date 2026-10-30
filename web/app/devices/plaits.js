@@ -20,7 +20,7 @@ import registry from '../registry/plaits.js';
 import { formatShort, formatValue, helpLine } from '../registry/format.js';
 import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
-import { makePad, makeKnob, setLed } from '../kit/controls.js';
+import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
 import { makeKeybed } from '../kit/keybed.js';
 import { addGuide } from '../kit/guide.js';
 import { PLAITS, plaitsMessage } from '../tracker/song.js';
@@ -168,7 +168,7 @@ export function createPlaitsDevice({ send, help, song }) {
       const info = registry.params[q];
       return m ? `${info.short} ${info.name} ${formatValue(info, part()[q])}: on this engine, ${m[1]}.` : helpLine(info, part()[q]);
     });
-    pot.addEventListener('focus', () => { const q = param(); pot.setAttribute('aria-valuetext', q === null ? 'unused' : formatValue(registry.params[q], part()[q])); });
+    pot.addEventListener('focus', () => { const q = param(); setKnobValue(pot, q === null ? null : registry.params[q], q === null ? 0 : part()[q], q === null ? 'unused' : formatValue(registry.params[q], part()[q])); });
     const caption = document.createElement('span');
     caption.className = 'caption';
     wrap.append(caption);

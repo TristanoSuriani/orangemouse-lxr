@@ -21,7 +21,7 @@ import fxRegistry from '../registry/fx.js';
 import { formatShort, formatValue, helpLine } from '../registry/format.js';
 import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
-import { makePad, makeKnob, setLed } from '../kit/controls.js';
+import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
 import { addGuide } from '../kit/guide.js';
 import { CHANNELS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage } from '../mixer/mix.js';
 
@@ -286,7 +286,7 @@ export function createMixerDevice({ send, help, song }) {
     });
     pot.addEventListener('focus', () => {
       const t = target();
-      pot.setAttribute('aria-valuetext', t ? `${t[0].name} ${formatValue(t[0], t[1]())}` : 'unused');
+      setKnobValue(pot, t?.[0], t ? t[1]() : 0, t ? `${t[0].name} ${formatValue(t[0], t[1]())}` : 'unused');
     });
     const caption = document.createElement('span');
     caption.className = 'caption';

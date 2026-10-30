@@ -57,7 +57,7 @@ const GUIDE = [
   { title: 'Play', text: 'Space plays the song from the order position you chose (click it on the ORDER row), or stops. Enter (LOOP) repeats the pattern you edit. PAT -/+ choose the pattern; PAT + past the last makes a new one; Cmd+D duplicates it. ORD + adds it to the order list. BPM sets the pattern\'s tempo.' },
   { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, C copies a share code, V loads one.' },
   { title: 'Keeping songs safe', text: 'The browser may clear its storage. B picks a backup folder: every song is copied there as .json each time it saves (after a reload, B lets it write again). A exports every song in one file, which I imports. The display says when the songs are not safe.' },
-  { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. Tab moves between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
+  { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
 export function createTrackerDevice({ send: sendToWorklet, help }) {
@@ -603,7 +603,6 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
       case 'ArrowDown': move(1, 0, e.shiftKey); return true;
       case 'ArrowLeft': move(0, -1, e.shiftKey); return true;
       case 'ArrowRight': move(0, 1, e.shiftKey); return true;
-      case 'Tab': move(0, e.shiftKey ? -1 : 1); return true;
       case 'PageUp': move(-16, 0, e.shiftKey); return true;
       case 'PageDown': move(16, 0, e.shiftKey); return true;
       case 'Home': move(-MAX_ROWS, 0, e.shiftKey); return true;

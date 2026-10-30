@@ -104,13 +104,23 @@ export function makeRotary(el, onTurn) {
 const PIXELS_PER_STEP = 4;        // a value step per 4 pixels of drag
 const FINE_PIXELS_PER_STEP = 16;  // with Shift
 
+// What a knob's slider role tells a screen reader: the value it turns now
+// (a registry parameter: { min, max }), and the value as the display shows it.
+export function setKnobValue(pot, param, value, text) {
+  pot.setAttribute('aria-valuemin', String(param ? param.min : 0));
+  pot.setAttribute('aria-valuemax', String(param ? param.max : 127));
+  pot.setAttribute('aria-valuenow', String(param ? value : 0));
+  pot.setAttribute('aria-valuetext', text);
+}
+
 // An endless knob that turns a value in steps. onStep(steps) is called with
 // whole steps (positive = up); onReset() on double-click. The knob's pointer
 // only shows the turning; the value lives with the caller.
 export function makeKnob(label, { onStep, onReset = () => {} }) {
   const wrap = document.createElement('div');
   wrap.className = 'pot-wrap';
-  wrap.innerHTML = `<div class="pot" tabindex="0" role="slider" aria-label="${label}"><div class="pot-mark"></div></div>`;
+  // a slider needs a value: the device sets it with setKnobValue(); until then 0 of 0..127
+  wrap.innerHTML = `<div class="pot" tabindex="0" role="slider" aria-label="${label}" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><div class="pot-mark"></div></div>`;
   const pot = wrap.firstElementChild;
   let angle = 0;
   let pixels = 0;

@@ -13,6 +13,8 @@
 //     expanded at a time; the others are cards in the top bar);
 //   - the panel lint passes for every device: each control has a name and
 //     help, none overlap or stick out of their panel, no pad label is cut;
+//   - axe-core (third_party/fetch.sh) finds no WCAG 2.1 A/AA problem, and Tab
+//     reaches every control of every device, each with the focus ring;
 //   - each device looks as in tests/golden/screens/ (UPDATE_GOLDEN=1 accepts
 //     the new look).
 // Writes screenshots to tests/browser/out/ (<device>.png, guide.png).
@@ -216,6 +218,53 @@ try {
         `${id}: looks as in tests/golden/screens/${id}.png${diff ? (diff.size ? ` (${diff.count} pixels differ, by up to ${diff.worst})` : ' (another size)') : ' (no golden yet)'} (new: tests/browser/out/${id}.png)`);
     }
   }
+  console.log('== accessibility: an axe-core audit and a Tab-order walk on every device');
+  const AXE = join(ROOT, 'third_party/axe-core/axe.min.js');
+  if (!existsSync(AXE)) check(false, 'axe-core is fetched (third_party/fetch.sh)');
+  else {
+    await evaluate(readFileSync(AXE, 'utf8'));
+    for (const id of await evaluate('window.orangeMouseUi.devices')) {
+      await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf(${JSON.stringify(id)}))`);
+      await sleep(200);
+      const audit = await evaluate(`(async () => {
+        const r = await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } });
+        return r.violations.map((v) => v.id + ' (' + v.nodes.length + '): ' + v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(', '));
+      })()`);
+      check(audit.length === 0, `${id}: axe finds no WCAG 2.1 A/AA problem${audit.length ? ': ' + audit.join('; ') : ''}`);
+      // Tab from the top, round the page once: every visible control of the
+      // device is reached, and each shows the focus ring
+      const walk = await evaluate(`(() => {
+        const device = [...document.querySelectorAll('.device')].find((d) => !d.hidden);
+        const controls = [...device.querySelectorAll('button, [role=slider], input, select, [tabindex]:not([tabindex="-1"])')]
+          .filter((el) => el.offsetParent !== null && !el.disabled && el.tabIndex >= 0);   // the keybeds' keys are played, not focused
+        document.activeElement && document.activeElement.blur();
+        return { count: controls.length };
+      })()`);
+      const seen = [];
+      let unringed = 0, lost = 0;
+      for (let i = 0; i < 400; i++) {
+        await press('Tab', 'Tab');
+        const f = await evaluate(`(() => {
+          const el = document.activeElement;
+          if (!el || el === document.body) return null;
+          const device = [...document.querySelectorAll('.device')].find((d) => !d.hidden);
+          const cs = getComputedStyle(el);
+          const ring = (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0) || cs.boxShadow !== 'none';
+          if (!el.dataset.walk) el.dataset.walk = String(Math.random()).slice(2);
+          return { key: el.dataset.walk, inDevice: device.contains(el), ring, name: el.getAttribute('aria-label') || el.textContent.trim().slice(0, 20) || el.className };
+        })()`);
+        if (!f) { lost++; if (lost > 2) break; continue; }
+        if (seen.some((x) => x.key === f.key)) break;   // round again
+        seen.push(f);
+        if (!f.ring) unringed++;
+      }
+      const inDevice = seen.filter((x) => x.inDevice).length;
+      check(inDevice >= walk.count, `${id}: Tab reaches all ${walk.count} of its controls (${inDevice} reached, ${seen.length} stops in all)`);
+      check(unringed === 0, `${id}: every stop shows the focus ring${unringed ? ` (${unringed} without: ${seen.filter((x) => !x.ring).slice(0, 4).map((x) => x.name).join(', ')})` : ''}`);
+    }
+  }
+  await evaluate(`document.activeElement && document.activeElement.blur()`);
+
   await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('va'))`);
 
   console.log('== VA plays');

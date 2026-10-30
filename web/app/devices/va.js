@@ -17,7 +17,7 @@ import registry from '../registry/va.js';
 import { formatShort, formatValue, helpLine } from '../registry/format.js';
 import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
-import { makePad, makeKnob, setLed } from '../kit/controls.js';
+import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
 import { makeKeybed } from '../kit/keybed.js';
 import { addGuide } from '../kit/guide.js';
 
@@ -153,10 +153,9 @@ export function createVaDevice({ send, help, song }) {
     caption.textContent = `Knob ${k + 1}`;
     wrap.append(caption);
     knobs.append(wrap);
-    pot.setAttribute('aria-valuetext', '');
     pot.addEventListener('focus', () => {
       const p = visible()[k];
-      pot.setAttribute('aria-valuetext', p ? `${p.name} ${formatValue(p, value(p))}` : 'unused');
+      setKnobValue(pot, p, p ? value(p) : 0, p ? `${p.name} ${formatValue(p, value(p))}` : 'unused');
     });
   }
 

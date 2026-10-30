@@ -8,7 +8,7 @@
 
 import { Lcd } from './lcd.js';
 import { SdCardStore, SD_SECTORS, SECTOR_SIZE, flushOnHide } from './sdcard.js';
-import { makePad, makeRotary } from './kit/controls.js';
+import { makePad, makeRotary, setKnobValue } from './kit/controls.js';
 import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
 import { createTrackerDevice } from './devices/tracker.js';
@@ -23,7 +23,7 @@ import { DotMatrix } from './kit/dotmatrix.js';
 import { addGuide } from './kit/guide.js';
 import { HelpStrip, describe } from './kit/help.js';
 import lxrRegistry from './registry/lxr.js';
-import { helpLine } from './registry/format.js';
+import { helpLine, formatValue } from './registry/format.js';
 
 // Button numbers as in enum ButtonNumbers (Core/Inc/buttonHandler.h); each
 // button's LED has the same number in enum LedNumbers (ledHandler.h).
@@ -76,7 +76,7 @@ function buildPanel() {
   for (let i = 0; i < 4; i++) {
     const wrap = document.createElement('div');
     wrap.className = 'pot-wrap';
-    wrap.innerHTML = `<div class="pot" tabindex="0" role="slider" aria-label="Pot ${i + 1}"><div class="pot-mark"></div></div>`;
+    wrap.innerHTML = `<div class="pot" tabindex="0" role="slider" aria-label="Pot ${i + 1}" aria-valuemin="0" aria-valuemax="127" aria-valuenow="0"><div class="pot-mark"></div></div>`;
     const pot = wrap.firstElementChild;
     let angle = 0;
     const turn = (degrees) => {
@@ -414,6 +414,11 @@ function onWorkletMessage(msg) {
       if (msg.lxrKit) tracker.keepLxrKit(msg.lxrKit);
       if (msg.lxrPots) {
         lxrPots = msg.lxrPots;
+        // the pots' slider values: the parameters they change now
+        document.querySelectorAll('#pots .pot').forEach((pot, i) => {
+          const info = lxrRegistry.params[lxrPots.params[i]];
+          setKnobValue(pot, info, lxrPots.values[i], info ? `${info.name} ${formatValue(info, lxrPots.values[i])}` : 'a setting of this page');
+        });
         help.refresh();
       }
       if (msg.midi) sendMidiBytes(msg.midi);

@@ -354,6 +354,12 @@ comes back last, once the tools it needs exist.
      so a hit or note made under an extreme setting rings on after a panic.
 4. **The accessibility tests** the plan promises: an axe-core audit and a Tab-order walk in the
    browser test.
+   **Done 2026-10-30**: axe-core 4.10.2 (fetched by third_party/fetch.sh, checked by its hash) audits
+   the page with each device shown, against WCAG 2.1 A and AA, and a Tab walk checks that every
+   control of each device is reached and shows the focus ring. Fixed on the way: the knobs, the LXR's
+   pots and its encoder had a slider role without a value (they now carry the parameter's value and
+   range; the encoder, which has none, is a spin button), and **the tracker no longer takes Tab**:
+   it moved between tracks, which the arrows already do, and kept the keyboard from reaching the pads.
 5. **Re-baselining is deliberate.** A commit with `UPDATE_GOLDEN=1` names the renders it changed and
    why, and the changed ones are listened to. The suite proves that nothing changed, not that it sounds
    good.

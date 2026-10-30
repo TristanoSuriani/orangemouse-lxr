@@ -17,7 +17,7 @@ import registry from '../registry/dexed.js';
 import { formatValue, helpLine } from '../registry/format.js';
 import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
-import { makePad, makeKnob, setLed } from '../kit/controls.js';
+import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
 import { makeKeybed } from '../kit/keybed.js';
 import { addGuide } from '../kit/guide.js';
 import { DEXED, dexedMessage } from '../tracker/song.js';
@@ -112,7 +112,7 @@ export function createDexedDevice({ send, help, song }) {
       if (field === 'program') return `PRG Program #${v + 1} ${programName(part().bank, v)}: one of the bank's 32 sounds.`;
       return helpLine(info, v);
     });
-    pot.addEventListener('focus', () => pot.setAttribute('aria-valuetext', formatValue(info, part()[field])));
+    pot.addEventListener('focus', () => setKnobValue(pot, info, part()[field], formatValue(info, part()[field])));
     const caption = document.createElement('span');
     caption.className = 'caption';
     caption.textContent = info.short;
