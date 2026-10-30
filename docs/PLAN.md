@@ -411,6 +411,12 @@ comes back last, once the tools it needs exist.
 
 1. **Sidechain ducking** on every mixer channel, keyed from the LXR's kick (or any channel): amount,
    release, and a help line that says what it does. Trance and synthwave rely on it.
+   **Done 2026-10-30** (studio/studio.c `duck`): every channel has DUCK (how far it dips), KEY (any
+   channel, drum 1 at first) and RELEASE (20 ms to 1.3 s). The key is heard after its filter and
+   before its fader, so a muted kick still pumps. A 2 ms attack, full dip from -12 dBFS on the key.
+   PAGE twice on a mixer channel puts them on the knobs; the strip's line shows `DUCK 25% DR1`.
+   Parts of the song (registry/mix.json, song.mix). At DUCK 0 nothing is computed, so no render
+   changed. The genre songs don't use it yet: that is for your ears (and trance, Phase 10.6).
 2. **A trance gate** as a channel insert next to the filter: a 16-step gate pattern in tempo, with
    depth and smoothing.
 3. **An EQ** on every channel: low shelf, a sweepable mid and a high shelf (Phase 3's "Not yet").

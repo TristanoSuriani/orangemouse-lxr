@@ -445,6 +445,12 @@ try {
     `the knobs set a 24 dB low-pass and lower its cutoff: "${await mixRow(0)}"`);
   check((await mixText()).split('\n')[14].includes('l24'), 'the strip shows its filter');
   await evaluate(`document.activeElement.blur()`);
+  await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE: the ducking
+  check((await evaluate(`[...document.querySelectorAll('.mixer-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'DCK KEY REL -', 'PAGE again puts the ducking on the knobs');
+  await evaluate(`document.querySelectorAll('.mixer-knobs .pot')[0].focus()`);
+  for (let i = 0; i < 8; i++) await press('ArrowUp', 'ArrowUp');
+  await evaluate(`document.activeElement.blur()`);
+  check((await mixOf('channels.va2.duck')) === 32 && (await mixRow(0)).includes('DUCK 25% DR1'), `the knob ducks VA2 under drum 1: "${await mixRow(0)}"`);
   await clickPad('.mixer-pads .pad:nth-child(9)');   // PAGE: back to the mix
   await clickPad('.mixer-pads .pad:nth-child(5)');   // FX A
   check((await mixRow(0)).startsWith('SEND A  HALL'), `FX A shows the hall: "${await mixRow(0)}"`);

@@ -207,6 +207,82 @@ export default {
     "kind": "percent"
    },
    "help": "How much the filter rings at its cutoff; the ladders whistle at the top."
+  },
+  {
+   "id": "OM_MIX_DUCK",
+   "short": "DCK",
+   "name": "Duck",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 0,
+   "display": {
+    "kind": "percent"
+   },
+   "help": "How far it dips each time its key hits (the kick, at first): the pump of trance."
+  },
+  {
+   "id": "OM_MIX_DUCK_KEY",
+   "short": "KEY",
+   "name": "Duck key",
+   "group": "Channel",
+   "min": 0,
+   "max": 14,
+   "default": 0,
+   "display": {
+    "kind": "enum",
+    "values": [
+     "drum 1",
+     "drum 2",
+     "drum 3",
+     "snare",
+     "cymbal",
+     "hihats",
+     "LXR FX",
+     "VA1",
+     "VA2",
+     "VA3",
+     "VA4",
+     "DX1",
+     "DX2",
+     "PL1",
+     "PL2"
+    ],
+    "short": [
+     "DR1",
+     "DR2",
+     "DR3",
+     "SNR",
+     "CYM",
+     "HAT",
+     "LFX",
+     "VA1",
+     "VA2",
+     "VA3",
+     "VA4",
+     "DX1",
+     "DX2",
+     "PL1",
+     "PL2"
+    ]
+   },
+   "help": "The channel that makes this one dip. It works muted too: a silent kick can pump a pad."
+  },
+  {
+   "id": "OM_MIX_DUCK_RELEASE",
+   "short": "REL",
+   "name": "Duck release",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 62,
+   "display": {
+    "kind": "exp",
+    "base": 0.02,
+    "octaves": 6,
+    "unit": "s"
+   },
+   "help": "How fast the channel comes back after a dip: short is a tight pump, long a slow swell."
   }
  ]
 };

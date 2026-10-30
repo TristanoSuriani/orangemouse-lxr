@@ -225,6 +225,48 @@ int main(void)
 				om_fx_destroy(fx);
 			}
 	}
+	{   // ducking (PLAN.md 9.1): a held pad dips while its key plays, and comes back with the release
+		enum { LONG = 96000 };   // 2 s at 48 kHz
+		static float dl[LONG], dr[LONG];
+		const OmEngineClass cls = mockClass(0);
+		// the pad's level at a time after the key's note on (frames, the output is OM_STUDIO_LATENCY late)
+		#define PAD(at) dl[(at) + OM_STUDIO_LATENCY]
+		for (int amount = 0; amount <= 2; amount++)
+		{
+			OmStudio *st = mockStudio();
+			om_studio_add_engine(st, &cls);   // channel 0: the key (a kick)
+			om_studio_add_engine(st, &cls);   // channel 1: a pad, held
+			om_studio_mix(st, 0, OM_MIX_MUTE, 1);   // a muted key still keys
+			om_studio_mix(st, 1, OM_MIX_DUCK, amount == 0 ? 0 : amount == 1 ? 127 : 64);
+			om_studio_note_on(st, 0, 1, 0, 60, 100);
+			om_studio_note_on(st, 4800, 0, 0, 36, 100);    // the key: 100 ms in, held 200 ms
+			om_studio_note_off(st, 14400, 0, 0, 36);
+			om_studio_render(st, dl, dr, LONG - OM_STUDIO_LATENCY);
+			const float before = PAD(4000), during = PAD(14000);
+			const float tau = PAD(14400 + 7200), late = PAD(14400 + 48000);   // 150 ms (the default release) and 1 s after
+			if (amount == 0)
+				CHECK(before == MOCK && during == MOCK, "no duck: the pad stays at %g (%g, %g)", MOCK, before, during);
+			else if (amount == 1)
+			{
+				CHECK(before == MOCK && during < 0.001f, "full duck: the pad goes from %g to %g while the key plays", before, during);
+				CHECK(tau > 0.25f && tau < 0.38f && late > 0.49f, "it comes back with the release: %g after 150 ms, %g after 1 s", tau, late);
+			}
+			else
+				CHECK(fabsf(during - MOCK * (1.f - 64.f / 127.f)) < 0.002f, "half a duck halves the pad: %g", during);
+			om_studio_destroy(st);
+		}
+		{   // a channel is never its own key
+			OmStudio *st = mockStudio();
+			om_studio_add_engine(st, &cls);
+			om_studio_mix(st, 0, OM_MIX_DUCK, 127);
+			om_studio_mix(st, 0, OM_MIX_DUCK_KEY, 0);
+			om_studio_note_on(st, 0, 0, 0, 60, 100);
+			om_studio_render(st, dl, dr, 4096);
+			CHECK(PAD(3000) == MOCK, "a channel keyed on itself dipped to %g", PAD(3000));
+			om_studio_destroy(st);
+		}
+		#undef PAD
+	}
 	{   // every channel filter filters: low-passes cut a high sine, high-passes a low one,
 		// band-passes both, the notch its own frequency; with full resonance and
 		// noise they stay finite and bounded

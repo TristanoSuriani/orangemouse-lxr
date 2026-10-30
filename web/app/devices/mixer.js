@@ -9,7 +9,8 @@
 //            send B, mute/solo. FX A / FX B turn the display into that send
 //            effect's page: its type, return and every setting.
 //   knobs    the selected strip's level, pan, send A, send B, or with PAGE
-//            its Surge filter: type, cutoff, resonance (a send: return and
+//            its Surge filter: type, cutoff, resonance, and again its ducking:
+//            amount, key, release (a send: return and
 //            effect; the master: level); on an effect's page, four of its
 //            settings (PAGE for the next four)
 //   pads     strip back/forward, mute, solo, FX A, FX B, type -/+, page
@@ -43,7 +44,8 @@ const STRIPS = [
 ];
 const P = Object.fromEntries(mixRegistry.params.map((p) => [p.id.replace('OM_MIX_', ''), p]));
 const FIELD = { LEVEL: 'level', PAN: 'pan', SEND_A: 'sendA', SEND_B: 'sendB', MUTE: 'mute', SOLO: 'solo',
-  FILTER: 'filter', CUTOFF: 'cutoff', RESONANCE: 'reso' };
+  FILTER: 'filter', CUTOFF: 'cutoff', RESONANCE: 'reso', DUCK: 'duck', DUCK_KEY: 'duckKey', DUCK_RELEASE: 'duckRel' };
+const CH_PAGES = ['the mix', 'the filter', 'the ducking'];
 const typeParams = FX_TYPES.map((name) =>
   fxRegistry.params.map((p, index) => ({ ...p, index })).filter((p) => p.group === name));
 
@@ -52,6 +54,7 @@ const GUIDE = [
   { title: 'Mix', text: 'Click a strip (or &lt; CH, CH &gt;, the arrow keys) and turn the knobs: level, pan, send A, send B. MUTE and SOLO (M, S) silence channels or play only some. Double-click a knob to reset it.' },
   { title: 'Effects', text: 'Send A is a hall reverb, send B a delay on the song\'s tempo. Turn a channel\'s SDA or SDB up to send it there. FX A / FX B open the effect: TYPE - and TYPE + change it (hall, room, delay, chorus, phaser, flanger), the knobs its settings, PAGE the next four.' },
   { title: 'Filters', text: 'Every channel has one of Surge\'s filters. Press PAGE on a channel: the knobs become FLT (the type: low-passes, ladders, high-passes, band-pass, notch), CUT and RES. Sweep CUT for build-ups; FLT off leaves the sound untouched.' },
+  { title: 'Ducking', text: 'PAGE twice on a channel puts its ducking on the knobs: DCK, how far it dips when its KEY hits (the kick, drum 1, at first), and REL, how fast it comes back. Pads and basses that pump with the kick are trance\'s and synthwave\'s sound. A muted key still keys.' },
   { title: 'Loud enough', text: 'The master has a limiter: the mix never goes past -0.2 dB. GR on the OUT strip shows how much it holds back; a few dB on the loudest hits is fine, more means turn something down.' },
   { title: 'Saved with the song', text: 'The mix is part of the song: it saves as you change it, and loads with the song.' },
 ];
@@ -81,7 +84,7 @@ export function createMixerDevice({ send, help, song }) {
     sel: 0,          // the strip the knobs work on
     fx: null,        // the send effect on the display (0, 1), or null: the strips
     page: 0,         // which four of the effect's settings are on the knobs
-    chPage: 0,       // a channel's knobs: 0 the mix, 1 its filter
+    chPage: 0,       // a channel's knobs: 0 the mix, 1 its filter, 2 its ducking
     level: new Float32Array(CHANNELS.length + 5),   // the meters, falling back slowly
     hold: new Float32Array(CHANNELS.length + 5),
     holdAge: new Uint16Array(CHANNELS.length + 5),
@@ -131,6 +134,7 @@ export function createMixerDevice({ send, help, song }) {
         };
         return [filter, knob('CUTOFF'), knob('RESONANCE'), null];
       }
+      if (state.chPage === 2) return [knob('DUCK'), knob('DUCK_KEY'), knob('DUCK_RELEASE'), null];
       return ['LEVEL', 'PAN', 'SEND_A', 'SEND_B'].map(knob);
     }
     if (s.kind === 'bus') {
@@ -162,6 +166,7 @@ export function createMixerDevice({ send, help, song }) {
       words = `${s.name.toUpperCase()}  LEVEL ${formatValue(P.LEVEL, ch.level)}  PAN ${formatValue(P.PAN, ch.pan)}` +
         `  A ${formatValue(P.SEND_A, ch.sendA)}  B ${formatValue(P.SEND_B, ch.sendB)}` +
         (ch.filter ? `  ${formatShort(P.FILTER, ch.filter).toUpperCase()} ${formatShort(P.CUTOFF, ch.cutoff)}` : '') +
+        (ch.duck ? `  DUCK ${formatShort(P.DUCK, ch.duck)} ${formatShort(P.DUCK_KEY, ch.duckKey)}` : '') +
         `${ch.mute ? '  MUTED' : ''}${ch.solo ? '  SOLO' : ''}`;
     } else if (s.kind === 'bus') {
       const b = m.buses[s.bus];
@@ -324,7 +329,7 @@ export function createMixerDevice({ send, help, song }) {
     ['typeDown', 'TYPE -', 'The previous effect on this send (with FX A or FX B lit).', () => changeType(-1)],
     ['typeUp', 'TYPE +', 'The next effect on this send: hall, room, delay, chorus, phaser, flanger.', () => changeType(1)],
     ['page', 'PAGE', () => (state.fx !== null ? 'The next four settings of the effect on the knobs.'
-      : `A channel's knobs: its mix (level, pan, sends) or its filter (type, cutoff, resonance). Now: ${state.chPage ? 'the filter' : 'the mix'}.`),
+      : `A channel's knobs: its mix (level, pan, sends), its filter (type, cutoff, resonance) or its ducking (amount, key, release). Now: ${CH_PAGES[state.chPage]}.`),
     () => nextPage()],
   ];
   const pads = {};
@@ -346,8 +351,8 @@ export function createMixerDevice({ send, help, song }) {
   }
   function nextPage() {
     if (state.fx === null) {
-      state.chPage = 1 - state.chPage;
-      setLed(pads.page, state.chPage === 1);
+      state.chPage = (state.chPage + 1) % CH_PAGES.length;
+      setLed(pads.page, state.chPage > 0);
       render();
       return;
     }

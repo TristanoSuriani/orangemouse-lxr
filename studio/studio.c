@@ -43,11 +43,17 @@ typedef struct
 typedef struct
 {
 	uint8_t engine, stem;
-	uint8_t value[OM_MIX_RESONANCE + 1];
+	uint8_t value[OM_MIX_DUCK_RELEASE + 1];
 	OmFilter *filter;
 	Gain left, right, sendA, sendB;
 	float peak;
+	float duck;       // the key's envelope, 0..1
+	float duckRel;    // its release, per frame
 } Channel;
+
+// ducking: the key's level that dips a channel by the whole DUCK amount
+#define DUCK_FULL   0.25f   // -12 dBFS
+#define DUCK_ATTACK 0.011f  // per frame: about 2 ms
 
 #define LOOKAHEAD OM_STUDIO_LATENCY   // frames: 1.5 ms at 44.1 kHz
 #define LIMIT     0.977f         // -0.2 dBFS
@@ -158,6 +164,7 @@ int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 			return -1;
 		}
 		ch->value[OM_MIX_CUTOFF] = 127;
+		om_studio_mix(st, c, OM_MIX_DUCK_RELEASE, 62);   // 150 ms (registry/mix.json)
 		om_studio_mix(st, c, OM_MIX_LEVEL, 100);
 		om_studio_mix(st, c, OM_MIX_PAN, 64);
 		ch->left.now = ch->left.to;
@@ -325,13 +332,18 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 		}
 		return;
 	}
-	const int isChannelParam = param <= OM_MIX_SOLO || (param >= OM_MIX_FILTER && param <= OM_MIX_RESONANCE);
+	const int isChannelParam = param <= OM_MIX_SOLO || (param >= OM_MIX_FILTER && param <= OM_MIX_DUCK_RELEASE);
 	if (target >= st->channels || !isChannelParam)
 		return;
 	Channel *ch = &st->channel[target];
-	const uint8_t max = param == OM_MIX_MUTE || param == OM_MIX_SOLO ? 1 : param == OM_MIX_FILTER ? OM_FILTER_TYPES - 1 : 127;
+	const uint8_t max = param == OM_MIX_MUTE || param == OM_MIX_SOLO ? 1 : param == OM_MIX_FILTER ? OM_FILTER_TYPES - 1
+		: param == OM_MIX_DUCK_KEY ? OM_MAX_CHANNELS - 1 : 127;
 	ch->value[param] = value > max ? max : value;
-	if (param >= OM_MIX_FILTER)   // cutoff: semitones from A4, -60 .. 70 (registry "exp", 13.75 Hz up)
+	if (param == OM_MIX_DUCK_RELEASE)   // 20 ms .. 1.28 s (registry "exp")
+		ch->duckRel = expf(-1.f / (0.02f * exp2f(ch->value[param] * 6.f / 127.f) * st->rate));
+	else if (param >= OM_MIX_DUCK)
+		return;
+	else if (param >= OM_MIX_FILTER)   // cutoff: semitones from A4, -60 .. 70 (registry "exp", 13.75 Hz up)
 		om_filter_set(ch->filter, ch->value[OM_MIX_FILTER], -60.f + ch->value[OM_MIX_CUTOFF] * (130.f / 127.f),
 		              ch->value[OM_MIX_RESONANCE] / 127.f);
 	else
@@ -347,7 +359,7 @@ uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param)
 		const Bus *bus = &st->bus[target - OM_MIX_BUS_A];
 		return param == OM_MIX_FX_TYPE ? bus->type : param == OM_MIX_RETURN ? bus->ret : 0;
 	}
-	return target < st->channels && param <= OM_MIX_RESONANCE && (param <= OM_MIX_SOLO || param >= OM_MIX_FILTER)
+	return target < st->channels && param <= OM_MIX_DUCK_RELEASE && (param <= OM_MIX_SOLO || param >= OM_MIX_FILTER)
 		? st->channel[target].value[param] : 0;
 }
 
@@ -495,6 +507,35 @@ static void renderEngine(Engine *en, uint64_t start)
 	}
 }
 
+// Sidechain ducking: the channel dips as its key channel (after its filter,
+// before its fader) gets loud, by up to the DUCK amount, and comes back with
+// the RELEASE. A channel keys from its own key, never itself. Skipped at DUCK 0.
+static void duck(OmStudio *st, int c, float *sl, float *sr)
+{
+	Channel *ch = &st->channel[c];
+	const int key = ch->value[OM_MIX_DUCK_KEY];
+	if (!ch->value[OM_MIX_DUCK] || key == c || key >= st->channels)
+	{
+		ch->duck = 0.f;
+		return;
+	}
+	const Channel *k = &st->channel[key];
+	const Engine *ke = &st->engine[k->engine];
+	const float *kl = ke->buf[2 * k->stem], *kr = ke->buf[2 * k->stem + 1];
+	const float depth = ch->value[OM_MIX_DUCK] / 127.f;
+	float env = ch->duck;
+	for (int i = 0; i < OM_MAX_BLOCK; i++)
+	{
+		float x = fmaxf(fabsf(kl[i]), fabsf(kr[i])) * (1.f / DUCK_FULL);
+		x = x > 1.f ? 1.f : x;
+		env = x > env ? env + (x - env) * DUCK_ATTACK : env * ch->duckRel;
+		const float g = 1.f - depth * env;
+		sl[i] *= g;
+		sr[i] *= g;
+	}
+	ch->duck = env;
+}
+
 void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 {
 	for (uint32_t done = 0; done < frames; done += OM_MAX_BLOCK)
@@ -506,12 +547,19 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 			memset(st->bus[b].buf, 0, sizeof(st->bus[b].buf));
 		for (int e = 0; e < st->engines; e++)
 			renderEngine(&st->engine[e], st->frame);
+		// every channel's insert first: a key is heard after its filter
+		for (int c = 0; c < st->channels; c++)
+		{
+			Channel *ch = &st->channel[c];
+			Engine *en = &st->engine[ch->engine];
+			om_filter_process(ch->filter, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1], OM_MAX_BLOCK);
+		}
 		for (int c = 0; c < st->channels; c++)
 		{
 			Channel *ch = &st->channel[c];
 			Engine *en = &st->engine[ch->engine];
 			float *sl = en->buf[2 * ch->stem], *sr = en->buf[2 * ch->stem + 1];
-			om_filter_process(ch->filter, sl, sr, OM_MAX_BLOCK);   // the insert, before the fader
+			duck(st, c, sl, sr);
 			Gain a = ch->sendA, b = ch->sendB;   // both sides of a send ramp alike
 			addRamped(st->bus[0].buf[0], sl, &ch->sendA);
 			addRamped(st->bus[0].buf[1], sr, &a);

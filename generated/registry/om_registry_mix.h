@@ -5,7 +5,7 @@
 #include "param_info.h"
 #include "studio.h"
 
-#define OM_MIX_NUM_PARAMS 11
+#define OM_MIX_NUM_PARAMS 14
 
 // every entry sits at its enum value
 _Static_assert(OM_MIX_LEVEL == 0, "registry/mix.json: OM_MIX_LEVEL is not entry 0");
@@ -19,6 +19,9 @@ _Static_assert(OM_MIX_RETURN == 7, "registry/mix.json: OM_MIX_RETURN is not entr
 _Static_assert(OM_MIX_FILTER == 8, "registry/mix.json: OM_MIX_FILTER is not entry 8");
 _Static_assert(OM_MIX_CUTOFF == 9, "registry/mix.json: OM_MIX_CUTOFF is not entry 9");
 _Static_assert(OM_MIX_RESONANCE == 10, "registry/mix.json: OM_MIX_RESONANCE is not entry 10");
+_Static_assert(OM_MIX_DUCK == 11, "registry/mix.json: OM_MIX_DUCK is not entry 11");
+_Static_assert(OM_MIX_DUCK_KEY == 12, "registry/mix.json: OM_MIX_DUCK_KEY is not entry 12");
+_Static_assert(OM_MIX_DUCK_RELEASE == 13, "registry/mix.json: OM_MIX_DUCK_RELEASE is not entry 13");
 
 static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_LEVEL", "LEV", "Level", 0, 127, 100, 0},
@@ -32,6 +35,9 @@ static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_FILTER", "FLT", "Filter", 0, 13, 0, 0},
 	{"OM_MIX_CUTOFF", "CUT", "Cutoff", 0, 127, 127, 0},
 	{"OM_MIX_RESONANCE", "RES", "Resonance", 0, 127, 0, 0},
+	{"OM_MIX_DUCK", "DCK", "Duck", 0, 127, 0, 0},
+	{"OM_MIX_DUCK_KEY", "KEY", "Duck key", 0, 14, 0, 0},
+	{"OM_MIX_DUCK_RELEASE", "REL", "Duck release", 0, 127, 62, 0},
 };
 
 #endif /* OM_REGISTRY_MIX_H_ */
