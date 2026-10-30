@@ -56,9 +56,32 @@ struct OmTracker
 	// the song's own mixer values the effects changed, to put back when it stops
 	uint8_t saved[OM_MAX_CHANNELS][OM_FX_COUNT];
 	uint8_t touched[OM_MAX_CHANNELS];   // bit e: effect e changed this channel
+	// the conditions: each pattern's passes since the start, and a generator for the chances
+	// (seeded at each start, so a song plays the same every time)
+	uint16_t passes[OM_PATTERNS];
+	uint32_t rng;
 };
 
-static const OmCell EMPTY = {{OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY}, 0, 0, 0, 0, 0, 0};
+// the A:B conditions, from OM_COND_AB
+static const uint8_t COND_A[9] = {1, 2, 1, 2, 3, 1, 2, 3, 4}, COND_B[9] = {2, 2, 3, 3, 3, 4, 4, 4, 4};
+
+// whether a cell with this condition plays now
+static int condPlays(OmTracker *t, uint8_t cond)
+{
+	if (cond == OM_COND_ALWAYS || cond >= OM_COND_COUNT)
+		return 1;
+	if (cond < OM_COND_AB)
+	{
+		t->rng ^= t->rng << 13;
+		t->rng ^= t->rng >> 17;
+		t->rng ^= t->rng << 5;
+		return t->rng % 100 < cond * 10u;
+	}
+	const uint8_t i = cond - OM_COND_AB;
+	return (t->passes[t->current] - 1) % COND_B[i] == COND_A[i] - 1;
+}
+
+static const OmCell EMPTY = {{OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY, OM_NOTE_EMPTY}, 0, 0, 0, 0, 0, 0, 0};
 
 OmTracker *om_tracker_create(OmStudio *studio, float sampleRate)
 {
@@ -286,6 +309,8 @@ static void playRow(OmTracker *t, uint8_t row, uint64_t frame, double length)
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 	{
 		const OmCell *c = &t->pattern[t->current].cell[row][k];
+		if ((c->fx || c->note[0] != OM_NOTE_EMPTY) && !condPlays(t, c->cond))
+			continue;   // not this time: the notes before ring on
 		if (c->fx)
 			playEffect(t, k, row, c, frame, length);
 		if (c->note[0] == OM_NOTE_EMPTY)
@@ -356,6 +381,8 @@ void om_tracker_advance(OmTracker *t, uint32_t frames)
 		const uint64_t at = t->nextFrame < (double)now ? now : (uint64_t)(t->nextFrame + 0.5);
 		const double length = rowFrames(t);
 		releaseEnded(t, (double)at);   // the notes whose length ends first
+		if (t->row == 0)
+			t->passes[t->current]++;   // another pass of this pattern (the A:B conditions)
 		t->lastRow = (uint8_t)t->row;
 		playRow(t, (uint8_t)t->row, at, length);
 		t->nextFrame += length;
@@ -377,6 +404,8 @@ static void start(OmTracker *t)
 	restore(t);   // the song's own mix, before its first row's effects
 	for (uint8_t k = 0; k < OM_TRACKS; k++)
 		release(t, k, om_studio_frame(t->studio));
+	memset(t->passes, 0, sizeof t->passes);
+	t->rng = 0x9e3779b9u;   // the same chances every time it plays
 	t->row = 0;
 	t->lastRow = 0;
 	t->nextFrame = (double)om_studio_frame(t->studio);

@@ -56,7 +56,12 @@ typedef struct
 	uint8_t length;           // the notes end after this many quarter rows (1..64); 0: at the next
 	uint8_t glide;            // 1: the notes start over the ones before, which end after: legato,
 	                          // a mono synth glides (PLAN.md 10.3)
+	uint8_t cond;             // when the cell plays (PLAN.md 10.4): OM_COND_ALWAYS, 1..9 a chance of
+	                          // 10..90 %, or an A:B (OM_COND_AB): the A-th of every B passes of its pattern
 } OmCell;
+
+enum { OM_COND_ALWAYS = 0, OM_COND_AB = 10 };   // 10.. : 1:2 2:2 1:3 2:3 3:3 1:4 2:4 3:4 4:4
+#define OM_COND_COUNT 19
 
 typedef struct OmTracker OmTracker;
 

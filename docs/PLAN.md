@@ -461,6 +461,12 @@ comes back last, once the tools it needs exist.
    them. No render changed.
 4. **Probability and conditions** on a cell (play 50 %, every 2nd time...), so long dub techno loops
    don't sound static.
+   **Done 2026-10-30**: a cell's condition: always, a chance of 10 to 90 %, or A:B (the A-th of every
+   B passes of its pattern: 1:2 to 4:4). A cell that doesn't play is skipped whole, and the note
+   before rings on. The chances come from a generator seeded at each start, so a song renders the same
+   every time, natively and in the browser. CND is the length view's first knob; a `?` marks the
+   cell in the note view. tracker_test checks 1:2, 50 % and that two plays match; the fuzz plays
+   them. No render changed.
 5. **A MIDI controller:** the registry's CC map mapped to the soft knobs of the device in focus, so a
    physical knob box plays the studio.
 6. **Trance, version 3**, with ducking, the gate and the effect column, listened to like the others.

@@ -571,20 +571,23 @@ try {
     check((await evaluate(`window.orangeMouse.tracker.song().patterns[0].swing`)) === 58 && (await trackerText()).includes('SWG 58%'), 'SWG swings the pattern: 58 %');
     // the length view (PLAN.md 10.3): a note in the cell, half a row long, gliding in
     await press('Backquote', '`');
-    check((await evaluate(`[...document.querySelectorAll('.tracker-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'VEL NLN GLD SWG LEN', 'again: the length view, VEL NLN GLD SWG LEN');
+    check((await evaluate(`[...document.querySelectorAll('.tracker-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'CND NLN GLD SWG LEN', 'again: the length view, CND NLN GLD SWG LEN');
     await key('KeyZ', 'z', true); await key('KeyZ', 'z', false);   // C-4, the cursor moves on
     await press('ArrowUp', 'ArrowUp');
     await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[1].focus()`);
     await press('ArrowUp', 'ArrowUp', 8); await press('ArrowUp', 'ArrowUp', 8);
     await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[2].focus()`);
     await press('ArrowUp', 'ArrowUp', 8);
+    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[0].focus()`);
+    for (let i = 0; i < 10; i++) await press('ArrowUp', 'ArrowUp', 8);   // CND: past 90 %, to 1:2
     await evaluate(`document.activeElement.blur()`);
+    check((await evaluate(`window.orangeMouse.tracker.song().patterns[0].cells['0:0'].cond`)) === 10 && (await trackerText()).includes('CND 1:2'), 'CND gives the cell a 1:2 condition');
     const withLen = JSON.parse(await evaluate(`JSON.stringify(window.orangeMouse.tracker.song().patterns[0].cells['0:0'])`));
     check(withLen.notes?.[0] === 60 && withLen.len === 2 && withLen.glide === true && withLen.fx === 5,
       `NLN and GLD: half a row, gliding, the effect kept: ${JSON.stringify(withLen)}`);
     check((await trackerRow(0)).includes('C-4 ~  .5'), `the length view shows it: "${await trackerRow(0)}"`);
     await press('Backquote', '`');
-    check((await trackerRow(0)).includes('C-4  ·· C'), `back in the note view, the cell shows its effect's letter: "${await trackerRow(0)}"`);
+    check((await trackerRow(0)).includes('C-4 ?·· C'), `back in the note view, the cell shows its condition and its effect's letter: "${await trackerRow(0)}"`);
   }
 
   console.log('== the tracker follows the song');

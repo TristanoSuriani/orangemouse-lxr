@@ -282,6 +282,41 @@ int main(void)
 		CHECK(on64 >= 0 && off48 > on64 && evs[on64].frame / 64 == 30000 / 64 && evs[off48].frame == evs[on64].frame,
 		      "a glide plays its note first and then ends the one before (events %d, %d)", on64, off48);
 	}
+	{   // conditions (PLAN.md 10.4): 1:2 plays on passes 1, 3, 5...; 50 % about half the time, the same each play
+		fresh();
+		om_tracker_set_tempo(tr, 120.f);
+		om_tracker_set_length(tr, 0, 1);   // one row: a pass every 6000 frames
+		OmCell a = notes(60, OM_NOTE_EMPTY, OM_NOTE_EMPTY, 0), b = notes(62, OM_NOTE_EMPTY, OM_NOTE_EMPTY, 0);
+		a.cond = OM_COND_AB;       // 1:2
+		b.cond = 5;                // 50 %
+		om_tracker_set_cell(tr, 0, 0, 0, &a);
+		om_tracker_set_cell(tr, 0, 0, 1, &b);
+		int counts[2][2];
+		for (int play = 0; play < 2; play++)
+		{
+			nevs = 0;
+			om_tracker_play_pattern(tr, 0);
+			run(6000 * 40);
+			om_tracker_stop(tr);
+			int on = 0, half = 0, alternating = 1;
+			uint64_t last = 0;
+			for (int i = 0; i < nevs; i++)
+			{
+				if (!evs[i].on) continue;
+				if (evs[i].part == 0)   // every other pass: 12000 frames apart (to a block)
+				{
+					if (on && (evs[i].frame - last + 3000) / 6000 != 2) alternating = 0;
+					last = evs[i].frame;
+					on++;
+				}
+				if (evs[i].part == 1) half++;
+			}
+			CHECK(on == 20 && alternating, "1:2 plays 20 times of 40, on every other pass (%d, %s)", on, alternating ? "alternating" : "not alternating");
+			CHECK(half > 10 && half < 30, "50 %% plays %d times of 40", half);
+			counts[play][0] = on, counts[play][1] = half;
+		}
+		CHECK(counts[0][1] == counts[1][1], "the chances are the same each play (%d, %d)", counts[0][1], counts[1][1]);
+	}
 	{   // the effect column (PLAN.md 10.1): a cutoff slide from 20 at row 0 to 100 at row 4, then put back
 		fresh();
 		om_tracker_set_tempo(tr, 120.f);   // a row: 6000 frames at 48 kHz

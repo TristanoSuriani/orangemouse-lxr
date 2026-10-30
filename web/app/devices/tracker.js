@@ -18,7 +18,7 @@ import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed } from '../kit/controls.js';
 import { addGuide } from '../kit/guide.js';
 import { KEY_SEMITONES } from '../kit/keybed.js';
-import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, FX_NAMES, newPattern, patternMessage, getCell, songMessages, Editor } from '../tracker/song.js';
+import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, FX_NAMES, CONDITIONS, newPattern, patternMessage, getCell, songMessages, Editor } from '../tracker/song.js';
 import * as library from '../tracker/library.js';
 import { backup } from '../tracker/backup.js';
 import { renderSong, wavFile } from '../tracker/wav.js';
@@ -51,8 +51,11 @@ function cellText(cell, col = 0) {
   if (col === 1) return `${note}${chord} ${fxText(cell)}`;
   if (col === 2) return `${note}${chord}${cell?.glide ? '~' : ' '}${cell?.len ? rowsText(cell.len) : ' ···'}`;
   if (!cell || cell.off || !cell.notes.length) return `${note}  ·· ${cell?.fx ? FX_NAMES[cell.fx].key : '·'}`;
-  return `${note}${chord} ${cell.vel ? hex(cell.vel) : '··'} ${cell.retrig >= 2 ? cell.retrig : cell.fx ? FX_NAMES[cell.fx].key : '·'}`;
+  return `${note}${chord}${cell.cond ? '?' : ' '}${cell.vel ? hex(cell.vel) : '··'} ${cell.retrig >= 2 ? cell.retrig : cell.fx ? FX_NAMES[cell.fx].key : '·'}`;
 }
+
+// a condition in words
+const condWords = (cond) => (cond < 10 ? `${cond * 10} % of the time` : `on pass ${CONDITIONS[cond].replace(':', ' of every ')}`);
 
 function cellWords(cell) {
   if (!cell) return 'empty';
@@ -61,7 +64,8 @@ function cellWords(cell) {
   if (!cell.notes.length) return `no note${fx}`;
   const chord = cell.notes.length > 1 ? ` (a chord: ${cell.notes.map(noteName).join(' ')})` : '';
   const len = cell.len ? `, ${rowsText(cell.len).trim()} row${cell.len === 4 ? '' : 's'} long` : '';
-  return `${noteName(cell.notes[0])}${chord}, velocity ${cell.vel || 100}${cell.retrig >= 2 ? `, ${cell.retrig} hits` : ''}${len}${cell.glide ? ', gliding in' : ''}${fx}`;
+  const when = cell.cond ? `, plays ${condWords(cell.cond)}` : '';
+  return `${noteName(cell.notes[0])}${chord}, velocity ${cell.vel || 100}${cell.retrig >= 2 ? `, ${cell.retrig} hits` : ''}${len}${cell.glide ? ', gliding in' : ''}${when}${fx}`;
 }
 
 const GUIDE = [
@@ -73,7 +77,7 @@ const GUIDE = [
   { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, W renders a WAV file, C copies a share code, V loads one.' },
   { title: 'The playlist', text: 'In SONGS, Q queues the chosen song and L shows the playlist: Enter plays from there, each song to its end and then the next after the gap (- and =). Shift+arrows reorder, Delete removes. STOP ends it.' },
   { title: 'Keeping songs safe', text: 'The browser may clear its storage. B picks a backup folder: every song is copied there as .json each time it saves (after a reload, B lets it write again). A exports every song in one file, which I imports. The display says when the songs are not safe.' },
-  { title: 'Length and glide', text: 'Press \` twice: the length view. NLN sets how long the notes last (a quarter row to 16 rows, or until the next cell), GLD lets them glide in over the notes before (~ on the display): with a VA slot in legato mode and some GLIDE, an acid line.' },
+  { title: 'Length, glide, chance', text: 'Press \` twice: the length view. CND sets when the cell plays: always, by chance (10-90 %), or A:B (the A-th of every B passes of its pattern), so long loops change; a ? marks it. NLN sets how long the notes last (a quarter row to 16 rows, or until the next cell), GLD lets them glide in over the notes before (~ on the display): with a VA slot in legato mode and some GLIDE, an acid line.' },
   { title: 'Effects', text: 'The \` key (left of 1) shows the effect column: a cell can set one of its track\'s mixer controls at its row (L level, P pan, A/B sends, C cutoff, R resonance), "C40" sets the cutoff to 64. With SLD on (">") it slides to the track\'s next effect on that control: a sweep. The knobs become FX, VAL, SLD. Stopping puts the mix back.' },
   { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
@@ -200,7 +204,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
     const knobText = [
       [`VEL ${vel}`, `RTG ${rtg}`, `BPM ${Math.round(bpm)}`],
       [`FX ${c?.fx ? FX_NAMES[c.fx].name.toUpperCase() : 'none'}`, `VAL ${c?.fx ? c.fxv ?? 0 : '-'}`, `SLD ${c?.fx ? (c.fxs ? 'on' : 'off') : '-'}`],
-      [`VEL ${vel}`, `NLN ${hasNotes ? (c.len ? `${rowsText(c.len).trim()} row${c.len === 4 ? '' : 's'}` : 'to next') : '-'}`, `GLD ${hasNotes ? (c.glide ? 'on' : 'off') : '-'}`],
+      [`CND ${c && (hasNotes || c.fx) ? CONDITIONS[c.cond ?? 0] : '-'}`, `NLN ${hasNotes ? (c.len ? `${rowsText(c.len).trim()} row${c.len === 4 ? '' : 's'}` : 'to next') : '-'}`, `GLD ${hasNotes ? (c.glide ? 'on' : 'off') : '-'}`],
     ][state.col];
     knobText.push(`SWG ${pt.swing ?? 50}%`, `LEN ${pt.rows}`);
     display.line(ROWS - 1, knobText.map((x) => x.padEnd(17)).join(''));
@@ -483,7 +487,7 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
       next = { notes: [note], vel: old && !old.off ? old.vel : 0, retrig: old && !old.off ? old.retrig : 0 };
     }
     if (old?.fx) Object.assign(next, { fx: old.fx, fxv: old.fxv, fxs: old.fxs });   // a note keeps the cell's effect
-    if (old && !old.off) { if (old.len) next.len = old.len; if (old.glide) next.glide = true; }   // and its length and glide
+    if (old && !old.off) { if (old.len) next.len = old.len; if (old.glide) next.glide = true; if (old.cond) next.cond = old.cond; }   // its length, glide, condition
     apply([{ p: state.p, row: state.cur.r, track: state.cur.k, cell: next }]);
     if (!stack) move(state.step, 0);
   }
@@ -620,7 +624,15 @@ export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () =>
   FX_KNOBS.push(KNOBS[3], KNOBS[4]);   // SWG, LEN
   // the length view's: how long the notes last, and whether they glide in
   const LEN_STEPS = [0, 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64];   // quarter rows; 0: until the next cell
-  const LEN_KNOBS = [KNOBS[0],
+  const LEN_KNOBS = [
+    ['CND', 'Condition: when the cell plays. Always, by chance (10 to 90 %), or A:B, on the A-th of every B times its pattern plays. A ? on the cell shows it has one.',
+      (n) => setInCells((c) => {
+        if (!c || (!c.fx && (c.off || !c.notes.length))) return c;
+        const cond = Math.max(0, Math.min(CONDITIONS.length - 1, (c.cond ?? 0) + Math.sign(n)));
+        const next = { ...c, cond };
+        if (!cond) delete next.cond;
+        return next;
+      })],
     ['NLN', 'Note length: the notes end after this many rows (a quarter to 16), or at the next cell. Short notes make a bass line bounce.',
       (n) => setInCells((c) => {
         if (!c || c.off || !c.notes.length) return c;

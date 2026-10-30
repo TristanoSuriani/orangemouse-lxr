@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 	for (int k = 0; k < OM_TRACKS; k++) routeEngine[k] = -1, routePart[k] = 0;
 	while (fgets(line, sizeof line, in))
 	{
-		int a[14] = {0};
+		int a[16] = {0};
 		float f = 0.f;
 		if (line[0] == 'T' && sscanf(line, "T %15s", op) == 1)
 		{
@@ -94,9 +94,9 @@ int main(int argc, char **argv)
 				om_tracker_set_pattern_swing(tr, (uint8_t)a[0], a[2] ? (uint8_t)a[2] : 50);
 			}
 			else if (!strcmp(op, "order") && sscanf(args, "%d %d", &a[0], &a[1]) == 2) om_tracker_set_order(tr, (uint16_t)a[0], (uint8_t)a[1]);
-			else if (!strcmp(op, "cell") && sscanf(args, "%d %d %d %d %d %d %d %d %d %d %d %d %d", &a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7], &a[8], &a[9], &a[10], &a[11], &a[12]) >= 9)
-			{   // the effect, the length and the glide (four more fields) are optional
-				const OmCell c = {{(uint8_t)a[3], (uint8_t)a[4], (uint8_t)a[5], (uint8_t)a[6]}, (uint8_t)a[7], (uint8_t)a[8], (uint8_t)a[9], (uint8_t)a[10], (uint8_t)a[11], (uint8_t)a[12]};
+			else if (!strcmp(op, "cell") && sscanf(args, "%d %d %d %d %d %d %d %d %d %d %d %d %d %d", &a[0], &a[1], &a[2], &a[3], &a[4], &a[5], &a[6], &a[7], &a[8], &a[9], &a[10], &a[11], &a[12], &a[13]) >= 9)
+			{   // the effect, the length, the glide and the condition (five more fields) are optional
+				const OmCell c = {{(uint8_t)a[3], (uint8_t)a[4], (uint8_t)a[5], (uint8_t)a[6]}, (uint8_t)a[7], (uint8_t)a[8], (uint8_t)a[9], (uint8_t)a[10], (uint8_t)a[11], (uint8_t)a[12], (uint8_t)a[13]};
 				om_tracker_set_cell(tr, (uint8_t)a[0], (uint8_t)a[1], (uint8_t)a[2], &c);
 				if (a[2] < OM_TRACKS && a[3] < 128) played[a[2]] = 1;
 			}
