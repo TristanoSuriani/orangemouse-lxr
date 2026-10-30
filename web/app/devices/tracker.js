@@ -20,6 +20,7 @@ import { addGuide } from '../kit/guide.js';
 import { KEY_SEMITONES } from '../kit/keybed.js';
 import { TRACKS, MAX_ROWS, PATTERNS, CHORD, ENGINES, newPattern, getCell, songMessages, Editor } from '../tracker/song.js';
 import * as library from '../tracker/library.js';
+import { backup } from '../tracker/backup.js';
 
 const COLS = 84;
 const ROWS = 20;
@@ -55,6 +56,7 @@ const GUIDE = [
   { title: 'Select, copy, paste', text: 'Without a selection, Cmd/Ctrl C and V copy one cell. Shift+arrows or a drag select a block; paste lands at the cursor. Cmd+Shift+V pastes back into the same tracks. Cmd+A: the track, again: everything. Cmd+Z undoes.' },
   { title: 'Play', text: 'Space plays the song from the order position you chose (click it on the ORDER row), or stops. Enter (LOOP) repeats the pattern you edit. PAT -/+ choose the pattern; PAT + past the last makes a new one; Cmd+D duplicates it. ORD + adds it to the order list. BPM sets the pattern\'s tempo.' },
   { title: 'Songs', text: 'Every song saves itself as you edit. SONGS lists them: arrows choose, Enter loads, N new, D duplicate, R rename, Delete (twice) deletes, E export and I import a .json file, C copies a share code, V loads one.' },
+  { title: 'Keeping songs safe', text: 'The browser may clear its storage. B picks a backup folder: every song is copied there as .json each time it saves (after a reload, B lets it write again). A exports every song in one file, which I imports. The display says when the songs are not safe.' },
   { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. Tab moves between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
@@ -163,7 +165,8 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
     let order = 'ORDER ';
     const starts = [];
     s.order.forEach((p) => { starts.push(order.length); order += hex(p) + ' '; });
-    display.line(ROWS - 2, order);
+    const alert = backup.alert();
+    display.line(ROWS - 2, alert && order.length + alert.length < COLS ? order.padEnd(COLS - alert.length) + alert : order);
     display.invert(ROWS - 2, starts[state.playing[0] ? state.playing[2] : state.pos] ?? 0, 2);
     orderStarts = starts;
 
@@ -184,7 +187,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   let orderStarts = [];
   function renderSongs(play) {
     display.uninvert();
-    display.line(0, `SONGS ${state.message || 'N new  D duplicate  R rename  DEL delete  E export  I import  C/V code'}`.slice(0, COLS));
+    display.line(0, `SONGS ${state.message || 'N new D dup R rename DEL delete E/I export/import C/V code A all B folder'}`.slice(0, COLS));
     display.line(1, `   ${'NAME'.padEnd(40)}SAVED`);
     const list = state.songs;
     const top = Math.max(0, Math.min(list.length - VISIBLE, state.songCur - Math.floor(VISIBLE / 2)));
@@ -196,7 +199,9 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
       display.line(row, ` ${current} ${item.name.slice(0, 39).padEnd(40)}${new Date(item.updated).toLocaleString().slice(0, 30)}`);
       if (top + i === state.songCur) display.invert(row, 3, 40);
     }
-    display.line(ROWS - 2, list.length ? `${list.length} SONG${list.length === 1 ? '' : 'S'}   ${play}` : 'NO SONGS SAVED YET');
+    const count = list.length ? `${list.length} SONG${list.length === 1 ? '' : 'S'}   ${play}` : 'NO SONGS SAVED YET';
+    const kept = backup.alert() || backup.describe();
+    display.line(ROWS - 2, count.padEnd(COLS - kept.length) + kept);
     display.line(ROWS - 1, 'SONGS again (or Esc) goes back to the pattern');
     display.draw();
     help.refresh();
@@ -258,15 +263,26 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
       Object.assign(document.createElement('a'), { href: url, download: `${s.name}.json` }).click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       return note('EXPORTED');
+    } else if (k === 'a' && list.length) {
+      const all = (await Promise.all(list.map(({ id }) => library.load(id)))).filter(Boolean);
+      const url = URL.createObjectURL(new Blob([library.allSongsFile(all)], { type: 'application/json' }));
+      Object.assign(document.createElement('a'), { href: url, download: `Orange Mouse songs ${new Date().toISOString().slice(0, 10)}.json` }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      backup.exported();
+      return note(`EXPORTED ${all.length} SONGS IN ONE FILE`);
+    } else if (k === 'b') {
+      if (!backup.canPick() && !backup.state.folder) return note('THIS BROWSER CAN\'T WRITE TO A FOLDER: A EXPORTS EVERY SONG');
+      const ok = await backup.choose();
+      return note(ok ? `BACKUP FOLDER ${backup.state.folder.name.toUpperCase()}: EVERY SONG COPIED` : 'NO BACKUP FOLDER CHOSEN');
     } else if (k === 'i') {
       const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json,application/json' });
       input.onchange = async () => {
         try {
-          const s = library.migrate(JSON.parse(await input.files[0].text()));
-          s.id = library.songId();
-          await library.save(s);
-          load(s);
-          openSongs(true);
+          const songs = library.parseImport(await input.files[0].text());
+          for (const s of songs) await library.save(s);
+          load(songs[0]);
+          await openSongs(true);
+          if (songs.length > 1) note(`IMPORTED ${songs.length} SONGS`);
         } catch { note('THAT FILE IS NOT A SONG'); }
       };
       input.click();
@@ -472,7 +488,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
     ['octDown', 'OCT -', 'The keys play an octave lower ([).', () => { state.octs[state.cur.k] = Math.max(0, state.octs[state.cur.k] - 1); render(); }],
     ['octUp', 'OCT +', 'The keys play an octave higher (]).', () => { state.octs[state.cur.k] = Math.min(8, state.octs[state.cur.k] + 1); render(); }],
     ['step', 'STEP', 'How far the cursor moves after a note: 0, 1, 2, 4, 8 (- and =).', () => { state.step = STEPS[(STEPS.indexOf(state.step) + 1) % STEPS.length]; render(); }],
-    ['songs', 'SONGS', 'The library on the display: load, new, duplicate, rename, delete, export, import, share codes.', () => openSongs()],
+    ['songs', 'SONGS', 'The library on the display: load, new, duplicate, rename, delete, export, import, share codes, the backup folder.', () => openSongs()],
   ];
   for (const [id, label, text, action] of PADS) {
     const pad = makePad(label, { kind: 'small', onChange: (down) => down && action() });
@@ -534,7 +550,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   describe(canvas, help, () => {
-    if (state.mode === 'songs') return 'The songs: arrows choose, Enter loads, N new, D duplicate, R rename, Delete twice deletes, E/I export/import .json, C/V share code. Esc goes back.';
+    if (state.mode === 'songs') return 'The songs: arrows choose, Enter loads, N new, D duplicate, R rename, Delete twice deletes, E/I export/import .json, C/V share code, A exports every song, B picks a backup folder. Esc goes back.';
     if (!hover) return 'The pattern: click a cell to move there, drag to select. Click a track name to mute it, right-click to solo it.';
     if (hover.order !== undefined) return `Order position ${hover.order + 1}: pattern ${hex(song.value.order[hover.order])}. Click: PLAY starts here, and you edit that pattern.`;
     const t = song.value.tracks[hover.k];
@@ -646,6 +662,7 @@ export function createTrackerDevice({ send: sendToWorklet, help }) {
   }
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
+  backup.onChange(() => render());
   // The LXR's kit as the worklet reports it (its panel or SD card changed it):
   // the song keeps it, and saves.
   function keepLxrKit(values) {

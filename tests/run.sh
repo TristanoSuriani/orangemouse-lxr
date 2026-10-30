@@ -52,6 +52,9 @@ echo "== parameter registry"
 { python3 -I tools/lxr_registry.py --check && python3 -I tools/registry.py --check && node tests/registry_test.mjs; } \
   | sed 's/^/   /' || fail=1
 
+echo "== songs can't be lost (the backup folder, the export reminder)"
+node tests/backup_test.mjs | sed 's/^/   /' || fail=1
+
 echo "== studio, tracker, clock, Dexed and Plaits tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1
 $BIN/tracker_test | sed 's/^/   /' || fail=1

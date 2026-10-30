@@ -310,6 +310,13 @@ comes back last, once the tools it needs exist.
    say on the tracker's display if it was refused. Add a backup: a folder picked once (File System
    Access) that receives every song as .json after each autosave, or, where that isn't available, an
    `EXPORT?` reminder when the songs haven't been exported for a week.
+   **Done 2026-10-30** (web/app/tracker/backup.js, tests/backup_test.mjs): the studio asks for
+   persistent storage at start. In SONGS, B picks the backup folder: every song is copied at once, then
+   on each save, as `<name> (<id>).json` (a rename moves the file). After a reload the browser asks
+   again before writing there, so the display says `BACKUP PAUSED` until B. A exports every song in one
+   file, which I imports. The order row says `SONGS NOT KEPT FOR SURE` when storage was refused and
+   nothing was exported for a week, and `EXPORT?` in a browser without folders when the songs changed
+   and the last export (or the first start) is a week old.
 2. **CPU in the browser, at the worst case.** Write a stress song with every part at its voice limit
    (Dexed's 32 voices, both Plaits parts, the four VA slots, the LXR), both sends on reverbs and every
    channel filter on. Time it in WebAssembly, in a headless browser, against a budget, as well as

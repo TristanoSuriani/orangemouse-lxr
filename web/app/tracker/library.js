@@ -11,6 +11,7 @@ import { migrateMix } from '../mixer/mix.js';
 
 const DB_NAME = 'orange-mouse';
 const STORE = 'songs';
+const KEEP = 'keep';   // small things the studio keeps, such as the backup folder (backup.js)
 const CURRENT_KEY = 'om.song';
 const CODE_PREFIX = 'OM1:';
 
@@ -22,15 +23,27 @@ const request = (req) => new Promise((resolve, reject) => {
 let dbPromise = null;
 function db() {
   if (!dbPromise) {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id' });
+    const req = indexedDB.open(DB_NAME, 2);
+    req.onupgradeneeded = () => {
+      const names = req.result.objectStoreNames;
+      if (!names.contains(STORE)) req.result.createObjectStore(STORE, { keyPath: 'id' });
+      if (!names.contains(KEEP)) req.result.createObjectStore(KEEP);
+    };
     dbPromise = request(req);
   }
   return dbPromise;
 }
 
-async function store(mode) {
-  return (await db()).transaction(STORE, mode).objectStore(STORE);
+async function store(mode, name = STORE) {
+  return (await db()).transaction(name, mode).objectStore(name);
+}
+
+export async function getKept(key) {
+  try { return await request((await store('readonly', KEEP)).get(key)); } catch { return undefined; }
+}
+
+export async function setKept(key, value) {
+  try { await request((await store('readwrite', KEEP)).put(value, key)); } catch { /* not kept this time */ }
 }
 
 // A song from any version, made whole: missing fields get their defaults.
@@ -70,12 +83,17 @@ export async function load(id) {
   }
 }
 
+// called with each song saved (the backup folder copies it)
+const saveListeners = [];
+export const onSave = (fn) => saveListeners.push(fn);
+
 export async function save(song) {
   if (!song.id) song.id = songId();
   try {
     await request((await store('readwrite')).put({ id: song.id, name: song.name, updated: Date.now(), song }));
     localStorage.setItem(CURRENT_KEY, song.id);
-  } catch { /* not kept this time */ }
+  } catch { return; /* not kept this time */ }
+  for (const fn of saveListeners) fn(song);
 }
 
 export async function remove(id) {
@@ -140,6 +158,20 @@ export async function retire({ ids = [], names = [] }, version = 1) {
 
 export function currentId() {
   try { return localStorage.getItem(CURRENT_KEY); } catch { return null; }
+}
+
+// ---- files: one song, or every song (A in SONGS) ----
+
+export const ALL_KIND = 'orange-mouse-songs';
+export const allSongsFile = (songs) => JSON.stringify({ kind: ALL_KIND, saved: new Date().toISOString(), songs }, null, 1);
+
+// The songs in an imported file, each a new song (a new id): a song's .json,
+// or a file of every song. Throws if it is neither.
+export function parseImport(text) {
+  const data = JSON.parse(text);
+  const raws = data?.kind === ALL_KIND && Array.isArray(data.songs) ? data.songs : [data];
+  if (!raws.length || !raws.every((r) => r && typeof r === 'object' && Array.isArray(r.patterns))) throw new Error('not a song');
+  return raws.map((r) => ({ ...migrate(r), id: songId() }));
 }
 
 // ---- share codes: the song, compressed, as text you can paste anywhere ----

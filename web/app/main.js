@@ -17,6 +17,7 @@ import { createDexedDevice } from './devices/dexed.js';
 import { createPlaitsDevice } from './devices/plaits.js';
 import { songMessages } from './tracker/song.js';
 import * as library from './tracker/library.js';
+import { backup } from './tracker/backup.js';
 import { GENRE_SONGS, RETIRED_SONGS } from './tracker/genres/index.js';
 import { DotMatrix } from './kit/dotmatrix.js';
 import { addGuide } from './kit/guide.js';
@@ -484,10 +485,15 @@ tracker.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); va.load
 // an empty song at once; when the library answers, the song last edited,
 // else the library's newest, takes its place
 tracker.load(library.migrate({}));
+// songs can't be lost: persistent storage, and the backup folder copies each save
+library.onSave((s) => backup.saved(s));
 (async () => {
+  await backup.start();
   await library.retire(RETIRED_SONGS);
   await library.seed(GENRE_SONGS);   // the genre demos, in the library once
-  const id = library.currentId() ?? (await library.list())[0]?.id;
+  const songs = await library.list();
+  songs.forEach((x) => backup.noteEdit(x.updated));
+  const id = library.currentId() ?? songs[0]?.id;
   const saved = id && (await library.load(id));
   if (saved) {
     saved.id = id;

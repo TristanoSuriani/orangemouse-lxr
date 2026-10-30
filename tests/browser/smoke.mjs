@@ -330,6 +330,28 @@ try {
   check((await evaluate(`window.orangeMouse.tracker.song().lxr?.[10]`)) === 77, 'after a reload the LXR plays the song\'s kit');
   check((await evaluate(`window.orangeMouse.tracker.song().va[0].params?.[16]`)) === 33, 'and VA1 its sound (VA reports its cutoff back)');
 
+  console.log('== songs can\'t be lost');
+  const kept = await evaluate(`(async () => {
+    const { backup } = await import('./tracker/backup.js');
+    const lib = await import('./tracker/library.js');
+    // the origin's own folder stands in for a picked one (no picker in a headless browser)
+    const root = await navigator.storage.getDirectory();
+    const dir = await root.getDirectoryHandle('om-backup-test', { create: true });
+    const ok = await backup.useFolder(dir);
+    const s = window.orangeMouse.tracker.song();
+    await lib.save(s);
+    await new Promise((r) => setTimeout(r, 200));
+    const names = [];
+    for await (const name of dir.keys()) names.push(name);
+    const mine = names.find((n) => n.endsWith('(' + s.id + ').json'));
+    const text = mine && await (await (await dir.getFileHandle(mine)).getFile()).text();
+    return { ok, persisted: backup.state.persisted, count: names.length, songs: (await lib.list()).length,
+      same: !!text && JSON.parse(text).name === s.name, alert: backup.alert() };
+  })()`);
+  check(typeof kept.persisted === 'boolean', `the studio asked for persistent storage (granted: ${kept.persisted})`);
+  check(kept.ok && kept.count === kept.songs, `a backup folder gets every song at once (${kept.count} files, ${kept.songs} songs)`);
+  check(kept.same && kept.alert === '', 'and each save; with it the display has no alert');
+
   console.log('== the LXR plays');
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'note', engine: 0, part: 0, note: 36, velocity: 120, on: true })`);
   check((await peak(300)) > 0.02, 'an LXR drum 1 hit makes sound');
