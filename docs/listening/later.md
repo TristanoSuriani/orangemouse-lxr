@@ -1,8 +1,9 @@
 # "Later" listening checklist (2026-11-01)
 
 The "Later" list added Surge's waveshapers, Rings and Clouds. Each one was tested for health and
-measured, but nobody has listened to it yet. No song uses them yet. Try them in the studio, and mark
-each line **keep** or **change**, with a few words on what to change.
+measured, but nobody has listened to it yet. Three genre songs use them (version 2; the library keeps
+your old copies as "(v1)"). Try them in the studio, and mark each line **keep** or **change**, with a
+few words on what to change.
 
 ## The waveshaper (the mixer, PAGE five times on a channel: SHP, DRV)
 
@@ -50,3 +51,19 @@ All wet, 3 ms late. Its stretch mode needed a fix to Mutable's code (third_party
 | looping delay with PIT +12 | a sparkling loop an octave up | |
 | spectral | a blurred, frozen-sounding wash | |
 | FRZ on during a breakdown | the texture holds while the song moves on | |
+
+## In the genre songs (version 2)
+
+Set by measurement only: each song kept its loudness (electro -15.3 dBFS, dub techno -16.8, synthwave
+-17.7, from -18.2; Rings adds to it). The drives are low where the shaper fattened the kick's tail.
+
+| Song | What was added | Keep / change |
+|---|---|---|
+| Electro | the FM bass through *warm* (DRV 40), the kick through *tube* (DRV 20) | |
+| Electro | Rings' *Metal hit* answering the robot voice, four notes every two bars | |
+| Electro | Clouds on FX A instead of the room: the voice and the hits as grains, an octave up (the snare lost its room send) | |
+| Synthwave | the VA bass through *tube* (DRV 40), the snare through *soft* (DRV 35) | |
+| Synthwave | Rings' *Chime pad* chiming the chord notes in the intro and outro | |
+| Dub techno | the chord stab through *warm* (DRV 45), the kick through *soft* (DRV 15) | |
+| Dub techno | Rings' *Dub ring* struck by the rim (IN DR3), tuned D3/A2, F3/C3 in the variation | |
+| Dub techno | Clouds on FX A instead of the hall: a big smooth grain wash with its own reverb | |

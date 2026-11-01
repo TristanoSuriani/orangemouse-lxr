@@ -1,8 +1,8 @@
-electro health: 0 not finite, peak 0.933, 0.00 % of samples at the limiter, DC 0.00000, RMS -15.4 dBFS
-electro hash 68f409a1016828ca
-synthwave health: 0 not finite, peak 0.844, 0.00 % of samples at the limiter, DC -0.00000, RMS -18.2 dBFS
-synthwave hash 350c487e83a2f08c
-dubtechno health: 0 not finite, peak 0.514, 0.00 % of samples at the limiter, DC -0.00000, RMS -16.8 dBFS
-dubtechno hash b665f9827adea83e
+electro health: 0 not finite, peak 0.977, 0.00 % of samples at the limiter, DC -0.00000, RMS -15.3 dBFS
+electro hash 9b0ec30d4dc32954
+synthwave health: 0 not finite, peak 0.864, 0.00 % of samples at the limiter, DC 0.00000, RMS -17.7 dBFS
+synthwave hash 1fab4f8581ed6773
+dubtechno health: 0 not finite, peak 0.646, 0.00 % of samples at the limiter, DC 0.00000, RMS -16.8 dBFS
+dubtechno hash aa11cce0cfbc8f7a
 trance health: 0 not finite, peak 0.977, 0.00 % of samples at the limiter, DC -0.00000, RMS -15.5 dBFS
 trance hash c383df4b874d7256

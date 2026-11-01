@@ -38,3 +38,7 @@ Each re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to 
 - `screens/plaits.png` (558028 pixels)
 - `screens/rings.png` (new)
 - `screens/mixer.png` (397138 pixels)
+
+## 2026-11-01: The electro, synthwave and dub techno songs, version 2: the shaper, Rings and Clouds
+
+- `songs.txt`: 3 of 4 renders: electro, synthwave, dubtechno

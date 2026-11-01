@@ -135,9 +135,9 @@ if command -v emcmake >/dev/null && command -v node >/dev/null; then
   node tests/host/build-wasm/dexed_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/plaits_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/rings_test.js | sed 's/^/   wasm: /' || fail=1
-  # each: a tool, and its arguments (the electro song: the whole studio, every engine but
-  # Rings, which no song plays yet; rings_test hashes every preset and model, studio_test
-  # every send effect, Clouds too)
+  # each: a tool, and its arguments (the electro song: the whole studio, every engine,
+  # the shaper and Clouds; rings_test hashes every preset and model, studio_test every
+  # send effect)
   for run in "lxr_render" "studio_render" "song_render $OUT/songs/electro.txt" "rings_test" "studio_test"; do
     set -- $run
     tool=$1; shift

@@ -14,8 +14,9 @@ import trance, { VERSION as TRANCE_VERSION } from './trance.js';
 export const RETIRED_SONGS = { ids: ['genre-trance'], names: ['First steps', 'Trance: Dawn Run', 'Trance: Dawn Run (v1)'] };
 
 export const GENRE_SONGS = [
-  { id: 'genre-electro', make: electro },
-  { id: 'genre-synthwave', make: synthwave },
-  { id: 'genre-dubtechno', make: dubtechno },
+  // version 2: the shaper, Rings and Clouds
+  { id: 'genre-electro', make: electro, version: 2 },
+  { id: 'genre-synthwave', make: synthwave, version: 2 },
+  { id: 'genre-dubtechno', make: dubtechno, version: 2 },
   { id: 'genre-trance-3', make: trance, version: TRANCE_VERSION },   // trance with the gate, the ducking, the effects (PLAN.md 10.6)
 ];

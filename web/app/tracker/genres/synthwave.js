@@ -3,12 +3,12 @@
 //
 // The synthwave demo (PLAN.md Phase 6), 100 BPM in A minor, Am F C G: kick
 // on 1 and 3, a big reverb snare on 2 and 4, eighth hats; VA pumps an octave
-// bass, Plaits holds the string machine and stabs brass in the chorus, Dexed
+// bass through a tube, Rings chimes the chords in the intro and outro, Plaits holds the string machine and stabs brass in the chorus, Dexed
 // plays an FM Rhodes, VA sings a sync lead. Patterns: intro, verse, chorus,
 // outro. Also a regression song (tests/run.sh).
 
 import { T, n, chord, song, put, off, hits, seq, lxrKit, channel, bus } from './build.js';
-import { plaitsPreset } from '../song.js';
+import { plaitsPreset, ringsPreset } from '../song.js';
 
 const ROOTS = ['A1', 'F1', 'C2', 'G1'].map(n);
 const CHORDS = ['A3 C4 E4', 'F3 A3 C4', 'G3 C4 E4', 'G3 B3 D4'].map(chord);
@@ -50,6 +50,10 @@ export default function synthwave() {
     put(s, CHORUS, bar * 16 + 14, T.PL1, CHORDS[(bar + 1) % 4], 100);
     off(s, CHORUS, bar * 16 + 16 < 64 ? bar * 16 + 16 : 63, T.PL1);
   }
+  // Rings: the chords' notes chimed, one at a time
+  for (const p of [INTRO, OUTRO])
+    for (let bar = 0; bar < 4; bar++)
+      [0, 6, 12].forEach((step, i) => put(s, p, bar * 16 + step, T.RN1, CHORDS[bar][i] + 12, i ? 85 : 105));
   hits(s, CHORUS, T.CYM, 'X' + '.'.repeat(63));
   hits(s, OUTRO, T.CYM, 'X' + '.'.repeat(63));
 
@@ -57,16 +61,18 @@ export default function synthwave() {
 
   s.va = [{ params: null, preset: 8 }, { params: null, preset: 0 }, { params: null, preset: 2 }, { params: null, preset: 7 }];
   s.plaits = [plaitsPreset('Poly brass'), plaitsPreset('Stringer')];
+  s.rings = [ringsPreset('Chime pad')];
   s.dexed[0] = { bank: 2, program: 15, volume: 92, transpose: 24 };   // SynprezFM 02: FmRhodes18
   // a bigger, rounder kick; a fat snare with a long tail
   s.lxr = lxrKit({ PAR_VELOD1: 40, PAR_COARSE1: 28, PAR_VELOD4: 30, PAR_COARSE4: 40, PAR_FILTER_FREQ_6: 96 });
 
-  channel(s, 'lxr4', { sendA: 95 });
+  channel(s, 'lxr4', { sendA: 95, shape: 1, drive: 35 });   // soft
   channel(s, 'lxr1', { sendA: 20 });
   channel(s, 'pl2', { level: 82, sendA: 70, filter: 2, cutoff: 100 });
   channel(s, 'pl1', { level: 86, sendA: 50 });
   channel(s, 'dx1', { level: 82, pan: 46, sendA: 40, sendB: 35 });
-  channel(s, 'va1', { level: 84 });
+  channel(s, 'va1', { level: 74, shape: 3, drive: 40 });   // tube
+  channel(s, 'rn1', { level: 80, pan: 84, sendA: 60, sendB: 40 });
   channel(s, 'va3', { level: 78, pan: 70, sendA: 50, sendB: 60 });
   bus(s, 0, { fx: { OM_FX_HALL_DECAY: 96, OM_FX_HALL_SIZE: 100 } });
   bus(s, 1, { fx: { OM_FX_DELAY_LEFT: 9, OM_FX_DELAY_RIGHT: 11, OM_FX_DELAY_FEEDBACK: 45 } });

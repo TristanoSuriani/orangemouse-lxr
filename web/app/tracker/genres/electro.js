@@ -3,12 +3,13 @@
 //
 // The electro demo (PLAN.md Phase 6), 125 BPM in F minor: a syncopated
 // 808-style kick, a clap on 2 and 4, busy 16th hats and a cowbell-ish drum 3;
-// Plaits plays the FM bass and the robot voice, Dexed stabs a clavinet, VA
-// leads with a square. Patterns: beat, stabs and voice, lead.
+// Plaits plays the FM bass (warmed by the shaper) and the robot voice, sent
+// into Clouds' grains an octave up; Dexed stabs a clavinet, Rings answers
+// with metal hits, VA leads with a square. Patterns: beat, stabs and voice, lead.
 // Also a regression song (tests/run.sh).
 
 import { T, n, song, put, off, hits, seq, lxrKit, channel, bus } from './build.js';
-import { plaitsPreset } from '../song.js';
+import { plaitsPreset, ringsPreset } from '../song.js';
 
 export default function electro() {
   const s = song('Electro: Signal Lost', 125, 3);
@@ -40,6 +41,8 @@ export default function electro() {
     off(s, p, 12, T.PL2);
     put(s, p, 36, T.PL2, n('Ab3'), 110);
     off(s, p, 44, T.PL2);
+    // Rings: a metal hit answering the voice
+    for (const [row, note] of [[22, 'C4'], [30, 'Eb4'], [54, 'F4'], [62, 'C4']]) put(s, p, row, T.RN1, n(note), row % 32 === 22 ? 110 : 80);
   }
   const lead = ['C5', null, 'C5', 'Eb5', null, 'F5', null, 'Eb5', 'C5', null, 'Bb4', null, 'C5', null, null, null];
   seq(s, LEAD, T.LEAD, { step: 2, notes: lead.map((x) => x && n(x)), len: 1, vel: 100 });
@@ -49,18 +52,22 @@ export default function electro() {
 
   s.va = [{ params: null, preset: 0 }, { params: null, preset: 0 }, { params: null, preset: 1 }, { params: null, preset: 3 }];
   s.plaits = [plaitsPreset('FM bass'), plaitsPreset('Robot vox')];
+  s.rings = [ringsPreset('Metal hit')];
   s.dexed[0] = { bank: 2, program: 28, volume: 90, transpose: 24 };   // SynprezFM 02: POWERCLAV
   // an 808-ish kick: lower, longer, less click; a drier, snappier snare
   s.lxr = lxrKit({ PAR_COARSE1: 24, PAR_VELOD1: 72, PAR_MODAMNT1: 28, PAR_MOD_EG1: 40, PAR_VELOD4: 14, PAR_COARSE4: 52,
     PAR_COARSE3: 70, PAR_VELOD3: 10 });
 
-  channel(s, 'pl1', { level: 96, filter: 2, cutoff: 98, reso: 20 });
+  channel(s, 'pl1', { level: 84, filter: 2, cutoff: 98, reso: 20, shape: 2, drive: 40 });   // warm
   channel(s, 'pl2', { level: 90, sendB: 60, sendA: 40 });
   channel(s, 'dx1', { level: 80, pan: 44, sendB: 45 });
   channel(s, 'va3', { level: 74, pan: 80, sendB: 50 });
   channel(s, 'lxr3', { level: 80, pan: 84 });
-  channel(s, 'lxr4', { sendA: 30 });
-  bus(s, 0, { type: 2, fx: { OM_FX_ROOM_DECAY: 50 } });   // a room
+  channel(s, 'lxr1', { level: 85, shape: 3, drive: 20 });   // the kick through a tube
+  channel(s, 'rn1', { level: 84, pan: 30, sendA: 40, sendB: 50 });
+  // Clouds: the voice and the hits scattered into grains an octave up
+  bus(s, 0, { type: 7, fx: { OM_FX_CLOUDS_POSITION: 60, OM_FX_CLOUDS_SIZE: 40, OM_FX_CLOUDS_PITCH: 36, OM_FX_CLOUDS_DENSITY: 100,
+    OM_FX_CLOUDS_TEXTURE: 50, OM_FX_CLOUDS_FEEDBACK: 30, OM_FX_CLOUDS_SPREAD: 100, OM_FX_CLOUDS_REVERB: 50 } });
   bus(s, 1, { fx: { OM_FX_DELAY_LEFT: 6, OM_FX_DELAY_RIGHT: 8, OM_FX_DELAY_FEEDBACK: 40, OM_FX_DELAY_CROSS: 40 } });
   return s;
 }

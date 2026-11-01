@@ -12,7 +12,7 @@ import lxrRegistry from '../../registry/lxr.js';
 
 // the tracks, as web/port/web_studio.c routes them
 export const T = { KICK: 0, TOM: 1, PERC: 2, SNARE: 3, CYM: 4, HAT: 5, OHAT: 6,
-  BASS: 7, POLY: 8, LEAD: 9, NOISE: 10, DX1: 11, DX2: 12, PL1: 13, PL2: 14 };
+  BASS: 7, POLY: 8, LEAD: 9, NOISE: 10, DX1: 11, DX2: 12, PL1: 13, PL2: 14, RN1: 15 };
 // the LXR's notes as the demos play them
 export const DRUM_NOTE = { [T.KICK]: 36, [T.TOM]: 43, [T.PERC]: 50, [T.SNARE]: 38, [T.CYM]: 49, [T.HAT]: 42, [T.OHAT]: 46 };
 
