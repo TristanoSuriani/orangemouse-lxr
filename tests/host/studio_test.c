@@ -336,6 +336,16 @@ int main(void)
 		}
 		mockGain = 1.f;
 		mockAlternate = 0;
+		// the EQ's bytes stay as set while the gate is off (a block once reset them to 0 dB)
+		OmStudio *st = mockStudio();
+		om_studio_add_engine(st, &cls);
+		om_studio_mix(st, 0, OM_MIX_EQ_LOW, 100);
+		om_studio_mix(st, 0, OM_MIX_EQ_MID_FREQ, 30);
+		om_studio_render(st, l, r, N);
+		CHECK(om_studio_mix_value(st, 0, OM_MIX_EQ_LOW) == 100 && om_studio_mix_value(st, 0, OM_MIX_EQ_MID_FREQ) == 30,
+		      "EQ bytes after a render with the gate off: low %d, mid freq %d", om_studio_mix_value(st, 0, OM_MIX_EQ_LOW),
+		      om_studio_mix_value(st, 0, OM_MIX_EQ_MID_FREQ));
+		om_studio_destroy(st);
 	}
 	{   // every channel filter filters: low-passes cut a high sine, high-passes a low one,
 		// band-passes both, the notch its own frequency; with full resonance and

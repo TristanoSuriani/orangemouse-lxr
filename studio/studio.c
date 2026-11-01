@@ -683,8 +683,6 @@ static void gate(OmStudio *st, Channel *ch, float *sl, float *sr)
 	if (!v[OM_MIX_GATE])
 	{
 		ch->gate = 1.f;
-		ch->value[OM_MIX_EQ_LOW] = ch->value[OM_MIX_EQ_MID] = ch->value[OM_MIX_EQ_HIGH] = 64;   // 0 dB: off
-		ch->value[OM_MIX_EQ_MID_FREQ] = 67;   // 1 kHz
 		return;
 	}
 	const uint32_t steps = (uint32_t)v[OM_MIX_GATE_STEPS1] | (uint32_t)v[OM_MIX_GATE_STEPS2] << 6 | (uint32_t)v[OM_MIX_GATE_STEPS3] << 12;
