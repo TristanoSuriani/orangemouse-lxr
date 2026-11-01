@@ -539,6 +539,29 @@ try {
     return (await lib.load(lib.currentId())).plaits; })()`);
   check(savedPl[0].p[0] === 6, 'Plaits\' settings save with the song');
 
+  console.log('== Rings');
+  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('rings'))`);
+  const rnText = async () => (await evaluate(`document.querySelector('.rings-lcd').getAttribute('aria-label')`)).replace(/^Display: /, '');
+  const rnRows = async () => (await rnText()).split('\n');
+  check((await rnRows())[1].startsWith('TRANCE') && (await rnText()).includes('Dub ring'), `the presets are listed by genre: "${(await rnRows())[1]}"`);
+  await evaluate(`(() => { const c = document.querySelector('.rings-lcd'), r = c.getBoundingClientRect();
+    const at = { clientX: r.left + r.width * (34 / 44), clientY: r.top + r.height * (2.5 / 12) };
+    c.dispatchEvent(new PointerEvent('pointerdown', { ...at, button: 0, bubbles: true })); })()`);
+  check((await rnRows())[0].includes('DUB RING') && (await rnRows())[0].endsWith('STRING + VERB'), `clicking a preset loads it: "${(await rnRows())[0]}"`);
+  check((await rnRows())[9].includes('DMP reverb'), `the knobs say what they do on this model: "${(await rnRows())[9]}"`);
+  await clickPad('.rings-nav .pad:first-child');   // PAGE
+  check((await rnRows())[9].startsWith('MDL'), 'PAGE puts the setup on the knobs');
+  const rnQuiet = await peak(150);
+  await key('KeyZ', 'z', true);
+  const rnPeak = await peak(400);
+  await key('KeyZ', 'z', false);
+  check(rnPeak > 0.01 && rnPeak > rnQuiet, `key Z strikes RN1 (peak ${rnPeak.toFixed(3)})`);
+  await sleep(1200);   // autosave
+  const savedRn = await evaluate(`(async () => {
+    const lib = await import('./tracker/library.js');
+    return (await lib.load(lib.currentId())).rings; })()`);
+  check(savedRn[0].p[0] === 5, 'Rings\' settings save with the song');
+
   console.log('== a demo\'s new version');
   const upgrade = await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');

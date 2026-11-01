@@ -15,6 +15,7 @@ import { createTrackerDevice } from './devices/tracker.js';
 import { createMixerDevice } from './devices/mixer.js';
 import { createDexedDevice } from './devices/dexed.js';
 import { createPlaitsDevice } from './devices/plaits.js';
+import { createRingsDevice } from './devices/rings.js';
 import { createPerformView } from './perform.js';
 import { songMessages } from './tracker/song.js';
 import * as library from './tracker/library.js';
@@ -219,12 +220,13 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
-  if ((device === 'dexed' && dexed.handleKey(e, true)) || (device === 'plaits' && plaits.handleKey(e, true))) {
+  if ((device === 'dexed' && dexed.handleKey(e, true)) || (device === 'plaits' && plaits.handleKey(e, true)) ||
+      (device === 'rings' && rings.handleKey(e, true))) {
     e.preventDefault();
     return;
   }
   // the keyboard plays the instrument on show
-  const player = { va, dexed, plaits }[device];
+  const player = { va, dexed, plaits, rings }[device];
   if (player && e.code in KEY_SEMITONES && !e.metaKey && !e.ctrlKey && !e.altKey) {
     if (!e.repeat) player.noteFromKey(KEY_SEMITONES[e.code], true);
     return;
@@ -254,6 +256,7 @@ window.addEventListener('keyup', (e) => {
     va.noteFromKey(KEY_SEMITONES[e.code], false);
     dexed.noteFromKey(KEY_SEMITONES[e.code], false);
     plaits.noteFromKey(KEY_SEMITONES[e.code], false);
+    rings.noteFromKey(KEY_SEMITONES[e.code], false);
     return;
   }
   if (e.key === 'Shift') {
@@ -394,7 +397,7 @@ async function switchOn() {
   }
   await context.resume();
   power.hidden = true;
-  window.orangeMouse = { context, node, va, tracker, mixer, dexed, plaits, perform };   // for the browser tests (tests/browser/)
+  window.orangeMouse = { context, node, va, tracker, mixer, dexed, plaits, rings, perform };   // for the browser tests (tests/browser/)
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
@@ -520,7 +523,8 @@ const va = createVaDevice({ send: tracker.send, help, song: tracker.song });
 const mixer = createMixerDevice({ send: tracker.send, help, song: tracker.song });
 const dexed = createDexedDevice({ send: tracker.send, help, song: tracker.song });
 const plaits = createPlaitsDevice({ send: tracker.send, help, song: tracker.song });
-tracker.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); va.load(s); });
+const rings = createRingsDevice({ send: tracker.send, help, song: tracker.song });
+tracker.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); rings.render(); va.load(s); });
 // the perform view: the tracks' levels as visuals, full screen (F, or the Perform button)
 const perform = createPerformView({ song: tracker.song, playing: tracker.playing });
 document.body.append(perform.el);
@@ -548,6 +552,7 @@ document.getElementById('devices').prepend(tracker.el);
 document.getElementById('devices').append(va.el);
 document.getElementById('devices').append(dexed.el);
 document.getElementById('devices').append(plaits.el);
+document.getElementById('devices').append(rings.el);
 document.getElementById('devices').append(mixer.el);
 
 // ---- the rack: one device expanded, the others as cards in the top bar ----------
@@ -569,6 +574,7 @@ const devices = [
   { id: 'va', name: 'VA', what: 'Orange Mouse VA', el: va.el },
   { id: 'dexed', name: 'DX', what: 'Dexed', el: dexed.el },
   { id: 'plaits', name: 'PL', what: 'Plaits', el: plaits.el },
+  { id: 'rings', name: 'RN', what: 'Rings', el: rings.el },
   { id: 'mixer', name: 'MIX', what: 'mixer', el: mixer.el },
 ];
 let shown = 0;
@@ -580,17 +586,19 @@ devices.forEach((d, i) => {
   card.innerHTML = `<span class="rack-head"><span class="led"></span><span class="rack-name">${d.name}<small>Alt+${i + 1}</small></span></span><canvas class="lcd rack-lcd"></canvas>`;
   card.setAttribute('aria-label', `${d.what} (Alt+${i + 1})`);
   card.addEventListener('click', () => showDevice(i));
-  // 12 columns: six cards fit across; each device writes its two rows for it
+  // 12 columns: seven cards fit across; each device writes its two rows for it
   const mini = new DotMatrix(card.querySelector('canvas'), { cols: 12, rows: 2, dot: 2, margin: 5 });
   d.card = card;
   d.mini = (rows) => { mini.line(0, rows[0] ?? ''); mini.line(1, rows[1] ?? ''); mini.draw(); };
   d.mini(['', '']);
   rack.append(card);
 });
-va.onSummary((rows) => devices[2].mini(rows));
-dexed.onSummary((rows) => devices[3].mini(rows));
-plaits.onSummary((rows) => devices[4].mini(rows));
-mixer.onSummary((rows) => devices[5].mini(rows));
+const card = (id) => devices.find((d) => d.id === id);
+va.onSummary((rows) => card('va').mini(rows));
+dexed.onSummary((rows) => card('dexed').mini(rows));
+plaits.onSummary((rows) => card('plaits').mini(rows));
+rings.onSummary((rows) => card('rings').mini(rows));
+mixer.onSummary((rows) => card('mixer').mini(rows));
 devices[0].mini(tracker.summary());
 
 function showDevice(i) {

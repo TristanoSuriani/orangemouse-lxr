@@ -23,6 +23,7 @@ export const FX_SLIDE = 0x80;
 
 import { newMix, mixMessages } from '../mixer/mix.js';
 import plaitsRegistry from '../registry/plaits.js';
+import ringsRegistry from '../registry/rings.js';
 
 export const TRACKS = 16;
 export const PATTERNS = 64;
@@ -38,6 +39,7 @@ export const ENGINES = [
   { name: 'VA', parts: ['VA1 Bass', 'VA2 Poly', 'VA3 Lead', 'VA4 Noise'] },
   { name: 'Dexed', parts: ['DX1', 'DX2'] },
   { name: 'Plaits', parts: ['PL1', 'PL2'] },
+  { name: 'Rings', parts: ['RN1'] },
 ];
 
 // Dexed's parts, as the song keeps them: bank, program, volume, transpose
@@ -67,6 +69,20 @@ export const plaitsPreset = (name) => {
 export const newPlaits = () => [0, 1].map(() => plaitsPreset(plaitsRegistry.presets[0].name));
 export const plaitsMessage = (part, param, value) => ({ type: 'param', engine: PLAITS, part, param, value });
 
+// Rings' part: its 10 parameters as bytes (registry/rings.json; engine 4),
+// from a preset (the first: "Glass bell"); INPUT starts off (its own exciter).
+export const RINGS = 4;
+const RN_INPUT = ringsRegistry.params.findIndex((p) => p.id === 'RN_P_INPUT');
+export const ringsPreset = (name, input = 0) => {
+  const i = ringsRegistry.presets.findIndex((pr) => pr.name === name);
+  if (i < 0) throw new Error(`no Rings preset ${name}`);
+  const p = [...ringsRegistry.presets[i].params, i];
+  p[RN_INPUT] = input;
+  return { p };
+};
+export const newRings = () => [ringsPreset(ringsRegistry.presets[0].name)];
+export const ringsMessage = (part, param, value) => ({ type: 'param', engine: RINGS, part, param, value });
+
 function defaultTracks() {
   const tracks = [];
   ENGINES.forEach((e, engine) => e.parts.forEach((name, part) => tracks.push({ name, engine, part })));
@@ -81,7 +97,7 @@ export const patternMessage = (p, pat) => ({ type: 'tracker', op: 'pattern', p, 
 
 export function newSong() {
   return { version: 1, name: 'Untitled', bpm: 120, patterns: [newPattern()], order: [0], tracks: defaultTracks(), mix: newMix(), dexed: newDexed(), plaits: newPlaits(),
-    va: newVa(), lxr: null };
+    rings: newRings(), va: newVa(), lxr: null };
 }
 
 export const cellKey = (row, track) => `${row}:${track}`;
@@ -121,6 +137,7 @@ export function songMessages(song) {
   });
   song.dexed.forEach((part, k) => DEXED_FIELDS.forEach((f) => msgs.push(dexedMessage(k, f, part[f]))));
   song.plaits.forEach((part, k) => part.p.forEach((v, i) => msgs.push(plaitsMessage(k, i, v))));
+  song.rings.forEach((part, k) => part.p.forEach((v, i) => msgs.push(ringsMessage(k, i, v))));
   // VA: the preset first (it loads all of the slot's sound), then the changes
   song.va.forEach((slot, k) => {
     msgs.push({ type: 'param', engine: VA, part: k, param: VA_P_PRESET, value: slot.params?.[VA_P_PRESET] ?? slot.preset ?? 0 });

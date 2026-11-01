@@ -227,7 +227,7 @@ export default {
    "name": "Duck key",
    "group": "Channel",
    "min": 0,
-   "max": 14,
+   "max": 15,
    "default": 0,
    "display": {
     "kind": "enum",
@@ -246,7 +246,8 @@ export default {
      "DX1",
      "DX2",
      "PL1",
-     "PL2"
+     "PL2",
+     "RN1"
     ],
     "short": [
      "DR1",
@@ -263,7 +264,8 @@ export default {
      "DX1",
      "DX2",
      "PL1",
-     "PL2"
+     "PL2",
+     "RN1"
     ]
    },
    "help": "The channel that makes this one dip. It works muted too: a silent kick can pump a pad."

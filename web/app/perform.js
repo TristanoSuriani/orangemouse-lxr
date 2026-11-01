@@ -23,9 +23,10 @@ const HIT_DB = 6;               // a rise this fast (per frame) is a hit
 // the mixer channel a track plays on (mix.js CHANNELS: the LXR's hihats share a stem)
 const channelOf = (t) => {
   if (!t || t.engine === null || t.engine === undefined) return -1;
-  const firsts = [0, 7, 11, 13];
+  const first = CHANNELS.findIndex((c) => c.engine === t.engine);
+  if (first < 0) return -1;
   const part = t.engine === 0 && t.part === 6 ? 5 : t.part;
-  const c = firsts[t.engine] + part;
+  const c = first + part;
   return c < CHANNELS.length ? c : -1;
 };
 

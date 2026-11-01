@@ -28,3 +28,13 @@ Each re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to 
 ## 2026-10-30: trance comes back as version 3, a new regression song (Phase 10.6): listen to it
 
 - `songs.txt`: 1 of 4 renders (new): trance
+
+## 2026-11-01: Rings joins the studio: a seventh card in the rack, its own page
+
+- `screens/tracker.png` (384264 pixels)
+- `screens/lxr.png` (491092 pixels)
+- `screens/va.png` (600796 pixels)
+- `screens/dexed.png` (537963 pixels)
+- `screens/plaits.png` (558028 pixels)
+- `screens/rings.png` (new)
+- `screens/mixer.png` (397138 pixels)

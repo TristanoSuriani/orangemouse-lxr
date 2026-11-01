@@ -118,7 +118,7 @@ void renderBlock(Plaits *pl, Part &p)
 
 void *plaitsCreate(float rate)
 {
-	Plaits *pl = new (std::nothrow) Plaits;
+	Plaits *pl = new (std::nothrow) Plaits();   // zeroed first, as the module's RAM starts: renders repeat
 	if (!pl)
 		return nullptr;
 	pl->rate = rate;

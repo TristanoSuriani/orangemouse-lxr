@@ -33,15 +33,17 @@
 #include "tracker.h"
 #include "om_registry_fx.h"
 #include "om_registry_mix.h"
+#include "rings_engine.h"
+#include "om_registry_rings.h"
 
-extern const OmEngineClass om_lxr_engine, om_va_engine, om_dexed_engine, om_plaits_engine;
+extern const OmEngineClass om_lxr_engine, om_va_engine, om_dexed_engine, om_plaits_engine, om_rings_engine;
 void web_log(const char *msg) { (void)msg; }
 void web_sd_written(uint32_t firstSector, uint32_t count) { (void)firstSector; (void)count; }
 void web_midi_out(uint8_t byte) { (void)byte; }
 void web_midi_in(uint8_t byte);
 
 #define RATE 44100.f
-#define ENGINES 4
+#define ENGINES 5
 #define SILENT 1e-4f   // -80 dBFS
 
 static uint32_t rng = 1;
@@ -57,7 +59,7 @@ static int chance(int percent) { return below(100) < percent; }
 
 static OmStudio *st;
 static OmTracker *tr;
-static const OmEngineClass *engines[ENGINES] = {&om_lxr_engine, &om_va_engine, &om_dexed_engine, &om_plaits_engine};
+static const OmEngineClass *engines[ENGINES] = {&om_lxr_engine, &om_va_engine, &om_dexed_engine, &om_plaits_engine, &om_rings_engine};
 static int failures;
 
 typedef struct
@@ -330,6 +332,14 @@ static void phasePanic(int round)
 			refused += om_studio_note_off(st, now(), 2, part, (uint8_t)(40 + note)) < 0;
 		drain();
 	}
+	// Rings has no note off (as on the module): a note rings for as long as its
+	// damping lets it, 7 s at the defaults, up to 18 s on other models. A
+	// moment at DAMPING 0, a hand on the strings, stops it.
+	refused += om_studio_set_param(st, now(), 4, 0, RN_P_DAMPING, 0) < 0;
+	for (int b = 0; b < 40; b++)
+		drain();
+	refused += om_studio_set_param(st, now(), 4, 0, RN_P_DAMPING, om_rings_params[RN_P_DAMPING].def) < 0;
+	drain();
 	expect(!refused, round, "panic", "the studio refused some of the panic's events (its queue was full)");
 	refused = 0;
 	Health tail = {0}, last = {0};

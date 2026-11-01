@@ -2,8 +2,8 @@
  * song_render.c
  *
  * Renders a song (PLAN.md Phase 6: the genre demos are the regression
- * songs) through the whole studio: the LXR, Orange Mouse VA, Dexed and
- * Plaits, the tracker, the mixer and its effects. The song comes as the
+ * songs) through the whole studio: the LXR, Orange Mouse VA, Dexed,
+ * Plaits and Rings, the tracker, the mixer and its effects. The song comes as the
  * message stream the page sends (tools/song_stream.mjs), so this plays what
  * the browser plays. Prints a hash of the samples, health (NaN, clipping, DC)
  * and loudness, and the CPU per block; and fails if a mixer channel the song
@@ -25,7 +25,7 @@
 #include <time.h>
 #include "tracker.h"
 
-extern const OmEngineClass om_lxr_engine, om_va_engine, om_dexed_engine, om_plaits_engine;
+extern const OmEngineClass om_lxr_engine, om_va_engine, om_dexed_engine, om_plaits_engine, om_rings_engine;
 
 void web_log(const char *msg) { (void)msg; }
 void web_sd_written(uint32_t firstSector, uint32_t count) { (void)firstSector; (void)count; }
@@ -68,8 +68,8 @@ int main(int argc, char **argv)
 	if (!in) { fprintf(stderr, "cannot read %s\n", argv[1]); return 2; }
 
 	OmStudio *st = om_studio_create(rate);
-	const OmEngineClass *engines[4] = {&om_lxr_engine, &om_va_engine, &om_dexed_engine, &om_plaits_engine};
-	for (int e = 0; e < 4; e++)
+	const OmEngineClass *engines[5] = {&om_lxr_engine, &om_va_engine, &om_dexed_engine, &om_plaits_engine, &om_rings_engine};
+	for (int e = 0; e < 5; e++)
 		if (om_studio_add_engine(st, engines[e]) != e) { fprintf(stderr, "cannot create engine %d\n", e); return 1; }
 	OmTracker *tr = om_tracker_create(st, rate);
 

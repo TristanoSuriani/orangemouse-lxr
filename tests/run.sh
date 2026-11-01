@@ -70,12 +70,13 @@ echo "== songs can't be lost (the backup folder, the export reminder)"
 node tests/backup_test.mjs | sed 's/^/   /' || fail=1
 node tests/playlist_test.mjs | sed 's/^/   /' || fail=1
 
-echo "== studio, tracker, clock, Dexed and Plaits tests"
+echo "== studio, tracker, clock, Dexed, Plaits and Rings tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1
 $BIN/tracker_test | sed 's/^/   /' || fail=1
 $BIN/lxr_sync_test | sed 's/^/   /' || fail=1
 $BIN/dexed_test | sed 's/^/   /' || fail=1
 $BIN/plaits_test | sed 's/^/   /' || fail=1
+$BIN/rings_test | sed 's/^/   /' || fail=1
 
 echo "== LXR demo groove"
 $BIN/lxr_render --raw "$OUT/demo.f32" --wav "$OUT/demo.wav" | grep '^hash' > "$OUT/lxr_demo.txt"
@@ -133,8 +134,10 @@ if command -v emcmake >/dev/null && command -v node >/dev/null; then
   node tests/host/build-wasm/tracker_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/dexed_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/plaits_test.js | sed 's/^/   wasm: /' || fail=1
-  # each: a tool, and its arguments (the electro song: the whole studio, every engine)
-  for run in "lxr_render" "studio_render" "song_render $OUT/songs/electro.txt"; do
+  node tests/host/build-wasm/rings_test.js | sed 's/^/   wasm: /' || fail=1
+  # each: a tool, and its arguments (the electro song: the whole studio, every engine but
+  # Rings, which no song plays yet; rings_test hashes every preset and model)
+  for run in "lxr_render" "studio_render" "song_render $OUT/songs/electro.txt" "rings_test"; do
     set -- $run
     tool=$1; shift
     native=$($BIN/$tool "$@" | grep '^hash')

@@ -147,9 +147,9 @@ def gen_c(reg):
             lines.append(f'\t{{{kind}, {m.get("sst", -1)}, {float(m.get("lo", 0))}f, {float(m.get("hi", 0))}f}},')
         lines.append("};")
     if reg.get("presets"):
-        # the engine's presets (registry "presets"): name, genre, parameters
+        # the engine's presets (registry "presets"; the <title>Preset type): name, genre, parameters
         lines += ["", f"#define OM_{e.upper()}_NUM_PRESETS {len(reg['presets'])}",
-                  f"static const PlaitsPreset om_{e}_presets[OM_{e.upper()}_NUM_PRESETS] = {{"]
+                  f"static const {reg['title']}Preset om_{e}_presets[OM_{e.upper()}_NUM_PRESETS] = {{"]
         for pr in reg["presets"]:
             lines.append(f'\t{{{c_string(pr["name"])}, {pr["genre"]}, {{{", ".join(str(v) for v in pr["params"])}}}}},')
         lines.append("};")

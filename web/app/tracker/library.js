@@ -6,7 +6,7 @@
 // as JSON, and passed around as a share code. Songs written by any earlier
 // version still load (migrate()).
 
-import { TRACKS, newSong, newPattern, newDexed, newPlaits, newVa } from './song.js';
+import { TRACKS, newSong, newPattern, newDexed, newPlaits, newRings, newVa } from './song.js';
 import { migrateMix } from '../mixer/mix.js';
 
 const DB_NAME = 'orange-mouse';
@@ -53,10 +53,13 @@ export function migrate(raw) {
   s.patterns = (raw.patterns?.length ? raw.patterns : base.patterns).map((p) => ({ ...newPattern(p.rows ?? 64), ...p, cells: { ...(p.cells ?? {}) } }));
   s.order = (raw.order?.length ? raw.order : [0]).filter((p) => p < s.patterns.length);
   if (!s.order.length) s.order = [0];
-  s.tracks = base.tracks.map((t, k) => ({ ...t, ...(raw.tracks?.[k] ?? {}) })).slice(0, TRACKS);
+  // a track that played nothing because nothing was there yet (track 16 before Rings) takes its new default
+  const unrouted = (t, k) => t && t.engine === null && t.name === `Track ${k + 1}`;
+  s.tracks = base.tracks.map((t, k) => ({ ...t, ...(unrouted(raw.tracks?.[k], k) ? { mute: raw.tracks[k].mute, solo: raw.tracks[k].solo } : raw.tracks?.[k] ?? {}) })).slice(0, TRACKS);
   s.mix = migrateMix(raw.mix);
   s.dexed = newDexed().map((d, k) => ({ ...d, ...(raw.dexed?.[k] ?? {}) }));
   s.plaits = newPlaits().map((d, k) => (raw.plaits?.[k]?.p?.length === d.p.length ? { p: [...raw.plaits[k].p] } : d));
+  s.rings = newRings().map((d, k) => (raw.rings?.[k]?.p?.length === d.p.length ? { p: [...raw.rings[k].p] } : d));
   s.va = newVa().map((d, k) => (Array.isArray(raw.va?.[k]?.params) ? { params: [...raw.va[k].params] }
     : Number.isInteger(raw.va?.[k]?.preset) ? { params: null, preset: raw.va[k].preset } : d));
   s.lxr = Array.isArray(raw.lxr) ? [...raw.lxr] : null;

@@ -129,7 +129,7 @@ void *dexedCreate(float rate)
 {
 	if (created)
 		return nullptr;
-	Dexed *d = new (std::nothrow) Dexed;
+	Dexed *d = new (std::nothrow) Dexed();   // zeroed first: renders repeat whatever the heap held
 	if (!d)
 		return nullptr;
 	created = true;

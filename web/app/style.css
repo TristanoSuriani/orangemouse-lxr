@@ -320,7 +320,7 @@ kbd {
 .brand b { color: var(--accent); font-weight: 600; }
 /* the rack takes the top row; the brand, the dock and the help strip the second */
 .rack { display: flex; gap: 8px; flex: 1 1 100%; order: -1; }
-/* a card: its name over its display, so five fit across */
+/* a card: its name over its display, so seven fit across */
 .rack-card {
   position: relative;
   display: flex;

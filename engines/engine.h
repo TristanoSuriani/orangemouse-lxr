@@ -2,8 +2,8 @@
  * engine.h
  *
  * The interface every sound engine of the Orange Mouse studio implements
- * (PLAN.md Phase 0, step 5): the LXR, Orange Mouse VA, and later Plaits and
- * Dexed. The studio (studio/studio.c) creates engines, sends them notes and
+ * (PLAN.md Phase 0, step 5): the LXR, Orange Mouse VA, Dexed, Plaits and
+ * Rings. The studio (studio/studio.c) creates engines, sends them notes and
  * parameter changes at exact times, and mixes their stems.
  *
  *  - A part is what a tracker track plays: an LXR voice, a VA slot, a Plaits
@@ -55,6 +55,14 @@ typedef struct OmEngineClass
 	// renders `frames` frames of every stem: stems[2 * s] left, stems[2 * s + 1]
 	// right, written (not added); full scale = 1.0
 	void (*render)(void *self, float *const *stems, uint32_t frames);
+
+	// optional (NULL): an engine that listens to a mixer channel (Rings).
+	// input_source: the channel it wants now, or -1; the studio then calls
+	// input with that channel's OM_MAX_BLOCK frames (its engine's stem, before
+	// the channel's inserts) before rendering each block. A channel of an
+	// engine added later, or of the engine itself, gives the block before.
+	int (*input_source)(void *self);
+	void (*input)(void *self, const float *left, const float *right);
 } OmEngineClass;
 
 #endif /* OM_ENGINE_H_ */

@@ -636,10 +636,20 @@ static void dispatch(Engine *en, uint64_t until)
 	}
 }
 
-static void renderEngine(Engine *en, uint64_t start)
+static void renderEngine(OmStudio *st, Engine *en, uint64_t start)
 {
 	const uint64_t end = start + OM_MAX_BLOCK;
 	float *stems[2 * OM_MAX_STEMS];
+	if (en->cls->input_source)   // a channel it listens to: that stem as it is now
+	{
+		const int c = en->cls->input_source(en->self);
+		if (c >= 0 && c < st->channels)
+		{
+			const Channel *ch = &st->channel[c];
+			const Engine *src = &st->engine[ch->engine];
+			en->cls->input(en->self, src->buf[2 * ch->stem], src->buf[2 * ch->stem + 1]);
+		}
+	}
 	if (en->cls->block)
 	{
 		dispatch(en, end);
@@ -748,7 +758,7 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 		for (int b = 0; b < 2; b++)
 			memset(st->bus[b].buf, 0, sizeof(st->bus[b].buf));
 		for (int e = 0; e < st->engines; e++)
-			renderEngine(&st->engine[e], st->frame);
+			renderEngine(st, &st->engine[e], st->frame);
 		// every channel's inserts first, the filter, the shaper, the EQ, then the gate: a key is heard after them
 		clockBlock(st);
 		for (int c = 0; c < st->channels; c++)

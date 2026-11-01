@@ -79,7 +79,7 @@ const GUIDE = [
   { title: 'Keeping songs safe', text: 'The browser may clear its storage. B picks a backup folder: every song is copied there as .json each time it saves (after a reload, B lets it write again). A exports every song in one file, which I imports. The display says when the songs are not safe.' },
   { title: 'Length, glide, chance', text: 'Press \` twice: the length view. CND sets when the cell plays: always, by chance (10-90 %), or A:B (the A-th of every B passes of its pattern), so long loops change; a ? marks it. NLN sets how long the notes last (a quarter row to 16 rows, or until the next cell), GLD lets them glide in over the notes before (~ on the display): with a VA slot in legato mode and some GLIDE, an acid line.' },
   { title: 'Effects', text: 'The \` key (left of 1) shows the effect column: a cell can set one of its track\'s mixer controls at its row (L level, P pan, A/B sends, C cutoff, R resonance), "C40" sets the cutoff to 64. With SLD on (">") it slides to the track\'s next effect on that control: a sweep. The knobs become FX, VAL, SLD. Stopping puts the mix back.' },
-  { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\'. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
+  { title: 'Tracks', text: 'Tracks 1-7 play the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed\'s parts, 14-15 Plaits\', 16 Rings. The left and right arrows move between tracks; T 9-16 shows the other eight. Click a track\'s name to mute it, right-click to solo it.' },
 ];
 
 export function createTrackerDevice({ send: sendToWorklet, help, sdImage = () => null, onPerform = () => {} }) {

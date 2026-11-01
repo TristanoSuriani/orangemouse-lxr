@@ -105,6 +105,15 @@ om_plaits_configure(om_plaits)
 target_compile_options(om_plaits PRIVATE -ffp-contract=off)
 set(om_fx_objects ${om_fx_objects} $<TARGET_OBJECTS:om_plaits>)
 
+# Rings (engines/rings/; stmlib's .cc files come with Plaits)
+include(${LXR_ROOT}/engines/rings/rings_sources.cmake)
+add_library(om_rings OBJECT ${om_rings_sources})
+om_rings_configure(om_rings)
+# Rings calls powf, cosf and sinf as it plays: musl's, as in the browser (om_math.h)
+target_compile_options(om_rings PRIVATE -ffp-contract=off "SHELL:-include ${CMAKE_CURRENT_LIST_DIR}/om_math.h")
+target_compile_definitions(om_rings PRIVATE ${musl_math_definition})
+set(om_fx_objects ${om_fx_objects} $<TARGET_OBJECTS:om_rings>)
+
 set(lxr_tools lxr_render)
 if(NOT EMSCRIPTEN)
     list(APPEND lxr_tools lxr_sweep)   # it forks
@@ -122,9 +131,12 @@ add_executable(dexed_test dexed_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects
 target_include_directories(dexed_test PRIVATE ${LXR_ROOT}/engines/dexed)
 add_executable(plaits_test plaits_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 target_include_directories(plaits_test PRIVATE ${LXR_ROOT}/engines/plaits ${LXR_ROOT}/engines)
+add_executable(rings_test rings_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
+target_include_directories(rings_test PRIVATE ${LXR_ROOT}/engines/rings ${LXR_ROOT}/engines)
 add_executable(song_render song_render.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(fuzz fuzz.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
-foreach(tool studio_render studio_test tracker_test lxr_sync_test dexed_test plaits_test song_render fuzz)
+target_include_directories(fuzz PRIVATE ${LXR_ROOT}/engines/rings)   # the panic damps Rings
+foreach(tool studio_render studio_test tracker_test lxr_sync_test dexed_test plaits_test rings_test song_render fuzz)
     target_include_directories(${tool} PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines ${LXR_ROOT}/generated/registry)
     target_link_libraries(${tool} PRIVATE m)
 endforeach()
@@ -133,7 +145,7 @@ endforeach()
 # show the browser computes what the native tests checked.
 #   emcmake cmake -S tests/host -B tests/host/build-wasm -G Ninja
 if(EMSCRIPTEN)
-    foreach(tool ${lxr_tools} studio_render studio_test tracker_test dexed_test plaits_test song_render)
+    foreach(tool ${lxr_tools} studio_render studio_test tracker_test dexed_test plaits_test rings_test song_render)
         target_link_options(${tool} PRIVATE -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1MB -sEXIT_RUNTIME=1)
     endforeach()
 endif()

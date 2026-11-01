@@ -47,7 +47,7 @@ static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_CUTOFF", "CUT", "Cutoff", 0, 127, 127, 0},
 	{"OM_MIX_RESONANCE", "RES", "Resonance", 0, 127, 0, 0},
 	{"OM_MIX_DUCK", "DCK", "Duck", 0, 127, 0, 0},
-	{"OM_MIX_DUCK_KEY", "KEY", "Duck key", 0, 14, 0, 0},
+	{"OM_MIX_DUCK_KEY", "KEY", "Duck key", 0, 15, 0, 0},
 	{"OM_MIX_DUCK_RELEASE", "REL", "Duck release", 0, 127, 62, 0},
 	{"OM_MIX_GATE", "GAT", "Gate", 0, 127, 0, 0},
 	{"OM_MIX_GATE_SMOOTH", "SMO", "Gate smoothing", 0, 127, 47, 0},
