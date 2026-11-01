@@ -5,8 +5,8 @@
  * docs/architecture-v2.svg): the engines, the router that delivers notes and
  * parameter changes to them at exact frames, and the mixer (Phase 3).
  *
- * The mixer: every engine stem is a channel (a Surge filter, level, pan, two
- * sends, mute, solo); two send buses each run an effect (fx.h) and return it to the mix;
+ * The mixer: every engine stem is a channel (a Surge filter and waveshaper, an
+ * EQ, a trance gate, ducking, level, pan, two sends, mute, solo); two send buses each run an effect (fx.h) and return it to the mix;
  * the master has a level, a DC blocker (5 Hz) and a limiter that keeps the
  * output under -0.2 dBFS (1.5 ms lookahead). Gains move smoothly over a block when they change.
  *
@@ -36,9 +36,9 @@ enum
 	OM_MIX_LEVEL, OM_MIX_PAN, OM_MIX_SEND_A, OM_MIX_SEND_B, OM_MIX_MUTE, OM_MIX_SOLO, OM_MIX_FX_TYPE, OM_MIX_RETURN,
 	OM_MIX_FILTER, OM_MIX_CUTOFF, OM_MIX_RESONANCE, OM_MIX_DUCK, OM_MIX_DUCK_KEY, OM_MIX_DUCK_RELEASE,
 	OM_MIX_GATE, OM_MIX_GATE_SMOOTH, OM_MIX_GATE_STEPS1, OM_MIX_GATE_STEPS2, OM_MIX_GATE_STEPS3,
-	OM_MIX_EQ_LOW, OM_MIX_EQ_MID, OM_MIX_EQ_MID_FREQ, OM_MIX_EQ_HIGH
+	OM_MIX_EQ_LOW, OM_MIX_EQ_MID, OM_MIX_EQ_MID_FREQ, OM_MIX_EQ_HIGH, OM_MIX_SHAPE, OM_MIX_DRIVE
 };
-#define OM_MIX_LAST OM_MIX_EQ_HIGH
+#define OM_MIX_LAST OM_MIX_DRIVE
 // mixer targets besides the channels (0 .. channels - 1)
 #define OM_MIX_BUS_A  0xF0
 #define OM_MIX_BUS_B  0xF1
@@ -79,7 +79,7 @@ const OmEngineClass *om_studio_engine(const OmStudio *st, uint8_t engine);
 // Channels are the engines' stems, in the order the engines were added.
 uint8_t om_studio_channels(const OmStudio *st);
 int om_studio_channel(const OmStudio *st, uint8_t engine, uint8_t stem);   // -1: none
-// A control of a channel (LEVEL..SOLO, FILTER..RESONANCE), a bus (FX_TYPE, RETURN) or the master
+// A control of a channel (LEVEL..SOLO, FILTER..DRIVE), a bus (FX_TYPE, RETURN) or the master
 // (LEVEL); bytes as in registry/mix.json. Bus A starts as a hall, B a delay.
 void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value);
 uint8_t om_studio_mix_value(const OmStudio *st, uint8_t target, uint8_t param);

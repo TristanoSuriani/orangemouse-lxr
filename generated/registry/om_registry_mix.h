@@ -5,7 +5,7 @@
 #include "param_info.h"
 #include "studio.h"
 
-#define OM_MIX_NUM_PARAMS 23
+#define OM_MIX_NUM_PARAMS 25
 
 // every entry sits at its enum value
 _Static_assert(OM_MIX_LEVEL == 0, "registry/mix.json: OM_MIX_LEVEL is not entry 0");
@@ -31,6 +31,8 @@ _Static_assert(OM_MIX_EQ_LOW == 19, "registry/mix.json: OM_MIX_EQ_LOW is not ent
 _Static_assert(OM_MIX_EQ_MID == 20, "registry/mix.json: OM_MIX_EQ_MID is not entry 20");
 _Static_assert(OM_MIX_EQ_MID_FREQ == 21, "registry/mix.json: OM_MIX_EQ_MID_FREQ is not entry 21");
 _Static_assert(OM_MIX_EQ_HIGH == 22, "registry/mix.json: OM_MIX_EQ_HIGH is not entry 22");
+_Static_assert(OM_MIX_SHAPE == 23, "registry/mix.json: OM_MIX_SHAPE is not entry 23");
+_Static_assert(OM_MIX_DRIVE == 24, "registry/mix.json: OM_MIX_DRIVE is not entry 24");
 
 static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_LEVEL", "LEV", "Level", 0, 127, 100, 0},
@@ -56,6 +58,8 @@ static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_EQ_MID", "MID", "EQ mid", 0, 127, 64, 0},
 	{"OM_MIX_EQ_MID_FREQ", "FRQ", "EQ mid frequency", 0, 127, 67, 0},
 	{"OM_MIX_EQ_HIGH", "HI", "EQ high", 0, 127, 64, 0},
+	{"OM_MIX_SHAPE", "SHP", "Shaper", 0, 15, 0, 0},
+	{"OM_MIX_DRIVE", "DRV", "Drive", 0, 127, 0, 0},
 };
 
 #endif /* OM_REGISTRY_MIX_H_ */

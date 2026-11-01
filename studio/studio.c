@@ -15,6 +15,7 @@
 #include "studio.h"
 #include "fx.h"
 #include "filter.h"
+#include "shaper.h"
 
 enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK };
 
@@ -55,6 +56,7 @@ typedef struct
 	float fine[OM_MIX_RESONANCE + 1];   // level..send B, cutoff, resonance as the DSP uses them: the
 	                                    // bytes, or between them during a tracker slide (om_studio_mix_fine)
 	OmFilter *filter;
+	OmShaper *shaper;
 	Gain left, right, sendA, sendB;
 	float peak;
 	float duck;       // the key's envelope, 0..1
@@ -156,7 +158,10 @@ void om_studio_destroy(OmStudio *st)
 	for (int b = 0; b < 2; b++)
 		om_fx_destroy(st->bus[b].fx);
 	for (int c = 0; c < st->channels; c++)
+	{
 		om_filter_destroy(st->channel[c].filter);
+		om_shaper_destroy(st->channel[c].shaper);
+	}
 	free(st);
 }
 
@@ -180,8 +185,11 @@ int om_studio_add_engine(OmStudio *st, const OmEngineClass *cls)
 		ch->engine = st->engines;
 		ch->stem = s;
 		ch->filter = om_filter_create(st->rate);
-		if (!ch->filter)
+		ch->shaper = om_shaper_create();
+		if (!ch->filter || !ch->shaper)
 		{
+			om_filter_destroy(ch->filter);
+			om_shaper_destroy(ch->shaper);
 			st->channels--;
 			cls->destroy(self);
 			return -1;
@@ -458,6 +466,7 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 		return;
 	Channel *ch = &st->channel[target];
 	const uint8_t max = param == OM_MIX_MUTE || param == OM_MIX_SOLO ? 1 : param == OM_MIX_FILTER ? OM_FILTER_TYPES - 1
+		: param == OM_MIX_SHAPE ? OM_SHAPE_TYPES - 1
 		: param == OM_MIX_DUCK_KEY ? OM_MAX_CHANNELS - 1 : param == OM_MIX_GATE_STEPS3 ? 15
 		: param == OM_MIX_GATE_STEPS1 || param == OM_MIX_GATE_STEPS2 ? 63 : 127;
 	ch->value[param] = value > max ? max : value;
@@ -469,7 +478,9 @@ void om_studio_mix(OmStudio *st, uint8_t target, uint8_t param, uint8_t value)
 // What a change of a channel's control changes in the DSP.
 static void channelChanged(OmStudio *st, Channel *ch, uint8_t param)
 {
-	if (param == OM_MIX_DUCK_RELEASE)   // 20 ms .. 1.28 s (registry "exp")
+	if (param == OM_MIX_SHAPE || param == OM_MIX_DRIVE)
+		om_shaper_set(ch->shaper, ch->value[OM_MIX_SHAPE], powf(10.f, ch->value[OM_MIX_DRIVE] * (30.f / 127.f / 20.f)));   // +30 dB at 127
+	else if (param == OM_MIX_DUCK_RELEASE)   // 20 ms .. 1.28 s (registry "exp")
 		ch->duckRel = expf(-1.f / (0.02f * exp2f(ch->value[param] * 6.f / 127.f) * st->rate));
 	else if (param >= OM_MIX_EQ_LOW)
 		eqSet(st, ch);
@@ -738,13 +749,14 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 			memset(st->bus[b].buf, 0, sizeof(st->bus[b].buf));
 		for (int e = 0; e < st->engines; e++)
 			renderEngine(&st->engine[e], st->frame);
-		// every channel's inserts first, the filter, the EQ, then the gate: a key is heard after them
+		// every channel's inserts first, the filter, the shaper, the EQ, then the gate: a key is heard after them
 		clockBlock(st);
 		for (int c = 0; c < st->channels; c++)
 		{
 			Channel *ch = &st->channel[c];
 			Engine *en = &st->engine[ch->engine];
 			om_filter_process(ch->filter, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1], OM_MAX_BLOCK);
+			om_shaper_process(ch->shaper, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1], OM_MAX_BLOCK);
 			eqProcess(ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
 			gate(st, ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
 		}

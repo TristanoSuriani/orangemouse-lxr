@@ -2,7 +2,7 @@
   "engine": "mix",
   "title": "Mixer",
   "c_header": "studio.h",
-  "_comment": "The mixer's controls (studio/studio.c). A channel (an engine's stem) has LEVEL..SOLO, FILTER..RESONANCE (Surge's filters, studio/filter.cpp) DUCK..DUCK_RELEASE (sidechain ducking) GATE..GATE_STEPS3 (the trance gate, 16 steps in three 6-bit bytes) and EQ_LOW..EQ_HIGH (a 3-band EQ); a send bus has FX and RETURN; the master has LEVEL. Faders: 100 is 0 dB, gain = (value / 100)^3.",
+  "_comment": "The mixer's controls (studio/studio.c). A channel (an engine's stem) has LEVEL..SOLO, FILTER..RESONANCE (Surge's filters, studio/filter.cpp) DUCK..DUCK_RELEASE (sidechain ducking) GATE..GATE_STEPS3 (the trance gate, 16 steps in three 6-bit bytes) EQ_LOW..EQ_HIGH (a 3-band EQ) and SHAPE..DRIVE (Surge's waveshapers, studio/shaper.cpp); a send bus has FX and RETURN; the master has LEVEL. Faders: 100 is 0 dB, gain = (value / 100)^3.",
   "parts": [],
   "params": [
     {"id": "OM_MIX_LEVEL", "short": "LEV", "name": "Level", "group": "Channel", "min": 0, "max": 127, "default": 100,
@@ -77,6 +77,14 @@
      "help": "Where the mid band sits, from 100 Hz to 8 kHz."},
     {"id": "OM_MIX_EQ_HIGH", "short": "HI", "name": "EQ high", "group": "Channel", "min": 0, "max": 127, "default": 64,
      "display": {"kind": "bipolar", "center": 64, "scale": 0.1905, "digits": 1, "unit": "dB"},
-     "help": "The highs, a shelf above 8 kHz: air and sparkle, or less hiss and harshness."}
+     "help": "The highs, a shelf above 8 kHz: air and sparkle, or less hiss and harshness."},
+    {"id": "OM_MIX_SHAPE", "short": "SHP", "name": "Shaper", "group": "Channel", "min": 0, "max": 15, "default": 0,
+     "display": {"kind": "enum",
+                 "values": ["off", "soft", "warm", "tube", "hard clip", "asymmetric", "fold", "double fold", "west coast", "rectify", "fuzz", "heavy fuzz", "octave", "fifth", "sine", "digital"],
+                 "short": ["off", "soft", "warm", "tube", "hard", "asym", "fold", "2fold", "west", "rect", "fuzz", "hfuzz", "oct", "fifth", "sine", "digi"]},
+     "help": "Surge's waveshapers, after the filter: saturation, folds, fuzz, added harmonics."},
+    {"id": "OM_MIX_DRIVE", "short": "DRV", "name": "Drive", "group": "Channel", "min": 0, "max": 127, "default": 0,
+     "display": {"kind": "affine", "a": 0, "b": 0.23622, "digits": 1, "unit": "dB"},
+     "help": "How hard the sound goes into the shaper, up to +30 dB; the output comes down to match."}
   ]
 }

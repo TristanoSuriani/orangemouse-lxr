@@ -418,6 +418,72 @@ export default {
     "unit": "dB"
    },
    "help": "The highs, a shelf above 8 kHz: air and sparkle, or less hiss and harshness."
+  },
+  {
+   "id": "OM_MIX_SHAPE",
+   "short": "SHP",
+   "name": "Shaper",
+   "group": "Channel",
+   "min": 0,
+   "max": 15,
+   "default": 0,
+   "display": {
+    "kind": "enum",
+    "values": [
+     "off",
+     "soft",
+     "warm",
+     "tube",
+     "hard clip",
+     "asymmetric",
+     "fold",
+     "double fold",
+     "west coast",
+     "rectify",
+     "fuzz",
+     "heavy fuzz",
+     "octave",
+     "fifth",
+     "sine",
+     "digital"
+    ],
+    "short": [
+     "off",
+     "soft",
+     "warm",
+     "tube",
+     "hard",
+     "asym",
+     "fold",
+     "2fold",
+     "west",
+     "rect",
+     "fuzz",
+     "hfuzz",
+     "oct",
+     "fifth",
+     "sine",
+     "digi"
+    ]
+   },
+   "help": "Surge's waveshapers, after the filter: saturation, folds, fuzz, added harmonics."
+  },
+  {
+   "id": "OM_MIX_DRIVE",
+   "short": "DRV",
+   "name": "Drive",
+   "group": "Channel",
+   "min": 0,
+   "max": 127,
+   "default": 0,
+   "display": {
+    "kind": "affine",
+    "a": 0,
+    "b": 0.23622,
+    "digits": 1,
+    "unit": "dB"
+   },
+   "help": "How hard the sound goes into the shaper, up to +30 dB; the output comes down to match."
   }
  ]
 };

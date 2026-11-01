@@ -15,6 +15,7 @@
 #include "studio.h"
 #include "fx.h"
 #include "filter.h"
+#include "shaper.h"
 #include "om_registry_fx.h"
 
 extern const OmEngineClass om_va_engine;
@@ -389,6 +390,38 @@ int main(void)
 			CHECK(bad == 0 && peak < 16.f, "%s at full resonance: %d bad samples, peak %g", names[t], bad, peak);
 			om_filter_destroy(f);
 		}
+	}
+	{   // every waveshaper shapes: a -6 dBFS sine comes out changed (harmonics), finite, below
+		// +6 dBFS at full drive, and at 0 dB of drive within 12 dB of where it went in; off is untouched
+		static float sl[4096], sr[4096];
+		for (uint8_t t = OM_SHAPE_OFF; t < OM_SHAPE_TYPES; t++)
+			for (int full = 0; full < 2; full++)
+			{
+				OmShaper *sh = om_shaper_create();
+				om_shaper_set(sh, t, full ? 31.6228f : 1.f);
+				double in = 0, out = 0, diff = 0;
+				float peak = 0.f;
+				int bad = 0;
+				for (int i = 0; i < 4096; i++) sl[i] = sr[i] = 0.5f * sinf(6.2831853f * 220.f * i / 44100.f);
+				om_shaper_process(sh, sl, sr, 4096);
+				for (int i = 0; i < 4096; i++)
+				{
+					const float x = 0.5f * sinf(6.2831853f * 220.f * i / 44100.f);
+					in += x * x; out += sl[i] * sl[i]; diff += (sl[i] - x) * (sl[i] - x);
+					bad += !isfinite(sl[i]) || sl[i] != sr[i];
+					peak = fmaxf(peak, fabsf(sl[i]));
+				}
+				const double db = 10.0 * log10(out / in + 1e-12);
+				if (t == OM_SHAPE_OFF)
+					CHECK(diff == 0.0, "shaper off changed the signal");
+				else
+				{
+					CHECK(bad == 0 && peak < 2.f, "shape %d, drive %d: %d bad samples, peak %g", t, full, bad, peak);
+					CHECK(!full ? db > -12.0 && db < 12.0 : 1, "shape %d at 0 dB of drive: %.1f dB", t, db);
+					CHECK(!full || diff > 0.001 * in, "shape %d at full drive leaves the sine as it was", t);
+				}
+				om_shaper_destroy(sh);
+			}
 	}
 	{   // the master's DC blocker: a constant falls away within a second, a tone passes
 		const OmEngineClass cls = mockClass(0);
