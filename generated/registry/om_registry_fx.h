@@ -5,7 +5,7 @@
 #include "param_info.h"
 #include "fx.h"
 
-#define OM_FX_NUM_PARAMS 48
+#define OM_FX_NUM_PARAMS 58
 
 // every entry sits at its enum value
 _Static_assert(OM_FX_HALL_PRE == 0, "registry/fx.json: OM_FX_HALL_PRE is not entry 0");
@@ -56,6 +56,16 @@ _Static_assert(OM_FX_FLANGER_PITCH == 44, "registry/fx.json: OM_FX_FLANGER_PITCH
 _Static_assert(OM_FX_FLANGER_SPACING == 45, "registry/fx.json: OM_FX_FLANGER_SPACING is not entry 45");
 _Static_assert(OM_FX_FLANGER_FEEDBACK == 46, "registry/fx.json: OM_FX_FLANGER_FEEDBACK is not entry 46");
 _Static_assert(OM_FX_FLANGER_HFD == 47, "registry/fx.json: OM_FX_FLANGER_HFD is not entry 47");
+_Static_assert(OM_FX_CLOUDS_MODE == 48, "registry/fx.json: OM_FX_CLOUDS_MODE is not entry 48");
+_Static_assert(OM_FX_CLOUDS_POSITION == 49, "registry/fx.json: OM_FX_CLOUDS_POSITION is not entry 49");
+_Static_assert(OM_FX_CLOUDS_SIZE == 50, "registry/fx.json: OM_FX_CLOUDS_SIZE is not entry 50");
+_Static_assert(OM_FX_CLOUDS_PITCH == 51, "registry/fx.json: OM_FX_CLOUDS_PITCH is not entry 51");
+_Static_assert(OM_FX_CLOUDS_DENSITY == 52, "registry/fx.json: OM_FX_CLOUDS_DENSITY is not entry 52");
+_Static_assert(OM_FX_CLOUDS_TEXTURE == 53, "registry/fx.json: OM_FX_CLOUDS_TEXTURE is not entry 53");
+_Static_assert(OM_FX_CLOUDS_FEEDBACK == 54, "registry/fx.json: OM_FX_CLOUDS_FEEDBACK is not entry 54");
+_Static_assert(OM_FX_CLOUDS_SPREAD == 55, "registry/fx.json: OM_FX_CLOUDS_SPREAD is not entry 55");
+_Static_assert(OM_FX_CLOUDS_REVERB == 56, "registry/fx.json: OM_FX_CLOUDS_REVERB is not entry 56");
+_Static_assert(OM_FX_CLOUDS_FREEZE == 57, "registry/fx.json: OM_FX_CLOUDS_FREEZE is not entry 57");
 
 static const OmParamInfo om_fx_params[OM_FX_NUM_PARAMS] = {
 	{"OM_FX_HALL_PRE", "PRE", "Pre-delay", 0, 127, 54, 0},
@@ -106,6 +116,16 @@ static const OmParamInfo om_fx_params[OM_FX_NUM_PARAMS] = {
 	{"OM_FX_FLANGER_SPACING", "SPC", "Spacing", 0, 12, 0, 0},
 	{"OM_FX_FLANGER_FEEDBACK", "FBK", "Feedback", 0, 127, 64, 0},
 	{"OM_FX_FLANGER_HFD", "HFD", "High damping", 0, 127, 13, 0},
+	{"OM_FX_CLOUDS_MODE", "MOD", "Mode", 0, 3, 0, 0},
+	{"OM_FX_CLOUDS_POSITION", "POS", "Position", 0, 127, 40, 0},
+	{"OM_FX_CLOUDS_SIZE", "SIZ", "Size", 0, 127, 70, 0},
+	{"OM_FX_CLOUDS_PITCH", "PIT", "Pitch", 0, 48, 24, 0},
+	{"OM_FX_CLOUDS_DENSITY", "DEN", "Density", 0, 127, 90, 0},
+	{"OM_FX_CLOUDS_TEXTURE", "TEX", "Texture", 0, 127, 64, 0},
+	{"OM_FX_CLOUDS_FEEDBACK", "FBK", "Feedback", 0, 127, 0, 0},
+	{"OM_FX_CLOUDS_SPREAD", "SPR", "Spread", 0, 127, 64, 0},
+	{"OM_FX_CLOUDS_REVERB", "VRB", "Reverb", 0, 127, 40, 0},
+	{"OM_FX_CLOUDS_FREEZE", "FRZ", "Freeze", 0, 1, 0, 0},
 };
 
 static const OmParamMap om_fx_map[OM_FX_NUM_PARAMS] = {
@@ -157,6 +177,16 @@ static const OmParamMap om_fx_map[OM_FX_NUM_PARAMS] = {
 	{OM_MAP_LINEAR, 6, 0.0f, 12.0f},
 	{OM_MAP_LINEAR, 7, 0.0f, 1.0f},
 	{OM_MAP_LINEAR, 8, 0.0f, 1.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
+	{OM_MAP_OWN, -1, 0.0f, 0.0f},
 };
 
 #endif /* OM_REGISTRY_FX_H_ */

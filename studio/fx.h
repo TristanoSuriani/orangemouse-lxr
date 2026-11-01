@@ -2,8 +2,8 @@
  * fx.h
  *
  * The studio's send effects (PLAN.md Phase 3): Surge XT's hall and room
- * reverbs, delay, phaser and flanger (sst-effects), and a chorus written here
- * (sst-effects has none yet). An OmFx is one send bus's effect slot: it can
+ * reverbs, delay, phaser and flanger (sst-effects), a chorus written here
+ * (sst-effects has none yet) and Mutable Instruments' Clouds (clouds.h). An OmFx is one send bus's effect slot: it can
  * be any type, and keeps every type's settings, so switching back restores
  * them. Output is the effect alone (wet): the dry sound reaches the mix
  * through its channel.
@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-enum { OM_FX_OFF, OM_FX_HALL, OM_FX_ROOM, OM_FX_DELAY, OM_FX_CHORUS, OM_FX_PHASER, OM_FX_FLANGER, OM_FX_TYPES };
+enum { OM_FX_OFF, OM_FX_HALL, OM_FX_ROOM, OM_FX_DELAY, OM_FX_CHORUS, OM_FX_PHASER, OM_FX_FLANGER, OM_FX_CLOUDS, OM_FX_TYPES };
 
 // the parameters, in registry/fx.json's order
 enum
@@ -77,6 +77,16 @@ enum
 	OM_FX_FLANGER_SPACING,
 	OM_FX_FLANGER_FEEDBACK,
 	OM_FX_FLANGER_HFD,
+	OM_FX_CLOUDS_MODE,
+	OM_FX_CLOUDS_POSITION,
+	OM_FX_CLOUDS_SIZE,
+	OM_FX_CLOUDS_PITCH,
+	OM_FX_CLOUDS_DENSITY,
+	OM_FX_CLOUDS_TEXTURE,
+	OM_FX_CLOUDS_FEEDBACK,
+	OM_FX_CLOUDS_SPREAD,
+	OM_FX_CLOUDS_REVERB,
+	OM_FX_CLOUDS_FREEZE,
 	OM_FX_PARAMS
 };
 

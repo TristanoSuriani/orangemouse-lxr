@@ -96,7 +96,7 @@ export default {
    "name": "Effect",
    "group": "Bus",
    "min": 0,
-   "max": 6,
+   "max": 7,
    "default": 1,
    "display": {
     "kind": "enum",
@@ -107,7 +107,8 @@ export default {
      "delay",
      "chorus",
      "phaser",
-     "flanger"
+     "flanger",
+     "clouds"
     ],
     "short": [
      "off",
@@ -116,10 +117,11 @@ export default {
      "dly",
      "chor",
      "phsr",
-     "flng"
+     "flng",
+     "cloud"
     ]
    },
-   "help": "The effect on this send: hall and room reverbs, a tempo delay, chorus, phaser, flanger."
+   "help": "The effect on this send: reverbs, a tempo delay, chorus, phaser, flanger, Clouds."
   },
   {
    "id": "OM_MIX_RETURN",

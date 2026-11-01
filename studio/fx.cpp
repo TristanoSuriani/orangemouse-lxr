@@ -24,6 +24,7 @@
 #include "sst/effects/Reverb1.h"
 #include "sst/effects/Reverb2.h"
 
+#include "clouds.h"
 #include "fx.h"
 #include "om_registry_fx.h"
 
@@ -81,7 +82,8 @@ struct OmConfig
 
 // Each type's parameters: OM_FX_PARAMS is in registry order, grouped by type.
 constexpr uint16_t FIRST[OM_FX_TYPES + 1] = {
-	0, OM_FX_HALL_PRE, OM_FX_ROOM_PRE, OM_FX_DELAY_LEFT, OM_FX_CHORUS_RATE, OM_FX_PHASER_CENTER, OM_FX_FLANGER_MODE, OM_FX_PARAMS};
+	0, OM_FX_HALL_PRE, OM_FX_ROOM_PRE, OM_FX_DELAY_LEFT, OM_FX_CHORUS_RATE, OM_FX_PHASER_CENTER, OM_FX_FLANGER_MODE, OM_FX_CLOUDS_MODE,
+	OM_FX_PARAMS};
 
 uint8_t typeOf(uint16_t param)
 {
@@ -192,6 +194,17 @@ struct Chorus : Slot
 	}
 };
 
+// Clouds (clouds.h): its settings are its own bytes.
+struct Clouds : Slot
+{
+	OmClouds *c;
+	explicit Clouds(float rate) : c(om_clouds_create(rate)) {}
+	~Clouds() override { om_clouds_destroy(c); }
+	void set(int index, float value) override { om_clouds_set(c, index - OM_FX_CLOUDS_MODE, (uint8_t)value); }
+	void reset() override { om_clouds_reset(c); }
+	void process(float *l, float *r) override { om_clouds_process(c, l, r, OM_FX_BLOCK); }
+};
+
 // Fixed values: the mix all wet, and the parameters no knob reaches.
 constexpr Fixed HALL_FIXED[] = {{sfx::reverb2::Reverb2<OmConfig>::rev2_buildup, 1.f}, {sfx::reverb2::Reverb2<OmConfig>::rev2_mix, 1.f}};
 constexpr Fixed ROOM_FIXED[] = {{sfx::reverb1::Reverb1<OmConfig>::rev1_mix, 1.f}, {sfx::reverb1::Reverb1<OmConfig>::rev1_gain1, 0.f}};
@@ -218,6 +231,17 @@ Slot *makeSlot(uint8_t type, float rate)
 	case OM_FX_CHORUS:  s = new (std::nothrow) Chorus(rate); break;
 	case OM_FX_PHASER:  s = sst(new (std::nothrow) SstSlot<sfx::phaser::Phaser<OmConfig>>(rate, PHASER_FIXED, 2)); break;
 	case OM_FX_FLANGER: s = sst(new (std::nothrow) SstSlot<sfx::flanger::Flanger<OmConfig>>(rate, FLANGER_FIXED, 2)); break;
+	case OM_FX_CLOUDS:
+	{
+		Clouds *cl = new (std::nothrow) Clouds(rate);
+		if (cl && !cl->c)
+		{
+			delete cl;
+			cl = nullptr;
+		}
+		s = cl;
+		break;
+	}
 	}
 	return s;
 }

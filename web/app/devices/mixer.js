@@ -59,7 +59,8 @@ const typeParams = FX_TYPES.map((name) =>
 const GUIDE = [
   { title: 'The strips', text: 'One strip for each LXR voice (its FX bus is LFX), each VA slot, the two send effects (FXA, FXB) and the master (OUT). The meters move as they play; the ▶ beside a meter is its fader.' },
   { title: 'Mix', text: 'Click a strip (or &lt; CH, CH &gt;, the arrow keys) and turn the knobs: level, pan, send A, send B. MUTE and SOLO (M, S) silence channels or play only some. Double-click a knob to reset it.' },
-  { title: 'Effects', text: 'Send A is a hall reverb, send B a delay on the song\'s tempo. Turn a channel\'s SDA or SDB up to send it there. FX A / FX B open the effect: TYPE - and TYPE + change it (hall, room, delay, chorus, phaser, flanger), the knobs its settings, PAGE the next four.' },
+  { title: 'Effects', text: 'Send A is a hall reverb, send B a delay on the song\'s tempo. Turn a channel\'s SDA or SDB up to send it there. FX A / FX B open the effect: TYPE - and TYPE + change it (hall, room, delay, chorus, phaser, flanger, Clouds), the knobs its settings, PAGE the next four.' },
+  { title: 'Clouds', text: 'Clouds, Mutable Instruments\' texture module, as a send effect: it records what you send it and plays it back as grains, a time stretch, a pitched loop or a spectral blur (MOD). POS is how far back, SIZ how long each grain, DEN how many (the middle: none). FRZ on holds what it has: the texture plays on whatever the song does.' },
   { title: 'Filters', text: 'Every channel has one of Surge\'s filters. Press PAGE on a channel: the knobs become FLT (the type: low-passes, ladders, high-passes, band-pass, notch), CUT and RES. Sweep CUT for build-ups; FLT off leaves the sound untouched.' },
   { title: 'Ducking', text: 'PAGE twice on a channel puts its ducking on the knobs: DCK, how far it dips when its KEY hits (the kick, drum 1, at first), and REL, how fast it comes back. Pads and basses that pump with the kick are trance\'s and synthwave\'s sound. A muted key still keys.' },
   { title: 'The gate', text: 'PAGE three times on a channel: the trance gate. GAT is how far the steps that are off cut the sound, SMO how softly, PAT a pattern to start from. The display\'s top line shows the 16 steps, in time with the song: click one (or 1-8, Shift 9-16) to switch it.' },
@@ -71,7 +72,7 @@ const GUIDE = [
 
 // a strip's values in three characters, so a space parts the strips: whole
 // dB ("-6", "off"), pan ("C", "L50"), the effect ("hal"); row 0 has them in full
-const FX3 = ['off', 'hal', 'rom', 'dly', 'chr', 'phs', 'flg'];
+const FX3 = ['off', 'hal', 'rom', 'dly', 'chr', 'phs', 'flg', 'cld'];
 const FLT3 = ['-', 'l12', 'l24', 'lad', 'vin', 'obx', 'k35', 'dio', 'h12', 'h24', 'k3h', 'bp', 'nch', 'obp'];
 const HIGH_PASS = [8, 9, 10];   // registry/mix.json OM_MIX_FILTER: the high-passes
 const db3 = (v) => (v === 0 ? 'off' : (() => { const d = Math.round(60 * Math.log10(v / 100)); return d > 0 ? `+${d}` : String(d); })());
@@ -374,7 +375,7 @@ export function createMixerDevice({ send, help, song }) {
     ['fxA', 'FX A', 'Send A\'s effect on the display: its type and settings. Press again for the strips.', () => openFx(0)],
     ['fxB', 'FX B', 'Send B\'s effect on the display: its type and settings. Press again for the strips.', () => openFx(1)],
     ['typeDown', 'TYPE -', 'The previous effect on this send (with FX A or FX B lit).', () => changeType(-1)],
-    ['typeUp', 'TYPE +', 'The next effect on this send: hall, room, delay, chorus, phaser, flanger.', () => changeType(1)],
+    ['typeUp', 'TYPE +', 'The next effect on this send: hall, room, delay, chorus, phaser, flanger, Clouds.', () => changeType(1)],
     ['page', 'PAGE', () => (state.fx !== null ? 'The next four settings of the effect on the knobs.'
       : `A channel's knobs: its mix (level, pan, sends), its filter (type, cutoff, resonance), its ducking (amount, key, release), its gate (depth, smoothing, pattern), its EQ (low, mid, its frequency, high) or its shaper (shape, drive). Now: ${CH_PAGES[state.chPage]}.`),
     () => nextPage()],

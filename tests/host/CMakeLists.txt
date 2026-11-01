@@ -90,6 +90,10 @@ add_library(om_fx OBJECT ${om_fx_sources})
 om_fx_configure(om_fx)
 target_compile_options(om_fx PRIVATE -ffp-contract=off)
 set(om_fx_objects $<TARGET_OBJECTS:om_fx>)
+add_library(om_clouds OBJECT ${om_clouds_sources})
+om_clouds_configure(om_clouds)
+target_compile_options(om_clouds PRIVATE -ffp-contract=off)
+set(om_fx_objects ${om_fx_objects} $<TARGET_OBJECTS:om_clouds>)
 
 # Dexed (engines/dexed/)
 include(${LXR_ROOT}/engines/dexed/dexed_sources.cmake)
@@ -136,6 +140,9 @@ target_include_directories(rings_test PRIVATE ${LXR_ROOT}/engines/rings ${LXR_RO
 add_executable(song_render song_render.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(fuzz fuzz.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 target_include_directories(fuzz PRIVATE ${LXR_ROOT}/engines/rings)   # the panic damps Rings
+# the tests that print a hash for the parity check make their input as the browser does: unfused
+target_compile_options(studio_test PRIVATE -ffp-contract=off)
+target_compile_options(rings_test PRIVATE -ffp-contract=off)
 foreach(tool studio_render studio_test tracker_test lxr_sync_test dexed_test plaits_test rings_test song_render fuzz)
     target_include_directories(${tool} PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines ${LXR_ROOT}/generated/registry)
     target_link_libraries(${tool} PRIVATE m)

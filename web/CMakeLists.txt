@@ -47,6 +47,8 @@ include(${CMAKE_CURRENT_LIST_DIR}/../studio/fx_sources.cmake)
 # the send effects, in C++, apart from the firmware's forced-include header
 add_library(om_fx OBJECT ${om_fx_sources})
 om_fx_configure(om_fx)
+add_library(om_clouds OBJECT ${om_clouds_sources})
+om_clouds_configure(om_clouds)
 include(${CMAKE_CURRENT_LIST_DIR}/../engines/dexed/dexed_sources.cmake)
 add_library(om_dexed OBJECT ${om_dexed_sources})
 om_dexed_configure(om_dexed)
@@ -69,6 +71,7 @@ add_executable(studio
     ${LXR_ROOT}/engines/orangemouse-va/va_engine.c
     port/web_studio.c
     $<TARGET_OBJECTS:om_fx>
+    $<TARGET_OBJECTS:om_clouds>
     $<TARGET_OBJECTS:om_dexed>
     $<TARGET_OBJECTS:om_plaits>
     $<TARGET_OBJECTS:om_rings>

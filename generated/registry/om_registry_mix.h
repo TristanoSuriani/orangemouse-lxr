@@ -41,7 +41,7 @@ static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
 	{"OM_MIX_SEND_B", "SDB", "Send B", 0, 127, 0, 0},
 	{"OM_MIX_MUTE", "MUT", "Mute", 0, 1, 0, 0},
 	{"OM_MIX_SOLO", "SOL", "Solo", 0, 1, 0, 0},
-	{"OM_MIX_FX_TYPE", "FX", "Effect", 0, 6, 1, 0},
+	{"OM_MIX_FX_TYPE", "FX", "Effect", 0, 7, 1, 0},
 	{"OM_MIX_RETURN", "RET", "Return", 0, 127, 100, 0},
 	{"OM_MIX_FILTER", "FLT", "Filter", 0, 13, 0, 0},
 	{"OM_MIX_CUTOFF", "CUT", "Cutoff", 0, 127, 127, 0},

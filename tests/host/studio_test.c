@@ -21,6 +21,19 @@
 extern const OmEngineClass om_va_engine;
 
 static int failures;
+// the send effects' output, hashed (FNV-1a over the bits): tests/run.sh
+// compares the native build's with WebAssembly's
+static uint64_t fxHash = 1469598103934665603ull;
+static void hashBlock(const float *l, const float *r, int n)
+{
+	for (int i = 0; i < 2 * n; i++)
+	{
+		uint32_t bits;
+		memcpy(&bits, i < n ? &l[i] : &r[i - n], 4);
+		for (int k = 0; k < 4; k++)
+			fxHash = (fxHash ^ ((bits >> (8 * k)) & 0xff)) * 1099511628211ull;
+	}
+}
 #define CHECK(cond, ...) do { if (!(cond)) { failures++; printf("FAIL %s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
 
 // ---- a mock engine: 1 part, 1 stem, outputs 1.0 while its note is held ----
@@ -191,15 +204,16 @@ int main(void)
 	}
 	{   // every effect, at its defaults and with every knob at its minimum and its
 		// maximum: a burst of noise in, then silence; the output must be finite,
-		// must not run away, and must sound
-		const char *names[OM_FX_TYPES] = {"off", "hall", "room", "delay", "chorus", "phaser", "flanger"};
+		// must not run away, and must sound (Clouds frozen from the start holds
+		// silence, as it should: its freeze stays off here, and is tested below)
+		const char *names[OM_FX_TYPES] = {"off", "hall", "room", "delay", "chorus", "phaser", "flanger", "clouds"};
 		static float fl[OM_FX_BLOCK], fr[OM_FX_BLOCK];
 		for (uint8_t type = OM_FX_HALL; type < OM_FX_TYPES; type++)
 			for (int setting = 0; setting < 3; setting++)
 			{
 				OmFx *fx = om_fx_create(44100.f);
 				for (uint16_t p = 0; p < OM_FX_PARAMS && setting; p++)
-					om_fx_set_param(fx, p, setting == 1 ? om_fx_params[p].min : om_fx_params[p].max);
+					om_fx_set_param(fx, p, setting == 1 || p == OM_FX_CLOUDS_FREEZE ? om_fx_params[p].min : om_fx_params[p].max);
 				CHECK(om_fx_set_type(fx, type) == 0, "%s cannot be created", names[type]);
 				uint32_t seed = 1;
 				float peak = 0.f, energy = 0.f;
@@ -215,6 +229,11 @@ int main(void)
 						fr[i] = x ? ((seed >> 9) * (1.f / 4194304.f) - 1.f) * 0.5f : 0.f;
 					}
 					om_fx_process(fx, fl, fr, OM_FX_BLOCK);
+					// not hashed: Surge's phaser with every knob at its maximum. Its
+					// biquads call the platform's double sin and cos, so the browser
+					// differs there by a few LSB (no song goes near it)
+					if (!(type == OM_FX_PHASER && setting == 2))
+						hashBlock(fl, fr, OM_FX_BLOCK);
 					for (int i = 0; i < OM_FX_BLOCK; i++)
 					{
 						bad += !isfinite(fl[i]) || !isfinite(fr[i]);
@@ -225,6 +244,48 @@ int main(void)
 				const char *at[3] = {"defaults", "all minimum", "all maximum"};
 				CHECK(bad == 0 && peak < 8.f, "%s at %s: %d bad samples, peak %g", names[type], at[setting], bad, peak);
 				CHECK(energy > 1e-3f, "%s at %s is silent (energy %g)", names[type], at[setting], energy);
+				om_fx_destroy(fx);
+			}
+	}
+	{   // Clouds: every mode sounds from a burst (a saw and noise); frozen after it, it plays on while silence comes
+		// in, unfrozen it fades (its reverb off, no feedback)
+		static float fl[OM_FX_BLOCK], fr[OM_FX_BLOCK];
+		for (uint8_t mode = 0; mode < 4; mode++)
+			for (int freeze = 0; freeze < 2; freeze++)
+			{
+				OmFx *fx = om_fx_create(44100.f);
+				om_fx_set_param(fx, OM_FX_CLOUDS_MODE, mode);
+				om_fx_set_param(fx, OM_FX_CLOUDS_REVERB, 0);
+				om_fx_set_param(fx, OM_FX_CLOUDS_POSITION, 0);
+				om_fx_set_type(fx, OM_FX_CLOUDS);
+				uint32_t seed = 3;
+				float early = 0.f, late = 0.f;
+				for (int b = 0; b < 44100 * 6 / OM_FX_BLOCK; b++)
+				{
+					const int burst = b < 44100 / OM_FX_BLOCK;   // 1 s of tone and noise, then silence
+					if (b == 44100 / OM_FX_BLOCK && freeze)
+						om_fx_set_param(fx, OM_FX_CLOUDS_FREEZE, 1);
+					for (int i = 0; i < OM_FX_BLOCK; i++)
+					{
+						seed = seed * 1664525u + 1013904223u;
+						const int n = b * OM_FX_BLOCK + i;
+						const float saw = (float)(n % 200) / 100.f - 1.f;   // 220.5 Hz, no libm: the same input in WebAssembly
+						fl[i] = fr[i] = burst ? 0.3f * saw + ((seed >> 9) * (1.f / 4194304.f) - 1.f) * 0.1f : 0.f;
+					}
+					om_fx_process(fx, fl, fr, OM_FX_BLOCK);
+					hashBlock(fl, fr, OM_FX_BLOCK);
+					for (int i = 0; i < OM_FX_BLOCK; i++)
+					{
+						const float a = fmaxf(fabsf(fl[i]), fabsf(fr[i]));
+						if (b < 44100 / OM_FX_BLOCK) early = fmaxf(early, a);
+						else if (b > 44100 * 5 / OM_FX_BLOCK) late = fmaxf(late, a);
+					}
+				}
+				CHECK(early > 0.01f, "Clouds mode %d: silent during the burst (peak %g)", mode, early);
+				if (freeze)
+					CHECK(late > 0.01f, "Clouds mode %d, frozen: silent 4 s later (peak %g)", mode, late);
+				else
+					CHECK(late < 0.01f, "Clouds mode %d: still at %g 4 s after the burst", mode, late);
 				om_fx_destroy(fx);
 			}
 	}
@@ -482,6 +543,7 @@ int main(void)
 		printf("%d check(s) failed\n", failures);
 		return 1;
 	}
+	printf("hash %016llx (the send effects)\n", (unsigned long long)fxHash);
 	printf("all studio checks passed\n");
 	return 0;
 }

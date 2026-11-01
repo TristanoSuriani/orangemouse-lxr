@@ -1,3 +1,18 @@
+diff --git a/clouds/dsp/window.h b/clouds/dsp/window.h
+index 3d59b90..cd73b63 100644
+--- a/clouds/dsp/window.h
++++ b/clouds/dsp/window.h
+@@ -64,6 +64,10 @@ class Window {
+     first_sample_ = (start + buffer_size) % buffer_size;
+     phase_increment_ = phase_increment;
+     phase_ = 0;
++    // Orange Mouse: a window that played to its end stayed done, as nothing
++    // else clears done_, so OverlapAdd skipped it: the stretch mode went
++    // silent after its first two windows (found by tests/host/studio_test.c).
++    done_ = false;
+     regenerated_ = false;
+     envelope_phase_increment_ = 2.0f / static_cast<float>(width);
+   }
 diff --git a/plaits/dsp/engine/wavetable_engine.cc b/plaits/dsp/engine/wavetable_engine.cc
 index 44accd7..03be011 100644
 --- a/plaits/dsp/engine/wavetable_engine.cc
