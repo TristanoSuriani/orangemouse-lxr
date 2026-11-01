@@ -536,6 +536,24 @@ Fel-Tracker's suite showed this works: golden hashes, CPU counts and a layout li
 
 ## Later
 
+**Done 2026-11-01** (you asked for the Later list before the listening; to listen: docs/listening/later.md):
+
+- **Surge's waveshapers**: an insert on every mixer channel, after its filter (studio/shaper.cpp). Sixteen
+  shapes, SHP and DRV on the mixer's sixth channel page.
+- **Rings**: a device of its own on track 16 (engines/rings/), its six models, eight presets, at 48 kHz.
+  INPUT feeds it another channel's sound (the engine interface's optional input hooks).
+- **Clouds** (rather than Beads: simpler, and the same four textures): a send effect type
+  (studio/clouds.cpp), at 32 kHz. Its stretch mode was broken upstream and is patched.
+- The resampler Plaits had is shared (engines/resampler.h), bit for bit.
+- **Not done: Surge's oscillators.** They exist only inside Surge XT itself, tied to its storage,
+  wavetables and tuning (none of the fetched sst libraries has them). A port is a large job, and the
+  question above about full sound design still stands. It waits for your answer.
+- **Before hosting: checked.** Dexed's 33 cartridges are Dexed_01 (Dexed's own) and SynprezFM_01-32,
+  compiled by Jean-Marc Desprez. Dexed (GPL-3) has shipped them since 2013, but no licence for the patches
+  themselves was found. Ask the author, or ship only Dexed_01, before hosting. The LXR rename (which name?)
+  and publishing the source are yours to decide. Private use still needs none of this.
+
+
 Added on 2026-10-26, after the phases above. **Nothing here starts while a listening checklist still has
 empty keep/change lines:** tuning what exists makes better songs than another engine.
 
