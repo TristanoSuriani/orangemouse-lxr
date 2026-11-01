@@ -42,3 +42,7 @@ Each re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to 
 ## 2026-11-01: The electro, synthwave and dub techno songs, version 2: the shaper, Rings and Clouds
 
 - `songs.txt`: 3 of 4 renders: electro, synthwave, dubtechno
+
+## 2026-11-01: The trance song, version 2: the shaper, Rings and Clouds
+
+- `songs.txt`: 1 of 4 renders: trance

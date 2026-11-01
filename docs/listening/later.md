@@ -1,8 +1,8 @@
 # "Later" listening checklist (2026-11-01)
 
 The "Later" list added Surge's waveshapers, Rings and Clouds. Each one was tested for health and
-measured, but nobody has listened to it yet. Three genre songs use them (version 2; the library keeps
-your old copies as "(v1)"). Try them in the studio, and mark each line **keep** or **change**, with a
+measured, but nobody has listened to it yet. The four genre songs use them (electro, synthwave and dub
+techno at version 2, trance at version 2 of "Dawn Run 3"; the library keeps your old copies). Try them in the studio, and mark each line **keep** or **change**, with a
 few words on what to change.
 
 ## The waveshaper (the mixer, PAGE five times on a channel: SHP, DRV)
@@ -55,7 +55,7 @@ All wet, 3 ms late. Its stretch mode needed a fix to Mutable's code (third_party
 ## In the genre songs (version 2)
 
 Set by measurement only: each song kept its loudness (electro -15.3 dBFS, dub techno -16.8, synthwave
--17.7, from -18.2; Rings adds to it). The drives are low where the shaper fattened the kick's tail.
+-17.7, from -18.2; Rings adds to it; trance -15.4, from -15.5). The drives are low where the shaper fattened the kick's tail.
 
 | Song | What was added | Keep / change |
 |---|---|---|
@@ -67,3 +67,6 @@ Set by measurement only: each song kept its loudness (electro -15.3 dBFS, dub te
 | Dub techno | the chord stab through *warm* (DRV 45), the kick through *soft* (DRV 15) | |
 | Dub techno | Rings' *Dub ring* struck by the rim (IN DR3), tuned D3/A2, F3/C3 in the variation | |
 | Dub techno | Clouds on FX A instead of the hall: a big smooth grain wash with its own reverb | |
+| Trance | the bass through *warm* (DRV 30), the kick through *tube* (DRV 15) | |
+| Trance | Rings' *Harp* strumming the chords in the breakdown | |
+| Trance | Clouds on FX B instead of the tempo delay: a shimmer an octave up behind the pluck, the anthem and the harp | |

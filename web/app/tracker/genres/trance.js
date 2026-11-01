@@ -10,13 +10,16 @@
 //     slide over the 4 bars), the breakdown sweeps the pad's;
 //   - the anthem (VA3's Super Lead) glides into some of its notes;
 //   - conditions vary the open hats and add ghost snares, so the drops change.
+// Version 2 adds the shaper (the bass warm, the kick through a tube), Rings'
+// harp strumming the chords in the breakdown, and Clouds for the delay: a
+// shimmer of grains an octave up behind the pluck, the anthem and the harp.
 // Patterns: intro, build, breakdown, drop. Also a regression song (tests/run.sh).
 
 import { T, n, chord, song, put, off, hits, lxrKit, channel, bus, effect, gate } from './build.js';
-import { plaitsPreset } from '../song.js';
+import { plaitsPreset, ringsPreset } from '../song.js';
 import { cellKey } from '../song.js';
 
-export const VERSION = 1;   // of genre-trance-3
+export const VERSION = 2;   // of genre-trance-3
 
 const ROOTS = ['A1', 'F1', 'C2', 'G1'].map(n);   // a bar each
 const CHORDS = ['A3 C4 E4 A4', 'F3 A3 C4 F4', 'G3 C4 E4 G4', 'G3 B3 D4 G4'].map(chord);
@@ -107,6 +110,7 @@ export default function trance() {
     put(s, BREAK, row, T.DX1, n(note), 85);
     off(s, BREAK, row + 8, T.DX1);
   }
+  for (let bar = 0; bar < 4; bar++) put(s, BREAK, bar * 16, T.RN1, CHORDS[bar], bar === 3 ? 110 : 95);   // Rings strums them
   put(s, BREAK, 32, T.NOISE, n('C4'), 100);      // the riser, over the last two bars
   off(s, BREAK, 63, T.NOISE);
   for (let row = 32; row < 40; row += 4) put(s, BREAK, row, T.SNARE, 38, 80);
@@ -130,6 +134,7 @@ export default function trance() {
   // the sounds: VA's Classic bass, Supersaw, Super Lead (legato), Riser
   s.va = [{ params: null, preset: 0 }, { params: null, preset: 1 }, { params: null, preset: 3 }, { params: null, preset: 5 }];
   s.plaits = [plaitsPreset('Pluck'), plaitsPreset('Trance pad')];
+  s.rings = [ringsPreset('Harp')];
   s.dexed[0] = { bank: 1, program: 8, volume: 95, transpose: 24 };   // SynprezFM 01: glassbell
   s.lxr = lxrKit({ PAR_VELOD1: 28, PAR_MODAMNT1: 66, PAR_MOD_EG1: 22, PAR_COARSE1: 30, PAR_FILTER_FREQ_6: 118,
     PAR_VELOD4: 16, PAR_COARSE4: 50 });
@@ -137,7 +142,7 @@ export default function trance() {
   // the mix. The pads: a 24 dB low-pass (the effects move it), the gate, the pump from the kick
   channel(s, 'va2', { level: 92, sendA: 70, sendB: 45, filter: 2, cutoff: 127, reso: 20, duck: 80, duckKey: 0, duckRel: 55 });
   gate(s, 'va2', { depth: 120, pattern: 'x.xx.xx.x.xx.xx.', smooth: 30 });
-  channel(s, 'va1', { level: 84, filter: 2, cutoff: 90, reso: 25, duck: 55, duckKey: 0, duckRel: 40 });
+  channel(s, 'va1', { level: 76, filter: 2, cutoff: 90, reso: 25, duck: 55, duckKey: 0, duckRel: 40, shape: 2, drive: 30 });   // warm
   channel(s, 'va3', { level: 90, sendA: 65, sendB: 70 });
   channel(s, 'va4', { level: 76, sendA: 70 });
   channel(s, 'pl1', { level: 70, pan: 44, sendB: 80, filter: 1, cutoff: 100 });
@@ -145,7 +150,11 @@ export default function trance() {
   channel(s, 'dx1', { level: 80, pan: 84, sendA: 90, sendB: 60 });
   channel(s, 'lxr4', { level: 92, sendA: 45 });
   channel(s, 'lxr6', { eqHigh: 72 });   // the hats a touch brighter
+  channel(s, 'lxr1', { level: 94, shape: 3, drive: 15 });   // the kick through a tube
+  channel(s, 'rn1', { level: 90, pan: 40, sendA: 70, sendB: 60 });
   bus(s, 0, { fx: { OM_FX_HALL_DECAY: 84, OM_FX_HALL_SIZE: 96, OM_FX_HALL_LFD: 60 } });
-  bus(s, 1, { fx: { OM_FX_DELAY_LEFT: 8, OM_FX_DELAY_RIGHT: 9, OM_FX_DELAY_FEEDBACK: 55, OM_FX_DELAY_CROSS: 30 } });
+  // Clouds, the shimmer: grains an octave up, fed back into themselves and its reverb
+  bus(s, 1, { type: 7, fx: { OM_FX_CLOUDS_POSITION: 70, OM_FX_CLOUDS_SIZE: 90, OM_FX_CLOUDS_PITCH: 36, OM_FX_CLOUDS_DENSITY: 105,
+    OM_FX_CLOUDS_TEXTURE: 90, OM_FX_CLOUDS_FEEDBACK: 55, OM_FX_CLOUDS_SPREAD: 110, OM_FX_CLOUDS_REVERB: 90 } });
   return s;
 }
