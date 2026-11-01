@@ -6,8 +6,8 @@
  * engines are all timed for it (PLAN.md 7.6: at 44.1 kHz they ran 5-17 %
  * slow). Each part renders whole blocks of kBlockSize (12) frames into a
  * queue at that rate, and a windowed-sinc resampler turns the queue into the
- * studio's rate (a note waits at most 11 frames and the 16-tap half of the
- * filter, 0.6 ms). A voice stops rendering once its note is off and it has
+ * studio's rate (resampler.h; a note waits at most 11 frames and the
+ * 16-tap half of the filter, 0.6 ms). A voice stops rendering once its note is off and it has
  * been silent for 200 ms.
  *
  * Copyright (C) 2026 Erica Synths
@@ -18,6 +18,7 @@
 #include <new>
 
 #include "om_plaits_voice.h"
+#include "resampler.h"
 #include "plaits_engine.h"
 #include "om_registry_plaits.h"
 
@@ -28,8 +29,6 @@ using plaits::kBlockSize;
 constexpr size_t RAM = 16384;          // each voice's engine memory, as on the module
 constexpr float OUTPUT = 0.35f;        // four voices stay below full scale
 const float RATE = plaits::kCorrectedSampleRate;       // Plaits' own
-constexpr int HALF = 16;               // the resampler's taps on each side
-constexpr int PHASES = 256;            // its filter, at this many fractional positions
 constexpr int QUEUE = 4 * OM_MAX_BLOCK;
 
 struct Voice
@@ -51,16 +50,13 @@ struct Part
 {
 	uint8_t value[PLAITS_NUM_PARAMS];
 	Voice voice[PLAITS_VOICES];
-	float queue[2][QUEUE];   // rendered frames at Plaits' rate, from HALF - 1 before the next output
-	int queued = HALF - 1;   // the first: silence
-	double pos = HALF - 1;   // where in the queue the next output frame falls
+	om::Resampler<QUEUE> out;   // rendered frames at Plaits' rate
 };
 
 struct Plaits
 {
 	float rate;
-	double step;             // Plaits' frames per studio frame
-	float kernel[PHASES + 1][2 * HALF];   // the resampler's filter, per fractional position
+	om::SincKernel kernel;   // Plaits' rate to the studio's
 	Part part[PLAITS_PARTS];
 	uint32_t age = 0;
 };
@@ -111,12 +107,13 @@ void renderBlock(Plaits *pl, Part &p)
 	}
 	const float x = v[PL_P_VOLUME] / 100.f;   // a fader: 100 is 0 dB
 	const float gain = OUTPUT * x * x * x;
+	float *ql = p.out.left(), *qr = p.out.right();
 	for (size_t i = 0; i < kBlockSize; i++)
 	{
-		p.queue[0][p.queued + i] = l[i] * gain;
-		p.queue[1][p.queued + i] = r[i] * gain;
+		ql[i] = l[i] * gain;
+		qr[i] = r[i] * gain;
 	}
-	p.queued += kBlockSize;
+	p.out.pushed(kBlockSize);
 }
 
 void *plaitsCreate(float rate)
@@ -125,28 +122,10 @@ void *plaitsCreate(float rate)
 	if (!pl)
 		return nullptr;
 	pl->rate = rate;
-	pl->step = RATE / rate;
-	// a windowed sinc (Blackman-Harris), its cutoff just below the lower of
-	// the two rates' Nyquist frequencies; each position sums to 1
-	const double cut = 0.95 * std::fmin(1.0, 1.0 / pl->step);
-	for (int ph = 0; ph <= PHASES; ph++)
-	{
-		double sum = 0.0, h[2 * HALF];
-		for (int k = 0; k < 2 * HALF; k++)
-		{
-			const double x = (k - HALF + 1) - (double)ph / PHASES;   // taps from -15 to 16, the position in between
-			const double sinc = x == 0.0 ? 1.0 : std::sin(M_PI * cut * x) / (M_PI * cut * x);
-			const double w = 2.0 * M_PI * (x + HALF) / (2.0 * HALF);
-			const double win = 0.35875 - 0.48829 * std::cos(w) + 0.14128 * std::cos(2.0 * w) - 0.01168 * std::cos(3.0 * w);
-			h[k] = sinc * win;
-			sum += h[k];
-		}
-		for (int k = 0; k < 2 * HALF; k++)
-			pl->kernel[ph][k] = (float)(h[k] / sum);
-	}
+	pl->kernel.init(RATE, rate);
 	for (Part &p : pl->part)
 	{
-		std::memset(p.queue, 0, sizeof p.queue);   // the resampler starts on silence
+		p.out.reset();
 		for (int i = 0; i < PLAITS_NUM_PARAMS; i++)
 			p.value[i] = om_plaits_params[i].def;
 		for (Voice &vo : p.voice)
@@ -234,31 +213,11 @@ void plaitsRender(void *self, float *const *stems, uint32_t frames)
 		Part &p = pl->part[k];
 		for (uint32_t i = 0; i < frames; i++)
 		{
-			const int at = (int)p.pos;
-			while (at + HALF >= p.queued)
+			while (p.out.needs())
 				renderBlock(pl, p);
-			const double where = (p.pos - at) * PHASES;
-			const int ph = (int)where;
-			const float frac = (float)(where - ph);
-			const float *a = pl->kernel[ph], *b = pl->kernel[ph + 1];
-			const float *l = p.queue[0] + at - HALF + 1, *r = p.queue[1] + at - HALF + 1;
-			float outL = 0.f, outR = 0.f;
-			for (int t = 0; t < 2 * HALF; t++)
-			{
-				const float h = a[t] + (b[t] - a[t]) * frac;
-				outL += l[t] * h;
-				outR += r[t] * h;
-			}
-			stems[2 * k][i] = outL;
-			stems[2 * k + 1][i] = outR;
-			p.pos += pl->step;
+			p.out.pull(pl->kernel, stems[2 * k][i], stems[2 * k + 1][i]);
 		}
-		// keep HALF - 1 frames before the next output's
-		const int drop = (int)p.pos - (HALF - 1);
-		p.queued -= drop;
-		p.pos -= drop;
-		std::memmove(p.queue[0], p.queue[0] + drop, p.queued * sizeof(float));
-		std::memmove(p.queue[1], p.queue[1] + drop, p.queued * sizeof(float));
+		p.out.compact();
 	}
 }
 } // namespace
