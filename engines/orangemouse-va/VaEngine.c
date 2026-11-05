@@ -672,6 +672,8 @@ typedef struct
 	VaVoice voice[VA_MAX_NOTES];
 	VaHalfband hb1[2], hb2[2];
 	float hpf[2];          // the output high-pass's states
+	float lastGain;        // the output level at the end of the last block
+	uint8_t hasGain;
 	float lfoPhase, lfoValue, lfoSh;
 	uint32_t rng;
 	uint32_t age;
@@ -1102,6 +1104,13 @@ uint8_t va_render(uint8_t slot, float *left, float *right, uint32_t frames)
 	VaSlot *sl = &va_slot[slot];
 	const uint8_t *p = va_params(slot);
 
+	const float volume = (float)p[VA_P_VOLUME] / 127.f;
+	const float gain = volume * volume * VA_OUT_SCALE;
+	// the level ramps across the block, so a moving volume (a CC) does not step
+	const float fromGain = sl->hasGain ? sl->lastGain : gain;
+	sl->lastGain = gain;
+	sl->hasGain = 1;
+
 	uint8_t sounding = 0;
 	for (int i = 0; i < VA_MAX_NOTES; i++)
 		if (sl->voice[i].aenv.stage != VA_ENV_IDLE)
@@ -1141,8 +1150,6 @@ uint8_t va_render(uint8_t slot, float *left, float *right, uint32_t frames)
 	// down to the sample rate, then the output high-pass (one pole, 8 Hz .. 4 kHz)
 	const float hpHz = 8.f * va_exp2((float)p[VA_P_HPF] * (9.f / 127.f));
 	const float hpCoef = expf(-VA_TWO_PI * hpHz / VA_FS);
-	const float volume = (float)p[VA_P_VOLUME] / 127.f;
-	const float gain = volume * volume * VA_OUT_SCALE;
 	float half[2][VA_BLOCK * 2];
 	for (int c = 0; c < 2; c++)
 	{
@@ -1155,7 +1162,7 @@ uint8_t va_render(uint8_t slot, float *left, float *right, uint32_t frames)
 			const float x = va_halfband(&sl->hb2[c], va_hb2, VA_HB2_SIDE, half[c][2 * i], half[c][2 * i + 1]);
 			// one-pole high-pass: y = x - lowpass(x)
 			sl->hpf[c] = hpCoef * sl->hpf[c] + (1.f - hpCoef) * x;
-			float y = (x - sl->hpf[c]) * gain;
+			float y = (x - sl->hpf[c]) * (fromGain + (gain - fromGain) * (float)(i + 1) / (float)frames);
 			// gentle soft limit approaching full scale
 			const float lim = 32000.f;
 			if (y > 0.75f * lim || y < -0.75f * lim)

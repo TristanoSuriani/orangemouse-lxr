@@ -22,18 +22,18 @@ _Static_assert(PL_P_TRANSPOSE == 10, "registry/plaits.json: PL_P_TRANSPOSE is no
 _Static_assert(PL_P_PRESET == 11, "registry/plaits.json: PL_P_PRESET is not entry 11");
 
 static const OmParamInfo om_plaits_params[OM_PLAITS_NUM_PARAMS] = {
-	{"PL_P_ENGINE", "ENG", "Engine", 0, 10, 0, 0},
-	{"PL_P_HARMONICS", "HRM", "Harmonics", 0, 127, 64, 0},
-	{"PL_P_TIMBRE", "TMB", "Timbre", 0, 127, 64, 0},
-	{"PL_P_MORPH", "MRP", "Morph", 0, 127, 64, 0},
-	{"PL_P_DECAY", "DEC", "Decay", 0, 127, 64, 0},
-	{"PL_P_COLOUR", "COL", "LPG colour", 0, 127, 64, 0},
-	{"PL_P_ATTACK", "ATK", "Attack", 0, 127, 0, 0},
-	{"PL_P_TIMBRE_ENV", "T.E", "Timbre envelope", 1, 127, 64, 0},
-	{"PL_P_MORPH_ENV", "M.E", "Morph envelope", 1, 127, 64, 0},
-	{"PL_P_VOLUME", "VOL", "Volume", 0, 127, 100, 0},
-	{"PL_P_TRANSPOSE", "TRN", "Transpose", 0, 48, 24, 0},
-	{"PL_P_PRESET", "PRE", "Preset", 0, 63, 0, 0},
+	{"PL_P_ENGINE", "ENG", "Engine", 0, 10, 0, 0, 12},
+	{"PL_P_HARMONICS", "HRM", "Harmonics", 0, 127, 64, 0, 71},
+	{"PL_P_TIMBRE", "TMB", "Timbre", 0, 127, 64, 0, 74},
+	{"PL_P_MORPH", "MRP", "Morph", 0, 127, 64, 0, 1},
+	{"PL_P_DECAY", "DEC", "Decay", 0, 127, 64, 0, 75},
+	{"PL_P_COLOUR", "COL", "LPG colour", 0, 127, 64, 0, 13},
+	{"PL_P_ATTACK", "ATK", "Attack", 0, 127, 0, 0, 73},
+	{"PL_P_TIMBRE_ENV", "T.E", "Timbre envelope", 1, 127, 64, 0, 14},
+	{"PL_P_MORPH_ENV", "M.E", "Morph envelope", 1, 127, 64, 0, 15},
+	{"PL_P_VOLUME", "VOL", "Volume", 0, 127, 100, 0, 7},
+	{"PL_P_TRANSPOSE", "TRN", "Transpose", 0, 48, 24, 0, 16},
+	{"PL_P_PRESET", "PRE", "Preset", 0, 63, 0, 0, 0},
 };
 
 #define OM_PLAITS_NUM_PRESETS 24

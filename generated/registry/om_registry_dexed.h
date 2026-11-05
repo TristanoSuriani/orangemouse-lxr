@@ -14,10 +14,10 @@ _Static_assert(DEXED_P_VOLUME == 2, "registry/dexed.json: DEXED_P_VOLUME is not 
 _Static_assert(DEXED_P_TRANSPOSE == 3, "registry/dexed.json: DEXED_P_TRANSPOSE is not entry 3");
 
 static const OmParamInfo om_dexed_params[OM_DEXED_NUM_PARAMS] = {
-	{"DEXED_P_BANK", "BNK", "Bank", 0, 32, 1, 0},
-	{"DEXED_P_PROGRAM", "PRG", "Program", 0, 31, 0, 0},
-	{"DEXED_P_VOLUME", "VOL", "Volume", 0, 127, 100, 0},
-	{"DEXED_P_TRANSPOSE", "TRN", "Transpose", 0, 48, 24, 0},
+	{"DEXED_P_BANK", "BNK", "Bank", 0, 32, 1, 0, 12},
+	{"DEXED_P_PROGRAM", "PRG", "Program", 0, 31, 0, 0, 13},
+	{"DEXED_P_VOLUME", "VOL", "Volume", 0, 127, 100, 0, 7},
+	{"DEXED_P_TRANSPOSE", "TRN", "Transpose", 0, 48, 24, 0, 16},
 };
 
 #endif /* OM_REGISTRY_DEXED_H_ */

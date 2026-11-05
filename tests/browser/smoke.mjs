@@ -483,6 +483,41 @@ try {
     }
     await midiIn(0xb7, 123, 0);
 
+    // a CC moves the part its channel plays, the panel follows, the song keeps it
+    {
+      await midiIn(0xb7, 74, 33);    // channel 8: VA's slot 1, cutoff
+      await midiIn(0xbb, 7, 77);     // channel 12: Dexed's part 1, volume
+      await midiIn(0xbd, 74, 55);    // channel 14: Plaits' part 1, timbre
+      await midiIn(0xbf, 75, 66);    // channel 16: Rings, damping
+      await sleep(300);
+      const song = () => evaluate(`(() => { const s = window.orangeMouse.session.song(); return { va: s.va[0].params?.[16], dexed: s.dexed[0].volume, plaits: s.plaits[0].p[2], rings: s.rings[0].p[4] }; })()`);
+      const kept = await song();
+      check(kept.va === 33 && kept.dexed === 77 && kept.plaits === 55 && kept.rings === 66, `the song keeps what CCs moved: ${JSON.stringify(kept)}`);
+      await sleep(1000);
+      const saved = await evaluate(`(async () => { const lib = await import('./tracker/library.js'); const s = await lib.load(lib.currentId()); return s.va[0].params?.[16]; })()`);
+      check(saved === 33, `and it saves: ${saved}`);
+      await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('va'))`);
+      await midiIn(0xb7, 71, 44);
+      await sleep(200);
+      const shown = await evaluate(`(() => { const s = window.orangeMouse.session.song(); return s.va[0].params[17]; })()`);
+      check(shown === 44, `VA keeps resonance from CC 71: ${shown}`);
+      await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('midi'))`);
+
+      // it changes the sound: a held VA note, cutoff shut by CC, then open
+      await midiIn(0xb7, 74, 0);
+      await sleep(100);
+      await midiIn(0x97, 48, 110);
+      await sleep(150);
+      const closed = await peak(250);
+      await midiIn(0xb7, 74, 127);
+      await sleep(100);
+      const open = await peak(250);
+      await midiIn(0x87, 48, 0);
+      check(open > closed * 2, `CC 74 opens VA's filter on a held note: ${closed.toFixed(4)} to ${open.toFixed(4)}`);
+      await midiIn(0xb7, 74, 90);
+      await midiIn(0xb7, 71, 0);
+    }
+
     // on time: a message that has just arrived is not late; one half a second old is
     const late0 = (await status()).late;
     for (let i = 0; i < 20; i++) { await midiIn(0x97, 60, 80); await midiIn(0x87, 60, 0); await sleep(20); }

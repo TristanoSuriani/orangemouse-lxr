@@ -555,8 +555,17 @@ it comes back. Where this plan says the tracker is the master clock, MIDI clock 
    LXR stopped, which the firmware alone did not do (seq_holdPosition). Without a clock, the BPM knob
    sets the tempo.
 
-Not done, on purpose: pitch bend, mod wheel and CCs to the other engines; Song Position Pointer;
-CC 21-28 still turn the knobs of the device on show, so they never reach the LXR. Not yet tried:
+4. **CCs to the other engines** (the registry's `cc`, studio/midi_in.c, docs/MIDI_CC.md, generated):
+   a CC on a channel that plays VA, Dexed, Plaits or Rings moves that part's parameter on the
+   frame it is stamped with. Standard numbers where they exist (1 mod wheel, 7 volume, 71, 74).
+   CC 0-127 spans the parameter's range. The panels follow, and the sound set keeps the last value,
+   as with a knob. Those engines' volumes ramp across a block, so riding one does not click
+   (no sound changes while it holds still). CCs on the LXR's channels still go to its firmware.
+   Presets are not on CCs: Plaits' and Rings' are loaded by their panels.
+
+Not done, on purpose: pitch bend; Program Change to the other engines; CCs to the mixer; Song Position
+Pointer; CC 21-28 still turn the knobs of the device on show, so they never reach an engine. To listen
+to: VA's resonance on a fast CC sweep (its sample steps grow 3 times, with no ramp on it). Not yet tried:
 real hardware or a DAW (the tests send the messages through the page's MIDI handler). The
 measurements to make with one: latency and jitter at the output, and whether 10 ms holds.
 

@@ -33,7 +33,8 @@ export default {
      "verb"
     ]
    },
-   "help": "What rings: bars and bells, strings with sympathetic ones, a plucked string, FM, chords."
+   "help": "What rings: bars and bells, strings with sympathetic ones, a plucked string, FM, chords.",
+   "cc": 12
   },
   {
    "id": "RN_P_POLYPHONY",
@@ -56,7 +57,8 @@ export default {
      "4"
     ]
    },
-   "help": "How many notes ring at once; fewer voices are richer (more partials each)."
+   "help": "How many notes ring at once; fewer voices are richer (more partials each).",
+   "cc": 13
   },
   {
    "id": "RN_P_STRUCTURE",
@@ -69,7 +71,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The material or the chord: wood to glass to bells, or the sympathetic strings' tuning."
+   "help": "The material or the chord: wood to glass to bells, or the sympathetic strings' tuning.",
+   "cc": 71
   },
   {
    "id": "RN_P_BRIGHTNESS",
@@ -82,7 +85,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How bright the strike and the ringing are: felt to metal. Harder notes are brighter."
+   "help": "How bright the strike and the ringing are: felt to metal. Harder notes are brighter.",
+   "cc": 74
   },
   {
    "id": "RN_P_DAMPING",
@@ -95,7 +99,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How long notes ring: low is a short thud, high rings for seconds."
+   "help": "How long notes ring: low is a short thud, high rings for seconds.",
+   "cc": 75
   },
   {
    "id": "RN_P_POSITION",
@@ -108,7 +113,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Where it is struck: the middle is hollow, the ends are bright and thin."
+   "help": "Where it is struck: the middle is hollow, the ends are bright and thin.",
+   "cc": 1
   },
   {
    "id": "RN_P_VOLUME",
@@ -121,7 +127,8 @@ export default {
    "display": {
     "kind": "fader"
    },
-   "help": "The part's level."
+   "help": "The part's level.",
+   "cc": 7
   },
   {
    "id": "RN_P_TRANSPOSE",
@@ -136,7 +143,8 @@ export default {
     "offset": -24,
     "unit": "st"
    },
-   "help": "Moves the notes up or down in semitones; the sympathetic strings' drone (C) moves too."
+   "help": "Moves the notes up or down in semitones; the sympathetic strings' drone (C) moves too.",
+   "cc": 16
   },
   {
    "id": "RN_P_PRESET",

@@ -19,6 +19,8 @@ A parameter has:
 - `display`: how to show the value.
 - `help`: one line, up to 90 characters.
 - `unused` (optional): the engine ignores it.
+- `cc` (optional): the MIDI CC that moves it (`studio/midi_in.c`). Unique in the engine, and not a CC that means
+  something else (bank select, data entry, sustain, RPN, a knob box's 21-28, channel mode).
 
 Display kinds (`web/app/registry/format.js`):
 
@@ -42,7 +44,8 @@ Display kinds (`web/app/registry/format.js`):
 `tools/registry.py` checks every file and writes:
 - `generated/registry/om_registry_<engine>.h`: the `OmParamInfo` table each engine exposes through
   `engines/engine.h`, plus a compile-time check that every entry sits at its enum value;
-- `web/app/registry/<engine>.js`: the UI's labels, value display and help.
+- `web/app/registry/<engine>.js`: the UI's labels, value display and help;
+- `docs/MIDI_CC.md`: which CC moves what.
 
 It refuses:
 - short names longer than 3 characters;

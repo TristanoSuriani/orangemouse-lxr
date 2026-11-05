@@ -18,7 +18,7 @@
 // The part's settings live in the song (song.rings), so they save with it.
 
 import registry from '../registry/rings.js';
-import { formatShort, formatValue, helpLine } from '../registry/format.js';
+import { ccHint, formatShort, formatValue, helpLine } from '../registry/format.js';
 import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
@@ -169,7 +169,7 @@ export function createRingsDevice({ send, help, song }) {
       if (q === null) return 'This knob does nothing on this page.';
       const m = meaning(q);
       const info = registry.params[q];
-      return m ? `${info.short} ${info.name} ${formatValue(info, part()[q])}: on this model, ${m[1]}.` : helpLine(info, part()[q]);
+      return m ? `${info.short} ${info.name} ${formatValue(info, part()[q])}: on this model, ${m[1]}.${ccHint(info)}` : helpLine(info, part()[q]);
     });
     pot.addEventListener('focus', () => { const q = param(); setKnobValue(pot, q === null ? null : registry.params[q], q === null ? 0 : part()[q], q === null ? 'unused' : formatValue(registry.params[q], part()[q])); });
     const caption = document.createElement('span');
@@ -263,5 +263,11 @@ export function createRingsDevice({ send, help, song }) {
   }
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
-  return { el, render, noteFromKey, octave, handleKey, onSummary: (fn) => { summary = fn; render(); } };
+  // parameters a CC moved (main.js)
+  function followCcs(changes) {
+    for (const { part: k, param, value } of changes) song().rings[k].p[param] = value;
+    render();
+  }
+
+  return { el, render, followCcs, noteFromKey, octave, handleKey, onSummary: (fn) => { summary = fn; render(); } };
 }

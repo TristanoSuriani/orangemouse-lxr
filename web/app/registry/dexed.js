@@ -88,7 +88,8 @@ export default {
      "SP32"
     ]
    },
-   "help": "The cartridge: 32 DX7 sounds each. Dexed 01 and the 32 SynprezFM banks."
+   "help": "The cartridge: 32 DX7 sounds each. Dexed 01 and the 32 SynprezFM banks.",
+   "cc": 12
   },
   {
    "id": "DEXED_P_PROGRAM",
@@ -101,7 +102,8 @@ export default {
    "display": {
     "kind": "preset"
    },
-   "help": "One of the bank's 32 sounds; its name shows on the display."
+   "help": "One of the bank's 32 sounds; its name shows on the display.",
+   "cc": 13
   },
   {
    "id": "DEXED_P_VOLUME",
@@ -114,7 +116,8 @@ export default {
    "display": {
     "kind": "fader"
    },
-   "help": "The part's level. DX7 sounds differ a lot in loudness: even them out here."
+   "help": "The part's level. DX7 sounds differ a lot in loudness: even them out here.",
+   "cc": 7
   },
   {
    "id": "DEXED_P_TRANSPOSE",
@@ -129,7 +132,8 @@ export default {
     "offset": -24,
     "unit": "st"
    },
-   "help": "Moves the part up or down in semitones: +12 an octave up, -12 down."
+   "help": "Moves the part up or down in semitones: +12 an octave up, -12 down.",
+   "cc": 16
   }
  ]
 };

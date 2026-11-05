@@ -44,7 +44,8 @@ export default {
      "prtcl"
     ]
    },
-   "help": "How Plaits makes its sound: analogue, FM, wavetables, chords, strings, speech, resonators."
+   "help": "How Plaits makes its sound: analogue, FM, wavetables, chords, strings, speech, resonators.",
+   "cc": 12
   },
   {
    "id": "PL_P_HARMONICS",
@@ -57,7 +58,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The first of Plaits' three knobs: what it does depends on the engine (see its name)."
+   "help": "The first of Plaits' three knobs: what it does depends on the engine (see its name).",
+   "cc": 71
   },
   {
    "id": "PL_P_TIMBRE",
@@ -70,7 +72,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The second knob, usually brightness: cutoff, modulation, density."
+   "help": "The second knob, usually brightness: cutoff, modulation, density.",
+   "cc": 74
   },
   {
    "id": "PL_P_MORPH",
@@ -83,7 +86,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The third knob, usually the shape: waveform, feedback, decay."
+   "help": "The third knob, usually the shape: waveform, feedback, decay.",
+   "cc": 1
   },
   {
    "id": "PL_P_DECAY",
@@ -96,7 +100,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How long notes ring after their note off, and how fast the envelope sweeps."
+   "help": "How long notes ring after their note off, and how fast the envelope sweeps.",
+   "cc": 75
   },
   {
    "id": "PL_P_COLOUR",
@@ -109,7 +114,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The low-pass gate: low closes like a filter (soft, woody), high like a VCA (bright)."
+   "help": "The low-pass gate: low closes like a filter (soft, woody), high like a VCA (bright).",
+   "cc": 13
   },
   {
    "id": "PL_P_ATTACK",
@@ -125,7 +131,8 @@ export default {
     "octaves": 12,
     "unit": "s"
    },
-   "help": "How long a note takes to swell in: short for plucks, long for pads."
+   "help": "How long a note takes to swell in: short for plucks, long for pads.",
+   "cc": 73
   },
   {
    "id": "PL_P_TIMBRE_ENV",
@@ -141,7 +148,8 @@ export default {
     "scale": 1.587302,
     "unit": "%"
    },
-   "help": "How much each note's envelope moves TIMBRE: up for a pluck that opens, down to close."
+   "help": "How much each note's envelope moves TIMBRE: up for a pluck that opens, down to close.",
+   "cc": 14
   },
   {
    "id": "PL_P_MORPH_ENV",
@@ -157,7 +165,8 @@ export default {
     "scale": 1.587302,
     "unit": "%"
    },
-   "help": "How much each note's envelope moves MORPH."
+   "help": "How much each note's envelope moves MORPH.",
+   "cc": 15
   },
   {
    "id": "PL_P_VOLUME",
@@ -170,7 +179,8 @@ export default {
    "display": {
     "kind": "fader"
    },
-   "help": "The part's level."
+   "help": "The part's level.",
+   "cc": 7
   },
   {
    "id": "PL_P_TRANSPOSE",
@@ -185,7 +195,8 @@ export default {
     "offset": -24,
     "unit": "st"
    },
-   "help": "Moves the part up or down in semitones: -12 for a bass an octave down."
+   "help": "Moves the part up or down in semitones: -12 for a bass an octave down.",
+   "cc": 16
   },
   {
    "id": "PL_P_PRESET",

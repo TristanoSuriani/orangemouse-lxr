@@ -20,16 +20,16 @@ _Static_assert(RN_P_PRESET == 8, "registry/rings.json: RN_P_PRESET is not entry 
 _Static_assert(RN_P_INPUT == 9, "registry/rings.json: RN_P_INPUT is not entry 9");
 
 static const OmParamInfo om_rings_params[OM_RINGS_NUM_PARAMS] = {
-	{"RN_P_MODEL", "MDL", "Model", 0, 5, 0, 0},
-	{"RN_P_POLYPHONY", "PLY", "Polyphony", 0, 2, 2, 0},
-	{"RN_P_STRUCTURE", "STR", "Structure", 0, 127, 40, 0},
-	{"RN_P_BRIGHTNESS", "BRT", "Brightness", 0, 127, 70, 0},
-	{"RN_P_DAMPING", "DMP", "Damping", 0, 127, 80, 0},
-	{"RN_P_POSITION", "POS", "Position", 0, 127, 50, 0},
-	{"RN_P_VOLUME", "VOL", "Volume", 0, 127, 100, 0},
-	{"RN_P_TRANSPOSE", "TRN", "Transpose", 0, 48, 24, 0},
-	{"RN_P_PRESET", "PRE", "Preset", 0, 63, 0, 0},
-	{"RN_P_INPUT", "IN", "Input", 0, 15, 0, 0},
+	{"RN_P_MODEL", "MDL", "Model", 0, 5, 0, 0, 12},
+	{"RN_P_POLYPHONY", "PLY", "Polyphony", 0, 2, 2, 0, 13},
+	{"RN_P_STRUCTURE", "STR", "Structure", 0, 127, 40, 0, 71},
+	{"RN_P_BRIGHTNESS", "BRT", "Brightness", 0, 127, 70, 0, 74},
+	{"RN_P_DAMPING", "DMP", "Damping", 0, 127, 80, 0, 75},
+	{"RN_P_POSITION", "POS", "Position", 0, 127, 50, 0, 1},
+	{"RN_P_VOLUME", "VOL", "Volume", 0, 127, 100, 0, 7},
+	{"RN_P_TRANSPOSE", "TRN", "Transpose", 0, 48, 24, 0, 16},
+	{"RN_P_PRESET", "PRE", "Preset", 0, 63, 0, 0, 0},
+	{"RN_P_INPUT", "IN", "Input", 0, 15, 0, 0, 0},
 };
 
 #define OM_RINGS_NUM_PRESETS 8

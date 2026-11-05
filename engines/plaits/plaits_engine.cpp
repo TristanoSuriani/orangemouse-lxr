@@ -48,6 +48,7 @@ struct Voice
 
 struct Part
 {
+	float lastGain;   // -1: none yet
 	uint8_t value[PLAITS_NUM_PARAMS];
 	Voice voice[PLAITS_VOICES];
 	om::Resampler<QUEUE> out;   // rendered frames at Plaits' rate
@@ -107,11 +108,15 @@ void renderBlock(Plaits *pl, Part &p)
 	}
 	const float x = v[PL_P_VOLUME] / 100.f;   // a fader: 100 is 0 dB
 	const float gain = OUTPUT * x * x * x;
+	// the level ramps across the block, so a moving volume (a CC) does not step
+	const float from = p.lastGain < 0.f ? gain : p.lastGain;
+	p.lastGain = gain;
 	float *ql = p.out.left(), *qr = p.out.right();
 	for (size_t i = 0; i < kBlockSize; i++)
 	{
-		ql[i] = l[i] * gain;
-		qr[i] = r[i] * gain;
+		const float g = from + (gain - from) * (float)(i + 1) / (float)kBlockSize;
+		ql[i] = l[i] * g;
+		qr[i] = r[i] * g;
 	}
 	p.out.pushed(kBlockSize);
 }
@@ -125,6 +130,7 @@ void *plaitsCreate(float rate)
 	pl->kernel.init(RATE, rate);
 	for (Part &p : pl->part)
 	{
+		p.lastGain = -1.f;
 		p.out.reset();
 		for (int i = 0; i < PLAITS_NUM_PARAMS; i++)
 			p.value[i] = om_plaits_params[i].def;

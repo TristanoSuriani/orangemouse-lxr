@@ -23,6 +23,7 @@ typedef struct
 	const char *name;        // e.g. "Cutoff"
 	uint8_t min, max, def;
 	uint8_t flags;
+	uint8_t cc;              // the MIDI CC that moves it (studio/midi_in.c); 0: none
 } OmParamInfo;
 
 // How a byte becomes a foreign engine's own parameter value (registry "map";

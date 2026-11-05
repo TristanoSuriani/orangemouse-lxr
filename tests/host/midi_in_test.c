@@ -14,15 +14,18 @@
 #include <string.h>
 #include "midi_in.h"
 
+extern const OmEngineClass om_va_engine, om_dexed_engine, om_plaits_engine, om_rings_engine;
+
 static int failures;
 #define CHECK(cond, ...) do { if (!(cond)) { failures++; printf("FAIL %s:%d: ", __FILE__, __LINE__); printf(__VA_ARGS__); printf("\n"); } } while (0)
 
 #define RATE 44100.f
+#define RIDE_STEP 1.5   // how much bigger a sample step may get under a ridden CC
 
 // ---- a mock engine: 2 parts, renders any length, logs each event with the
 // frame it lands on (it counts the frames it rendered) ----
 typedef struct { int type; int part, note, value; uint64_t frame; } Logged;
-enum { L_ON, L_OFF, L_CLOCK };
+enum { L_ON, L_OFF, L_CLOCK, L_PARAM };
 static Logged logged[4096];
 static int logCount;
 static uint64_t rendered;
@@ -37,8 +40,16 @@ static void *mockCreate(float rate) { (void)rate; return calloc(1, 1); }
 static void mockDestroy(void *self) { free(self); }
 static void mockOn(void *self, uint8_t part, uint8_t note, uint8_t vel) { (void)self; record(L_ON, part, note, vel); }
 static void mockOff(void *self, uint8_t part, uint8_t note) { (void)self; record(L_OFF, part, note, 0); }
-static void mockParam(void *self, uint8_t part, uint16_t param, uint8_t value) { (void)self; (void)part; (void)param; (void)value; }
-static uint8_t mockGet(void *self, uint8_t part, uint16_t param) { (void)self; (void)part; (void)param; return 0; }
+static uint8_t mockValues[2][4];
+static uint64_t mappedRendered;   // the mapped engine's frames (the first engine's are `rendered`)
+static void mockParam(void *self, uint8_t part, uint16_t param, uint8_t value)
+{
+	(void)self;
+	record(L_PARAM, part, param, value);
+	logged[logCount - 1].frame = mappedRendered;
+	mockValues[part][param] = value > 40 && param == 3 ? 40 : value;
+}
+static uint8_t mockGet(void *self, uint8_t part, uint16_t param) { (void)self; return mockValues[part][param]; }
 static void mockTempo(void *self, float bpm) { (void)self; tempoSeen = bpm; }
 static void mockClock(void *self, uint8_t event) { (void)self; record(L_CLOCK, 0, event, 0); }
 static void mockRender(void *self, float *const *stems, uint32_t frames)
@@ -54,6 +65,24 @@ static const OmEngineClass mockClass = {
 	.set_param = mockParam, .get_param = mockGet, .set_tempo = mockTempo, .clock = mockClock, .render = mockRender,
 };
 
+// the same engine with a CC map, as VA, Dexed, Plaits and Rings have: a full
+// range on 74, three values on 12, a range from 1 on 13, and on 7 one the engine
+// holds lower than asked (as Dexed holds its banks)
+static const OmParamInfo mappedParams[] = {
+	{"FULL", "FUL", "Full", 0, 127, 0, 0, 74},
+	{"FEW", "FEW", "Few", 0, 2, 0, 0, 12},
+	{"ONE", "ONE", "From one", 1, 127, 1, 0, 13},
+	{"HELD", "HLD", "Held", 0, 127, 0, 0, 7},
+};
+static OmEngineClass mappedClass;
+static void mappedRender(void *self, float *const *stems, uint32_t frames)
+{
+	(void)self;
+	mappedRendered += frames;
+	for (uint32_t i = 0; i < frames; i++)
+		stems[0][i] = stems[1][i] = 0.f;
+}
+
 static uint8_t rawBytes[256];
 static int rawCount;
 static void rawSink(uint8_t b) { if (rawCount < 256) rawBytes[rawCount++] = b; }
@@ -68,6 +97,14 @@ static void setUp(void)
 	tempoSeen = 0.f;
 	st = om_studio_create(RATE);
 	om_studio_add_engine(st, &mockClass);
+	mappedClass = mockClass;
+	mappedClass.params = mappedParams;
+	mappedClass.numParams = 4;
+	mappedClass.clock = NULL;
+	mappedClass.render = mappedRender;
+	om_studio_add_engine(st, &mappedClass);
+	memset(mockValues, 0, sizeof(mockValues));
+	mappedRendered = 0;
 	m = om_midi_in_create(st, RATE, rawSink);
 }
 static void tearDown(void)
@@ -333,6 +370,168 @@ static void testBadInput(void)
 	tearDown();
 }
 
+static int paramCount(void) { return countOf(L_PARAM); }
+
+static void testCcs(void)
+{
+	setUp();
+	om_midi_in_route(m, 2, 1, 1);   // channel 3: the mapped engine's second part
+	om_midi_in_route(m, 3, 0, 0);   // channel 4: an engine without a map, as the LXR
+
+	// on its frame, on its part, and it stops here
+	om_midi_in_event(m, 100, 0xB2, 74, 90);
+	run(4);
+	CHECK(paramCount() == 1 && logged[0].part == 1 && logged[0].note == 0 && logged[0].value == 90 && logged[0].frame == 100,
+		"CC 74 moves parameter 0 of part 1 on frame 100 (%d events, frame %llu)", paramCount(), (unsigned long long)logged[0].frame);
+	CHECK(rawCount == 0, "a mapped CC does not reach the raw sink (%d bytes)", rawCount);
+
+	// the panels hear of it, once, with the value the engine has
+	OmMidiInChange c;
+	CHECK(om_midi_in_change(m, &c) == 1 && c.engine == 1 && c.part == 1 && c.param == 0 && c.value == 90, "the change is reported");
+	CHECK(om_midi_in_change(m, &c) == 0, "and only once");
+	om_midi_in_event(m, om_studio_frame(st), 0xB2, 7, 100);
+	run(1);
+	CHECK(om_midi_in_change(m, &c) == 1 && c.param == 3 && c.value == 40, "what the engine held it to is reported, not what was asked: %d", c.value);
+
+	// the whole range, whatever the parameter's range is
+	static const struct { uint8_t cc, value, want; int param; } scale[] = {
+		{12, 0, 0, 1}, {12, 42, 0, 1}, {12, 43, 1, 1}, {12, 85, 1, 1}, {12, 86, 2, 1}, {12, 127, 2, 1},
+		{13, 0, 1, 2}, {13, 127, 127, 2},
+	};
+	for (size_t i = 0; i < sizeof(scale) / sizeof(scale[0]); i++)
+	{
+		mockValues[1][scale[i].param] = 255;
+		om_midi_in_event(m, om_studio_frame(st), 0xB2, scale[i].cc, scale[i].value);
+		run(1);
+		CHECK(mockValues[1][scale[i].param] == scale[i].want, "CC %d = %d gives %d, not %d", scale[i].cc, scale[i].value, mockValues[1][scale[i].param], scale[i].want);
+		while (om_midi_in_change(m, &c)) {}
+	}
+
+	// a value it already has does nothing
+	mockValues[1][1] = 0;
+	logCount = 0;
+	for (uint8_t v = 0; v < 40; v++)
+		om_midi_in_event(m, om_studio_frame(st), 0xB2, 12, v);
+	run(1);
+	CHECK(paramCount() == 0, "CC values in the parameter's first slice send nothing (%d)", paramCount());
+	CHECK(om_midi_in_change(m, &c) == 0, "and nothing is reported");
+
+	// there and back within one block ends back there, in that order
+	logCount = 0;
+	mockValues[1][0] = 10;
+	const uint64_t f = om_studio_frame(st);
+	om_midi_in_event(m, f + 1, 0xB2, 74, 20);
+	om_midi_in_event(m, f + 2, 0xB2, 74, 10);
+	run(1);
+	CHECK(paramCount() == 2 && mockValues[1][0] == 10, "CC there and back in a block ends where it began: %d, %d events", mockValues[1][0], paramCount());
+	while (om_midi_in_change(m, &c)) {}
+
+	// an unmapped CC on a mapped channel goes nowhere
+	logCount = rawCount = 0;
+	om_midi_in_event(m, om_studio_frame(st), 0xB2, 50, 64);
+	run(1);
+	CHECK(paramCount() == 0 && rawCount == 0, "an unmapped CC stops here (%d params, %d raw bytes)", paramCount(), rawCount);
+
+	// All Notes Off still ends the notes on a mapped channel, and reaches the firmware as before
+	om_midi_in_event(m, om_studio_frame(st), 0x92, 60, 100);
+	om_midi_in_event(m, om_studio_frame(st), 0xB2, 123, 0);
+	run(1);
+	CHECK(countOf(L_OFF) == 1, "CC 123 on a mapped channel ends its note");
+	CHECK(rawCount == 3, "and goes to the raw sink (%d bytes)", rawCount);
+
+	// a channel of an engine without a map, a channel set to off or to the
+	// firmware: their CCs are the firmware's, as ever
+	static const uint8_t asRaw[] = {3, 9};
+	om_midi_in_route(m, 9, OM_MIDI_RAW, 0);
+	for (size_t i = 0; i < sizeof(asRaw); i++)
+	{
+		logCount = rawCount = 0;
+		om_midi_in_event(m, om_studio_frame(st), (uint8_t)(0xB0 | asRaw[i]), 74, 64);
+		run(1);
+		CHECK(rawCount == 3 && paramCount() == 0, "channel %d's CC goes to the raw sink (%d bytes)", asRaw[i] + 1, rawCount);
+	}
+	rawCount = 0;
+	om_midi_in_event(m, om_studio_frame(st), 0xB9, 74, 64);
+	om_midi_in_route(m, 2, 1, 1);
+	om_midi_in_route(m, 2, 0, 0);   // re-routed away from the map
+	om_midi_in_event(m, om_studio_frame(st), 0xB2, 74, 64);
+	run(1);
+	CHECK(rawCount == 6, "a channel routed off the mapped engine passes CCs on again (%d bytes)", rawCount);
+
+	// every part and every parameter fit the table, however many arrive: all
+	// are reported, with no repeats
+	while (om_midi_in_change(m, &c)) {}
+	om_midi_in_route(m, 2, 1, 1);
+	for (int round = 0; round < 3000; round++)
+		om_midi_in_event(m, om_studio_frame(st), 0xB2, 74, (uint8_t)(round & 0x7f));
+	run(2);
+	int reports = 0;
+	while (om_midi_in_change(m, &c))
+		reports++;
+	CHECK(reports == 1, "a flood of one CC is one report (%d)", reports);
+	tearDown();
+}
+
+// The largest step between samples on a note, while a CC rides a parameter (ride
+// > 0) or holds it; the real engines. A CC every 8 blocks (86 a second), swinging
+// 4 times a second: fast enough that a volume that jumps with each CC clicks.
+static double stepUnderCc(const OmEngineClass *cls, uint8_t cc, int ride, double *rms)
+{
+	OmStudio *studio = om_studio_create(RATE);
+	const int e = om_studio_add_engine(studio, cls);
+	OmMidiIn *in = om_midi_in_create(studio, RATE, NULL);
+	om_midi_in_route(in, 0, (uint8_t)e, 0);
+	om_midi_in_event(in, 0, 0xB0, cc, 127);   // no louder than the ride gets
+	om_midi_in_event(in, 0, 0x90, 48, 110);
+	const int total = (int)RATE * 3 / OM_MAX_BLOCK;
+	const uint64_t rideStart = (uint64_t)(total / 3) * OM_MAX_BLOCK;
+	float l[OM_MAX_BLOCK], r[OM_MAX_BLOCK], last = 0.f;
+	double worst = 0.0, sum = 0.0;
+	for (int b = 0; b < total; b++)
+	{
+		const uint64_t now = om_studio_frame(studio);
+		if (cls == &om_rings_engine && b % 300 == 0)   // it fades: strike it again
+			om_midi_in_event(in, now, 0x90, 48, 110);
+		if (ride && b > total / 3 && b % 8 == 0)
+			om_midi_in_event(in, now, 0xB0, cc, (uint8_t)(70 + 57 * cos(2.0 * M_PI * 4.0 * (double)(now - rideStart) / RATE)));
+		om_midi_in_advance(in, OM_MAX_BLOCK);
+		om_studio_render(studio, l, r, OM_MAX_BLOCK);
+		if (b > total / 3)
+			for (int i = 0; i < OM_MAX_BLOCK; i++)
+			{
+				const double d = fabs((double)l[i] - last);
+				worst = d > worst ? d : worst;
+				sum += (double)l[i] * l[i];
+				last = l[i];
+			}
+		else
+			last = l[OM_MAX_BLOCK - 1];
+	}
+	*rms = sqrt(sum / (double)((total - total / 3) * OM_MAX_BLOCK));
+	om_midi_in_destroy(in);
+	om_studio_destroy(studio);
+	return worst;
+}
+
+static void testRealEngines(void)
+{
+	static const struct { const char *name; const OmEngineClass *cls; uint8_t cc; } cases[] = {
+		{"VA volume", &om_va_engine, 7}, {"VA cutoff", &om_va_engine, 74},
+		{"Dexed volume", &om_dexed_engine, 7},
+		{"Plaits volume", &om_plaits_engine, 7}, {"Plaits timbre", &om_plaits_engine, 74},
+		{"Rings volume", &om_rings_engine, 7}, {"Rings brightness", &om_rings_engine, 74},
+	};
+	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+	{
+		double rmsHeld, rmsRide;
+		const double held = stepUnderCc(cases[i].cls, cases[i].cc, 0, &rmsHeld);
+		const double ride = stepUnderCc(cases[i].cls, cases[i].cc, 1, &rmsRide);
+		printf("%-16s step held %.4f, ridden %.4f; rms %.4f, %.4f\n", cases[i].name, held, ride, rmsHeld, rmsRide);
+		CHECK(rmsHeld > 1e-4 && rmsRide > 1e-4, "%s sounds", cases[i].name);
+		CHECK(ride < held * RIDE_STEP + 0.002, "%s steps %.4f ridden, %.4f held", cases[i].name, ride, held);
+	}
+}
+
 int main(void)
 {
 	testRouting();
@@ -343,6 +542,8 @@ int main(void)
 	testTempo();
 	testReset();
 	testBadInput();
+	testCcs();
+	testRealEngines();
 	if (failures)
 	{
 		printf("%d midi_in check(s) failed\n", failures);

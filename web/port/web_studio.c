@@ -114,6 +114,15 @@ WEB_EXPORT void om_web_midi_route(uint8_t channel, uint8_t engine, uint8_t part)
 WEB_EXPORT void om_web_midi_tempo(float bpm) { om_midi_in_tempo(midiIn, bpm); }
 WEB_EXPORT void om_web_midi_reset(void) { om_midi_in_reset(midiIn); }
 
+// A parameter a CC moved: engine << 24 | part << 16 | param << 8 | value; -1: no more.
+WEB_EXPORT int om_web_midi_change(void)
+{
+	OmMidiInChange c;
+	if (!om_midi_in_change(midiIn, &c))
+		return -1;
+	return (c.engine << 24) | (c.part << 16) | (c.param << 8) | c.value;
+}
+
 // running, locked, tempo, late, the latest (ms), lost, the channels with a note since the last call
 WEB_EXPORT float *om_web_midi_state(void)
 {

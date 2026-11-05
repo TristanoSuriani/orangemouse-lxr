@@ -14,7 +14,7 @@
 // The parts' choices live in the song (song.dexed), so they save with it.
 
 import registry from '../registry/dexed.js';
-import { formatValue, helpLine } from '../registry/format.js';
+import { ccHint, formatValue, helpLine } from '../registry/format.js';
 import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
@@ -109,7 +109,7 @@ export function createDexedDevice({ send, help, song }) {
     describe(pot, help, () => {
       const v = part()[field];
       if (field === 'bank') return `${helpLine(info, v)} Now: ${bankName(v)}.`;
-      if (field === 'program') return `PRG Program #${v + 1} ${programName(part().bank, v)}: one of the bank's 32 sounds.`;
+      if (field === 'program') return `PRG Program #${v + 1} ${programName(part().bank, v)}: one of the bank's 32 sounds.${ccHint(info)}`;
       return helpLine(info, v);
     });
     pot.addEventListener('focus', () => setKnobValue(pot, info, part()[field], formatValue(info, part()[field])));
@@ -215,5 +215,11 @@ export function createDexedDevice({ send, help, song }) {
   }
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
-  return { el, render, onMessage, noteFromKey, octave, handleKey, onSummary: (fn) => { summary = fn; render(); } };
+  // parameters a CC moved (main.js)
+  function followCcs(changes) {
+    for (const { part: k, param, value } of changes) song().dexed[k][FIELDS[param]] = value;
+    render();
+  }
+
+  return { el, render, onMessage, followCcs, noteFromKey, octave, handleKey, onSummary: (fn) => { summary = fn; render(); } };
 }

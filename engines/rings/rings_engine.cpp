@@ -48,6 +48,7 @@ struct Rings
 	rings::Part part;
 	uint16_t reverb[32768];   // the string-and-reverb model's, as on the module
 	uint8_t value[RINGS_NUM_PARAMS];
+	float lastGain;   // -1: none yet
 	om::SincKernel down;      // 48 kHz to the studio's rate
 	om::SincKernel up;        // and back, for the input
 	om::Resampler<QUEUE> out;
@@ -117,11 +118,15 @@ void renderBlock(Rings *rn)
 	}
 	const float x = v[RN_P_VOLUME] / 100.f;   // a fader: 100 is 0 dB
 	const float gain = OUTPUT * x * x * x;
+	// the level ramps across the block, so a moving volume (a CC) does not step
+	const float from = rn->lastGain < 0.f ? gain : rn->lastGain;
+	rn->lastGain = gain;
 	float *ql = rn->out.left(), *qr = rn->out.right();
 	for (size_t i = 0; i < kMaxBlockSize; i++)
 	{
-		ql[i] = rn->active ? l[i] * gain : 0.f;
-		qr[i] = rn->active ? r[i] * gain : 0.f;
+		const float g = from + (gain - from) * (float)(i + 1) / (float)kMaxBlockSize;
+		ql[i] = rn->active ? l[i] * g : 0.f;
+		qr[i] = rn->active ? r[i] * g : 0.f;
 	}
 	rn->out.pushed(kMaxBlockSize);
 }
@@ -135,6 +140,7 @@ void *ringsCreate(float rate)
 	if (!rn)
 		return nullptr;
 	rn->part.Init(rn->reverb);
+	rn->lastGain = -1.f;
 	rn->down.init(RATE, rate);
 	rn->up.init(rate, RATE);
 	rn->out.reset();

@@ -178,6 +178,10 @@ class StudioProcessor extends AudioWorkletProcessor {
       this.lastMidi = midiKey;
       msg.midiIn = midi;
     }
+    // the parameters CCs moved: the panels follow, the song keeps them
+    const midiParams = [];
+    for (let c = w.om_web_midi_change(); c >= 0; c = w.om_web_midi_change()) midiParams.push({ engine: c >>> 24, part: (c >> 16) & 0xff, param: (c >> 8) & 0xff, value: c & 0xff });
+    if (midiParams.length) msg.midiParams = midiParams;
     // the LXR's kit, twice a second when it changed (its panel, a kit loaded from the SD card): the song keeps it
     if (force || this.uiCount++ % 30 === 0) {
       const kit = Array.from(this.bytes().subarray(w.om_web_lxr_kit(), w.om_web_lxr_kit() + w.om_web_lxr_kit_size()));

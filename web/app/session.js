@@ -41,5 +41,5 @@ export function createSession({ send: sendToWorklet }) {
     saveSoon();
   }
 
-  return { send, load, keepLxrKit, song: () => song, onLoad: (fn) => listeners.push(fn) };
+  return { send, load, keepLxrKit, saveSoon, song: () => song, onLoad: (fn) => listeners.push(fn) };
 }

@@ -18,8 +18,9 @@
 #define TEMPO_MOVE 0.3f      // BPM: a smaller change is jitter, and would make the delay flutter
 #define MIN_BPM 20.f
 #define MAX_BPM 400.f
+#define CHANGES 256          // more than the CC maps' parameters on all parts (226 now)
 
-enum { NOTE_OFF = 0x80, NOTE_ON = 0x90, CC = 0xB0, CC_ALL_SOUND_OFF = 120, CC_ALL_NOTES_OFF = 123 };
+enum { NOTE_OFF = 0x80, NOTE_ON = 0x90, CC = 0xB0, CC_ALL_SOUND_OFF = 120, CC_ALL_NOTES_OFF = 123, FIRST_MODE_CC = 120 };
 enum { MIDI_TICK = 0xF8, MIDI_START = 0xFA, MIDI_CONTINUE = 0xFB, MIDI_STOP = 0xFC };
 
 typedef struct
@@ -31,8 +32,15 @@ typedef struct
 typedef struct
 {
 	uint8_t engine, part;
+	uint8_t ownCcs;      // the engine has a CC map: its CCs stop here
 	uint8_t held[128];
 } Route;
+
+typedef struct
+{
+	uint8_t engine, part, value;
+	uint16_t param;
+} Change;
 
 struct OmMidiIn
 {
@@ -57,6 +65,9 @@ struct OmMidiIn
 	uint32_t late, dropped;
 	float lateMs;
 	uint16_t activity;
+
+	Change changes[CHANGES]; // what the CCs moved since the panels last asked
+	uint32_t changeCount;
 };
 
 OmMidiIn *om_midi_in_create(OmStudio *st, float sampleRate, void (*raw)(uint8_t byte))
@@ -103,6 +114,11 @@ void om_midi_in_route(OmMidiIn *m, uint8_t channel, uint8_t engine, uint8_t part
 	endNotes(m, om_studio_frame(m->st), channel);
 	m->route[channel].engine = engine;
 	m->route[channel].part = part;
+	m->route[channel].ownCcs = 0;
+	const OmEngineClass *cls = om_studio_engine(m->st, engine);
+	for (uint16_t p = 0; cls && p < cls->numParams; p++)
+		if (cls->params[p].cc)
+			m->route[channel].ownCcs = 1;
 }
 
 static int ticking(const OmMidiIn *m, uint64_t frame)
@@ -270,6 +286,39 @@ static void note(OmMidiIn *m, uint64_t frame, const uint8_t *b)
 	}
 }
 
+// A CC's 128 values shared evenly over the parameter's range, so 0 is its
+// minimum, 127 its maximum, and a parameter of a few values takes equal slices.
+static uint8_t scaled(const OmParamInfo *p, uint8_t cc)
+{
+	const unsigned range = (unsigned)p->max - p->min + 1u;
+	return (uint8_t)(p->min + cc * range / 128u);
+}
+
+static void moveParam(OmMidiIn *m, uint64_t frame, const Route *r, uint8_t cc, uint8_t value)
+{
+	const OmEngineClass *cls = om_studio_engine(m->st, r->engine);
+	for (uint16_t p = 0; p < cls->numParams; p++)
+	{
+		if (cls->params[p].cc != cc)
+			continue;
+		const uint8_t v = scaled(&cls->params[p], value);
+		// A repeated value does nothing, so a CC that moves within one slice of a
+		// parameter of a few values costs nothing. What it was last set to may
+		// still be queued: the engine does not have it yet.
+		uint32_t i = 0;
+		while (i < m->changeCount && !(m->changes[i].engine == r->engine && m->changes[i].part == r->part && m->changes[i].param == p))
+			i++;
+		const uint8_t now = i < m->changeCount ? m->changes[i].value : om_studio_get_param(m->st, r->engine, r->part, p);
+		if (v == now || om_studio_set_param(m->st, frame, r->engine, r->part, p, v) != 0)
+			return;
+		if (i < m->changeCount)
+			m->changes[i].value = v;
+		else if (m->changeCount < CHANGES)
+			m->changes[m->changeCount++] = (Change){r->engine, r->part, v, p};
+		return;
+	}
+}
+
 static void apply(OmMidiIn *m, const Message *q)
 {
 	const uint8_t status = q->b[0];
@@ -279,9 +328,13 @@ static void apply(OmMidiIn *m, const Message *q)
 		note(m, q->frame, q->b);
 	else
 	{
+		const Route *r = &m->route[status & 0x0f];
 		if ((status & 0xf0) == CC && (q->b[1] == CC_ALL_NOTES_OFF || q->b[1] == CC_ALL_SOUND_OFF))
 			endNotes(m, q->frame, status & 0x0f);
-		toRaw(m, q->b);
+		if ((status & 0xf0) == CC && r->ownCcs && q->b[1] < FIRST_MODE_CC)
+			moveParam(m, q->frame, r, q->b[1], q->b[2]);
+		else
+			toRaw(m, q->b);
 	}
 }
 
@@ -309,6 +362,16 @@ void om_midi_in_reset(OmMidiIn *m)
 	m->tickCount = m->tickPos = m->sinceTempo = 0;
 	m->applied = 0.f;
 	om_studio_set_tempo(m->st, m->tempo);
+}
+
+int om_midi_in_change(OmMidiIn *m, OmMidiInChange *out)
+{
+	if (!m->changeCount)
+		return 0;
+	const Change *c = &m->changes[--m->changeCount];
+	// the engine's own value: it may have held it closer (Dexed's banks)
+	*out = (OmMidiInChange){c->engine, c->part, c->param, om_studio_get_param(m->st, c->engine, c->part, c->param)};
+	return 1;
 }
 
 OmMidiInState om_midi_in_state(OmMidiIn *m)

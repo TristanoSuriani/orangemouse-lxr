@@ -111,7 +111,9 @@ export function formatShort(param, v) {
   }
 }
 
+export const ccHint = (param) => (param.cc ? ` CC ${param.cc}.` : '');
+
 export function helpLine(param, v) {
   const head = `${param.short.toUpperCase()} ${param.name} ${formatValue(param, v)}`;
-  return param.help ? `${head}: ${param.help}` : head;
+  return (param.help ? `${head}: ${param.help}` : head) + ccHint(param);
 }

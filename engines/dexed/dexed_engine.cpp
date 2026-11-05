@@ -91,6 +91,7 @@ struct Voice
 struct Part
 {
 	uint8_t value[DEXED_NUM_PARAMS];
+	float lastGain;   // -1: none yet
 	uint8_t patch[156];
 	Voice voice[VOICES];
 	Lfo lfo;
@@ -160,6 +161,7 @@ void *dexedCreate(float rate)
 			v.note.reset(newNote(d->tuning));
 		for (int i = 0; i < DEXED_NUM_PARAMS; i++)
 			p.value[i] = om_dexed_params[i].def;
+		p.lastGain = -1.f;
 		loadPatch(p);
 	}
 	return d;
@@ -265,8 +267,11 @@ void dexedRender(void *self, float *const *stems, uint32_t frames)
 		}
 		const float x = p.value[DEXED_P_VOLUME] / 100.f;   // a fader: 100 is 0 dB
 		const float gain = OUTPUT * x * x * x;
+		// the level ramps across the block, so a moving volume (a CC) does not step
+		const float from = p.lastGain < 0.f ? gain : p.lastGain;
+		p.lastGain = gain;
 		for (int j = 0; j < N; j++)
-			stems[2 * k][j] = stems[2 * k + 1][j] = sum[j] * gain;
+			stems[2 * k][j] = stems[2 * k + 1][j] = sum[j] * (from + (gain - from) * (float)(j + 1) / (float)N);
 	}
 }
 } // namespace

@@ -269,11 +269,20 @@ export function createVaDevice({ send, help, song }) {
     }
   }
 
+  // parameters a CC moved (main.js)
+  function followCcs(changes) {
+    for (const { part, param, value: v } of changes) {
+      state.params[part][param] = v;
+      keep(part);
+    }
+    render();
+  }
+
   function octave(d) {
     state.octave = Math.min(6, Math.max(0, state.octave + d));
   }
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
   render();
-  return { el, onMessage, noteFromKey, octave, load, onSummary: (fn) => { summary = fn; render(); } };
+  return { el, onMessage, followCcs, noteFromKey, octave, load, onSummary: (fn) => { summary = fn; render(); } };
 }

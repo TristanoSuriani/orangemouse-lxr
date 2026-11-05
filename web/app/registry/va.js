@@ -32,7 +32,8 @@ export default {
      "sine"
     ]
    },
-   "help": "Oscillator 1's waveform."
+   "help": "Oscillator 1's waveform.",
+   "cc": 12
   },
   {
    "id": "VA_P_WAVE2",
@@ -57,7 +58,8 @@ export default {
      "sine"
     ]
    },
-   "help": "Oscillator 2's waveform."
+   "help": "Oscillator 2's waveform.",
+   "cc": 13
   },
   {
    "id": "VA_P_SEMI2",
@@ -73,7 +75,8 @@ export default {
     "scale": 1,
     "unit": "st"
    },
-   "help": "Tunes oscillator 2 in semitones. +7 is a fifth up, +12 an octave."
+   "help": "Tunes oscillator 2 in semitones. +7 is a fifth up, +12 an octave.",
+   "cc": 14
   },
   {
    "id": "VA_P_FINE2",
@@ -89,7 +92,8 @@ export default {
     "scale": 1,
     "unit": "ct"
    },
-   "help": "Detunes oscillator 2 in cents. A few cents make it beat and sound wide."
+   "help": "Detunes oscillator 2 in cents. A few cents make it beat and sound wide.",
+   "cc": 15
   },
   {
    "id": "VA_P_PW",
@@ -106,7 +110,8 @@ export default {
     "unit": "%",
     "digits": 0
    },
-   "help": "The square wave's duty cycle: 50 % is hollow, smaller is thinner and nasal."
+   "help": "The square wave's duty cycle: 50 % is hollow, smaller is thinner and nasal.",
+   "cc": 16
   },
   {
    "id": "VA_P_MIX",
@@ -119,7 +124,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Balance between the oscillators: 0 % is only osc 1, 100 % only osc 2."
+   "help": "Balance between the oscillators: 0 % is only osc 1, 100 % only osc 2.",
+   "cc": 17
   },
   {
    "id": "VA_P_SYNC",
@@ -136,7 +142,8 @@ export default {
      "on"
     ]
    },
-   "help": "Osc 1 restarts osc 2 each cycle. Tune osc 2 up for the classic sync lead."
+   "help": "Osc 1 restarts osc 2 each cycle. Tune osc 2 up for the classic sync lead.",
+   "cc": 18
   },
   {
    "id": "VA_P_OCT",
@@ -151,7 +158,8 @@ export default {
     "offset": -3,
     "unit": "oct"
    },
-   "help": "Shifts the whole sound by octaves."
+   "help": "Shifts the whole sound by octaves.",
+   "cc": 19
   },
   {
    "id": "VA_P_OSC_LEVEL",
@@ -164,7 +172,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Level of the two oscillators into the filter."
+   "help": "Level of the two oscillators into the filter.",
+   "cc": 102
   },
   {
    "id": "VA_P_SUB",
@@ -177,7 +186,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Level of the sub-oscillator, one or two octaves below: weight for basses."
+   "help": "Level of the sub-oscillator, one or two octaves below: weight for basses.",
+   "cc": 103
   },
   {
    "id": "VA_P_SUB_WAVE",
@@ -202,7 +212,8 @@ export default {
      "sine"
     ]
    },
-   "help": "The sub-oscillator's waveform. Sine is clean, square is punchier."
+   "help": "The sub-oscillator's waveform. Sine is clean, square is punchier.",
+   "cc": 104
   },
   {
    "id": "VA_P_SUB_OCT",
@@ -223,7 +234,8 @@ export default {
      "-2oct"
     ]
    },
-   "help": "How far below the note the sub-oscillator plays."
+   "help": "How far below the note the sub-oscillator plays.",
+   "cc": 105
   },
   {
    "id": "VA_P_NOISE",
@@ -236,7 +248,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Level of the noise generator: breath, air, or a whole noise patch."
+   "help": "Level of the noise generator: breath, air, or a whole noise patch.",
+   "cc": 106
   },
   {
    "id": "VA_P_NOISE_TYPE",
@@ -254,7 +267,8 @@ export default {
      "brown"
     ]
    },
-   "help": "White is bright hiss, pink is softer, brown is a deep rumble."
+   "help": "White is bright hiss, pink is softer, brown is a deep rumble.",
+   "cc": 107
   },
   {
    "id": "VA_P_DRIVE",
@@ -267,7 +281,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Overdrives the filter's input: warmth at first, then grit."
+   "help": "Overdrives the filter's input: warmth at first, then grit.",
+   "cc": 108
   },
   {
    "id": "VA_P_SLOP",
@@ -280,7 +295,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Small random tuning and filter differences per note, like an old synth."
+   "help": "Small random tuning and filter differences per note, like an old synth.",
+   "cc": 109
   },
   {
    "id": "VA_P_CUTOFF",
@@ -296,7 +312,8 @@ export default {
     "octaves": 10,
     "unit": "Hz"
    },
-   "help": "The filter's frequency: lower is darker."
+   "help": "The filter's frequency: lower is darker.",
+   "cc": 74
   },
   {
    "id": "VA_P_RESO",
@@ -309,7 +326,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Emphasis at the cutoff. Near the top the ladder whistles on its own."
+   "help": "Emphasis at the cutoff. Near the top the ladder whistles on its own.",
+   "cc": 71
   },
   {
    "id": "VA_P_FTYPE",
@@ -334,7 +352,8 @@ export default {
      "HP12"
     ]
    },
-   "help": "LP24 is the fat ladder low-pass; LP12 softer; BP12 band-pass; HP12 high-pass."
+   "help": "LP24 is the fat ladder low-pass; LP12 softer; BP12 band-pass; HP12 high-pass.",
+   "cc": 80
   },
   {
    "id": "VA_P_FENV_AMT",
@@ -351,7 +370,8 @@ export default {
     "unit": "oct",
     "digits": 1
    },
-   "help": "How far the filter envelope moves the cutoff, up or down."
+   "help": "How far the filter envelope moves the cutoff, up or down.",
+   "cc": 81
   },
   {
    "id": "VA_P_KEYTRACK",
@@ -364,7 +384,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How much the cutoff follows the note: 100 % keeps the tone even across keys."
+   "help": "How much the cutoff follows the note: 100 % keeps the tone even across keys.",
+   "cc": 82
   },
   {
    "id": "VA_P_FVEL",
@@ -381,7 +402,8 @@ export default {
     "unit": "oct",
     "digits": 1
    },
-   "help": "Harder notes open the filter by up to this much."
+   "help": "Harder notes open the filter by up to this much.",
+   "cc": 83
   },
   {
    "id": "VA_P_HPF",
@@ -397,7 +419,8 @@ export default {
     "octaves": 9,
     "unit": "Hz"
    },
-   "help": "Removes lows after the filter: thins a pad so it leaves room for the bass."
+   "help": "Removes lows after the filter: thins a pad so it leaves room for the bass.",
+   "cc": 84
   },
   {
    "id": "VA_P_FATK",
@@ -413,7 +436,8 @@ export default {
     "octaves": 15.3,
     "unit": "s"
    },
-   "help": "Time for the filter envelope to rise."
+   "help": "Time for the filter envelope to rise.",
+   "cc": 85
   },
   {
    "id": "VA_P_FDEC",
@@ -429,7 +453,8 @@ export default {
     "octaves": 15.3,
     "unit": "s"
    },
-   "help": "Time for the filter envelope to fall to its sustain level. Short = pluck."
+   "help": "Time for the filter envelope to fall to its sustain level. Short = pluck.",
+   "cc": 86
   },
   {
    "id": "VA_P_FSUS",
@@ -442,7 +467,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Where the filter envelope rests while the note is held."
+   "help": "Where the filter envelope rests while the note is held.",
+   "cc": 87
   },
   {
    "id": "VA_P_FREL",
@@ -458,7 +484,8 @@ export default {
     "octaves": 15.3,
     "unit": "s"
    },
-   "help": "Time for the filter envelope to fall after the note ends."
+   "help": "Time for the filter envelope to fall after the note ends.",
+   "cc": 88
   },
   {
    "id": "VA_P_AATK",
@@ -474,7 +501,8 @@ export default {
     "octaves": 15.3,
     "unit": "s"
    },
-   "help": "Time for the volume to rise. Long = a slow swell."
+   "help": "Time for the volume to rise. Long = a slow swell.",
+   "cc": 73
   },
   {
    "id": "VA_P_ADEC",
@@ -490,7 +518,8 @@ export default {
     "octaves": 15.3,
     "unit": "s"
    },
-   "help": "Time for the volume to fall to its sustain level."
+   "help": "Time for the volume to fall to its sustain level.",
+   "cc": 75
   },
   {
    "id": "VA_P_ASUS",
@@ -503,7 +532,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The volume while the note is held."
+   "help": "The volume while the note is held.",
+   "cc": 89
   },
   {
    "id": "VA_P_AREL",
@@ -519,7 +549,8 @@ export default {
     "octaves": 15.3,
     "unit": "s"
    },
-   "help": "Time for the sound to fade after the note ends."
+   "help": "Time for the sound to fade after the note ends.",
+   "cc": 72
   },
   {
    "id": "VA_P_AVEL",
@@ -532,7 +563,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How much harder notes are louder. 0 % plays every note at full level."
+   "help": "How much harder notes are louder. 0 % plays every note at full level.",
+   "cc": 90
   },
   {
    "id": "VA_P_LRATE",
@@ -548,7 +580,8 @@ export default {
     "octaves": 10.4,
     "unit": "Hz"
    },
-   "help": "Speed of the LFO, from a slow drift to a fast buzz."
+   "help": "Speed of the LFO, from a slow drift to a fast buzz.",
+   "cc": 76
   },
   {
    "id": "VA_P_LWAVE",
@@ -575,7 +608,8 @@ export default {
      "S&H"
     ]
    },
-   "help": "The LFO's shape. S&H jumps to a random value each cycle."
+   "help": "The LFO's shape. S&H jumps to a random value each cycle.",
+   "cc": 91
   },
   {
    "id": "VA_P_LPITCH",
@@ -592,7 +626,8 @@ export default {
     "unit": "st",
     "digits": 2
    },
-   "help": "Vibrato depth, up to an octave."
+   "help": "Vibrato depth, up to an octave.",
+   "cc": 1
   },
   {
    "id": "VA_P_LCUT",
@@ -609,7 +644,8 @@ export default {
     "unit": "oct",
     "digits": 1
    },
-   "help": "How far the LFO sweeps the cutoff: the wobble."
+   "help": "How far the LFO sweeps the cutoff: the wobble.",
+   "cc": 92
   },
   {
    "id": "VA_P_LPWM",
@@ -622,7 +658,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "Moves the square wave's pulse width: a chorus-like shimmer."
+   "help": "Moves the square wave's pulse width: a chorus-like shimmer.",
+   "cc": 93
   },
   {
    "id": "VA_P_LDELAY",
@@ -638,7 +675,8 @@ export default {
     "octaves": 15.3,
     "unit": "s"
    },
-   "help": "The LFO fades in over this time after each note, like a singer's vibrato."
+   "help": "The LFO fades in over this time after each note, like a singer's vibrato.",
+   "cc": 78
   },
   {
    "id": "VA_P_MODE",
@@ -661,7 +699,8 @@ export default {
      "poly"
     ]
    },
-   "help": "Mono plays one note; legato glides without retriggering; poly plays chords."
+   "help": "Mono plays one note; legato glides without retriggering; poly plays chords.",
+   "cc": 94
   },
   {
    "id": "VA_P_GATE",
@@ -674,7 +713,8 @@ export default {
    "display": {
     "kind": "steps"
    },
-   "help": "How long a note lasts when it has no note off (16 = one step)."
+   "help": "How long a note lasts when it has no note off (16 = one step).",
+   "cc": 95
   },
   {
    "id": "VA_P_GLIDE",
@@ -690,7 +730,8 @@ export default {
     "octaves": 14.6,
     "unit": "s"
    },
-   "help": "Time to slide from one note to the next."
+   "help": "Time to slide from one note to the next.",
+   "cc": 5
   },
   {
    "id": "VA_P_UNISON",
@@ -706,7 +747,8 @@ export default {
     "unit": "voices",
     "signed": false
    },
-   "help": "Stacks detuned copies of each note: 7 is a supersaw."
+   "help": "Stacks detuned copies of each note: 7 is a supersaw.",
+   "cc": 110
   },
   {
    "id": "VA_P_SPREAD",
@@ -723,7 +765,8 @@ export default {
     "unit": "ct",
     "digits": 0
    },
-   "help": "How far apart the unison copies are tuned."
+   "help": "How far apart the unison copies are tuned.",
+   "cc": 111
   },
   {
    "id": "VA_P_WIDTH",
@@ -736,7 +779,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How far the unison copies spread across left and right."
+   "help": "How far the unison copies spread across left and right.",
+   "cc": 112
   },
   {
    "id": "VA_P_PRESET",
@@ -762,7 +806,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The slot's output level."
+   "help": "The slot's output level.",
+   "cc": 7
   },
   {
    "id": "VA_P_PAN",
