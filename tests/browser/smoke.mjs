@@ -156,7 +156,6 @@ const evaluate = async (expression) => {
 const key = async (code, keyName, down, modifiers = 0) => cdp('Input.dispatchKeyEvent', { type: down ? 'keyDown' : 'keyUp', code, key: keyName, modifiers });
 // a key press and release; modifiers: 1 Alt, 2 Ctrl, 4 Meta, 8 Shift
 const press = async (code, keyName, modifiers = 0) => { await key(code, keyName, true, modifiers); await key(code, keyName, false, modifiers); await sleep(30); };
-const trackerRow = async (r) => (await evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`)).split('\n')[2 + r];
 const vaDisplay = () => evaluate(`document.querySelector('.va-lcd').getAttribute('aria-label')`);
 // the strip's rows joined with spaces, as one line of text
 const helpText = async () => (await evaluate(`document.getElementById('help').getAttribute('aria-label')`)).replace(/\s+/g, ' ');
@@ -181,11 +180,11 @@ try {
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
   check(await evaluate('!!window.orangeMouse') && errors.length === 0, `the studio started${errors.length ? ` (errors: ${errors.slice(0, 3).join(' / ')})` : ''}`);
-  check((await evaluate(`window.orangeMouse.tracker.song().name`)).startsWith('Electro'),
-    `a fresh studio opens the library's newest song: "${await evaluate(`window.orangeMouse.tracker.song().name`)}"`);
+  check((await evaluate(`window.orangeMouse.session.song().name`)).startsWith('Electro'),
+    `a fresh studio opens the library's newest song: "${await evaluate(`window.orangeMouse.session.song().name`)}"`);
   // the checks below start from an empty song: every device at its defaults
   // (a fresh studio opens the library's newest song, a genre demo)
-  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(lib.migrate({ name: 'Smoke test' })); })()`);
+  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.session.load(lib.migrate({ name: 'Smoke test' })); })()`);
   await sleep(300);
   check((await evaluate(`document.getElementById('help').getAttribute('aria-label')`)).includes('SD card'), 'the SD card is ready (the help strip says so)');
   await sleep(800);
@@ -312,58 +311,28 @@ try {
   })()`);
   check(JSON.stringify(lcdValues) === JSON.stringify(ours), `the registry shows the pots' values as the LCD does: LCD ${lcdValues.join(' ')}, registry ${ours.join(' ')}`);
 
-  console.log('== the tracker');
-  await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('tracker'))`);
-  await press('KeyZ', 'z');
-  check((await trackerRow(0)).startsWith('00') && (await trackerRow(0)).includes('C-4'), `Z writes C-4 on row 00: "${await trackerRow(0)}"`);
-  await press('ArrowUp', 'ArrowUp');
-  await press('KeyC', 'C', 8);
-  check((await trackerRow(0)).includes('C-4²'), `Shift+C stacks a chord: "${await trackerRow(0)}"`);
-  await press('KeyZ', 'z', 4);
-  check((await trackerRow(0)).includes('C-4 ') && !(await trackerRow(0)).includes('²'), `Cmd+Z undoes the chord: "${await trackerRow(0)}"`);
-  await press('KeyC', 'c', 4);
-  await press('ArrowDown', 'ArrowDown');
-  await press('ArrowDown', 'ArrowDown');
-  await press('ArrowDown', 'ArrowDown');
-  await press('ArrowDown', 'ArrowDown');
-  await press('KeyV', 'v', 4);
-  check((await trackerRow(4)).includes('C-4'), `Cmd+C, Cmd+V repeat the cell on row 04: "${await trackerRow(4)}"`);
-  await press('Enter', 'Enter');
-  const loud = await peak(1200);
-  check(loud > 0.02, `Enter loops the pattern and the drum plays (peak ${loud.toFixed(3)})`);
-  check((await evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`)).includes('▶'), 'the display shows it playing');
-  await press('Enter', 'Enter');
-  await sleep(200);
-  check((await evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`)).includes('STOPPED'), 'Enter again stops');
-
   console.log('== the song library');
-  const trackerText = () => evaluate(`document.querySelector('.tracker-lcd').getAttribute('aria-label')`);
-  await sleep(1000);   // the demo song saves itself
-  await clickPad('.tracker-pads .pad:nth-last-child(2)');   // SONGS (PERF is last)
+  await sleep(1000);   // the song saves itself
+  {
+    const names = (await evaluate(`(async () => (await (await import('./tracker/library.js')).list()).map((x) => x.name))()`)).join(' ').toUpperCase();
+    check(['ELECTRO', 'SYNTHWAVE', 'DUB TECHNO', 'DAWN RUN 3'].every((g) => names.includes(g)) && !/FIRST STEPS|DAWN RUN(?! 3)/.test(names),
+      'the library holds the four genre songs, and not the retired ones');
+  }
+  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.session.load(lib.migrate({ name: 'Reload test' })); })()`);
   await sleep(300);
-  const listed = await trackerText();
-  check(['ELECTRO', 'SYNTHWAVE', 'DUB TECHNO', 'DAWN RUN 3'].every((g) => listed.toUpperCase().includes(g)) && !/FIRST STEPS|DAWN RUN(?! 3)/.test(listed.toUpperCase()),
-    'SONGS lists the four genre songs, and not the retired ones');
-  const songCount = Number(/(\d+) SONGS/.exec(listed)?.[1]);
-  await press('KeyN', 'n');
-  await sleep(400);
-  check((await trackerText()).includes(`${songCount + 1} SONGS`), `N makes another song (${songCount} before)`);
-  await press('Escape', 'Escape');
-  await press('KeyZ', 'z');
-  check((await trackerRow(0)).includes('C-4'), `the new song takes a note: "${await trackerRow(0)}"`);
   // the instruments' sounds are the song's too: a VA knob, and the LXR's kit (drum 2's coarse tune, as its panel changes it)
   // VA1's cutoff (VA_P_CUTOFF, 16) as its knob sets it: the panel's values, then the message
-  await evaluate(`(() => { const params = [...window.orangeMouse.tracker.song().va[0].params]; params[16] = 33;
+  await evaluate(`(() => { const params = [...window.orangeMouse.session.song().va[0].params]; params[16] = 33;
     window.orangeMouse.va.onMessage({ type: 'vaParams', slot: 0, params });
-    window.orangeMouse.tracker.send({ type: 'param', engine: 1, part: 0, param: 16, value: 33 }); })()`);
+    window.orangeMouse.session.send({ type: 'param', engine: 1, part: 0, param: 16, value: 33 }); })()`);
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'param', engine: 0, part: 0, param: 10, value: 77 })`);
   await sleep(1200);   // the LXR reports its kit, and the song saves
-  const kit3 = await evaluate(`JSON.stringify(window.orangeMouse.tracker.song().lxr?.slice(8, 12))`);
+  const kit3 = await evaluate(`JSON.stringify(window.orangeMouse.session.song().lxr?.slice(8, 12))`);
   check(JSON.parse(kit3 ?? 'null')?.[2] === 77, `the song keeps the LXR's kit: ${kit3}`);
   await sleep(1200);   // autosave
   const code = await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');
-    const s = window.orangeMouse.tracker.song();
+    const s = window.orangeMouse.session.song();
     const back = await lib.fromCode(await lib.toCode(s));
     const old = lib.migrate({ patterns: [{ rows: 16, cells: { '0:0': { notes: [60] } } }] });
     return { same: JSON.stringify(back.patterns) === JSON.stringify(s.patterns), old: old.tracks.length === 16 && old.order.length === 1 && old.patterns[0].rows === 16 };
@@ -372,13 +341,12 @@ try {
   check(code.old, 'an old song without tracks or order loads, completed');
   await cdp('Page.reload');
   await sleep(2000);
-  check((await evaluate(`document.querySelector('.rack-lcd').getAttribute('aria-label')`)).includes(`SONG ${songCount + 1}`), 'after a reload the studio opens the last song');
-  check((await trackerRow(0)).includes('C-4'), 'and its note was saved');
   await evaluate(`document.getElementById('powerButton').click()`);
   for (let i = 0; i < 50 && !(await evaluate('!!window.orangeMouse')); i++) await sleep(200);
   await sleep(1500);   // the LXR reports its kit again: the song's, if loading the song set it
-  check((await evaluate(`window.orangeMouse.tracker.song().lxr?.[10]`)) === 77, 'after a reload the LXR plays the song\'s kit');
-  check((await evaluate(`window.orangeMouse.tracker.song().va[0].params?.[16]`)) === 33, 'and VA1 its sound (VA reports its cutoff back)');
+  check((await evaluate(`window.orangeMouse.session.song().name`)) === 'Reload test', 'after a reload the studio opens the last set');
+  check((await evaluate(`window.orangeMouse.session.song().lxr?.[10]`)) === 77, 'after a reload the LXR plays the song\'s kit');
+  check((await evaluate(`window.orangeMouse.session.song().va[0].params?.[16]`)) === 33, 'and VA1 its sound (VA reports its cutoff back)');
 
   console.log('== songs can\'t be lost');
   const kept = await evaluate(`(async () => {
@@ -388,7 +356,7 @@ try {
     const root = await navigator.storage.getDirectory();
     const dir = await root.getDirectoryHandle('om-backup-test', { create: true });
     const ok = await backup.useFolder(dir);
-    const s = window.orangeMouse.tracker.song();
+    const s = window.orangeMouse.session.song();
     await lib.save(s);
     await new Promise((r) => setTimeout(r, 200));
     const names = [];
@@ -410,10 +378,10 @@ try {
   await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('mixer'))`);
   const mixText = () => evaluate(`document.querySelector('.mixer-lcd').getAttribute('aria-label')`);
   const mixRow = async (r) => (await mixText()).replace(/^Display: /, '').split('\n')[r] ?? '';
-  const mixOf = (path) => evaluate(`window.orangeMouse.tracker.song().mix.${path}`);
+  const mixOf = (path) => evaluate(`window.orangeMouse.session.song().mix.${path}`);
   check((await mixRow(1)).includes('DR1') && (await mixRow(1)).includes('OUT'), `the strips are named: "${await mixRow(1)}"`);
   // a genre song, so many strips have something to show
-  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(await lib.load('genre-electro')); })()`);
+  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.session.load(await lib.load('genre-electro')); })()`);
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'pattern', from: 1 })`);
   let moved = false;   // the song's one kick, on row 0: the meters rise, then fall back
   for (let i = 0; i < 20 && !moved; i++, await sleep(50)) moved = /[▁▂▃▄▅▆▇█]/.test((await mixText()).split('\n').slice(2, 10).join(''));
@@ -422,7 +390,7 @@ try {
   await shot('mixer-playing.png');   // to look at, not compared
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
   // the rest from an empty song again: the mixer and Dexed at their defaults
-  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(lib.migrate({ name: 'Smoke test mix' })); })()`);
+  await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.session.load(lib.migrate({ name: 'Smoke test mix' })); })()`);
   await sleep(300);
   for (let i = 0; i < 8; i++) await press('ArrowRight', 'ArrowRight');
   check((await mixRow(0)).startsWith('VA2 POLY'), `the arrows choose a strip: "${await mixRow(0)}"`);
@@ -495,6 +463,79 @@ try {
     check(after === before + 3, `CC 21 turns the mixer's knob 1 by 3: ${before} to ${after}`);
   }
 
+  console.log('== an external sequencer plays the studio');
+  {
+    const midiIn = (...b) => evaluate(`window.orangeMouseUi.midiIn(${JSON.stringify(b)})`);
+    const display = () => evaluate(`document.querySelector('.midi-lcd').getAttribute('aria-label')`);
+    const status = () => evaluate(`window.orangeMouse.midi.status()`);
+    await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.session.load(lib.migrate({ name: 'Midi test' })); })()`);
+    await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('midi'))`);
+    await sleep(800);
+    check(/01 DRUM 1/.test(await display()) && /16 RN1/.test(await display()), 'the display lists the channels and what they play');
+
+    // every engine answers its channel
+    for (const [name, channel] of [['the LXR', 1], ['VA', 8], ['Dexed', 12], ['Plaits', 14], ['Rings', 16]]) {
+      await sleep(500);
+      await midiIn(0x90 + channel - 1, 60, 110);
+      const p = await peak(350);
+      await midiIn(0x80 + channel - 1, 60, 0);
+      check(p > 0.005, `channel ${channel} plays ${name} (peak ${p.toFixed(3)})`);
+    }
+    await midiIn(0xb7, 123, 0);
+
+    // on time: a message that has just arrived is not late; one half a second old is
+    const late0 = (await status()).late;
+    for (let i = 0; i < 20; i++) { await midiIn(0x97, 60, 80); await midiIn(0x87, 60, 0); await sleep(20); }
+    const late1 = await status();
+    check(late1.late === late0, `20 notes arrive on time (${late1.late - late0} late; ${JSON.stringify(late1)})`);
+    await evaluate(`window.orangeMouseUi.midiIn([0x97, 60, 80], performance.now() - 500)`);
+    await midiIn(0x87, 60, 0);
+    await sleep(100);
+    const late2 = await status();
+    check(late2.late > late1.late && late2.lateMs > 400, `a message half a second old counts as late (${late2.lateMs.toFixed(0)} ms)`);
+    check(/LATE/.test(await display()), 'and the display says so');
+
+    // the clock: 120 BPM, as a sequencer sends it
+    await midiIn(0xfa);
+    await evaluate(`window.clockTest = setInterval(() => window.orangeMouseUi.midiIn([0xf8]), 500 / 24)`);
+    await sleep(2500);
+    const running = await status();
+    check(running.running === 1 && running.locked === 1, `Start and the ticks: playing, locked (${JSON.stringify(running)})`);
+    check(Math.abs(running.bpm - 120) < 6, `the tempo is measured: ${running.bpm.toFixed(1)} BPM`);
+    check(/EXT/.test(await display()) && /PLAY/.test(await display()), 'the display says EXT and PLAY');
+    await midiIn(0xfc);
+    await evaluate(`clearInterval(window.clockTest)`);
+    await sleep(1300);
+    const stopped = await status();
+    check(stopped.running === 0 && stopped.locked === 0, `Stop, then no ticks: stopped, not locked (${JSON.stringify(stopped)})`);
+    check(/INT/.test(await display()) && /STOP/.test(await display()), 'the display says INT and STOP');
+
+    // the sound sets, from the panel
+    const before = await evaluate(`window.orangeMouse.session.song().name`);
+    await clickPad('.midi-nav .pad:nth-child(2)');   // SET >
+    await sleep(500);
+    const after = await evaluate(`window.orangeMouse.session.song().name`);
+    check(after !== before && (await display()).toUpperCase().includes(`SET ${after.toUpperCase()}`.slice(0, 20)), `SET > loads another sound set: "${before}" to "${after}"`);
+
+    // the panel changes a route, and it is remembered
+    await evaluate(`document.activeElement && document.activeElement.blur()`);
+    await press('ArrowDown', 'ArrowDown');   // channel 2
+    await press('ArrowRight', 'ArrowRight');
+    check(JSON.parse(await evaluate(`localStorage.getItem('om.midi')`)).routes[1] === 'lxr2', 'the arrows change channel 2, and that is saved');
+    check((await display()).includes('02 DRUM 3'), 'the display shows it');
+    await press('ArrowLeft', 'ArrowLeft');
+    await press('ArrowUp', 'ArrowUp');
+
+    // a channel set to off is silent
+    await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'midiRoute', channel: 7, engine: 255, part: 0 })`);
+    await sleep(1500);
+    const tail = await peak(200);   // what still rings from the notes above
+    await midiIn(0x97, 60, 110);
+    const off = await peak(300);
+    await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'midiRoute', channel: 7, engine: 1, part: 0 })`);
+    check(off <= tail + 0.001, `a channel set to off plays nothing (peak ${off.toFixed(4)}, what was ringing ${tail.toFixed(4)})`);
+  }
+
   console.log('== Dexed');
   await evaluate(`window.orangeMouseUi.showDevice(window.orangeMouseUi.devices.indexOf('dexed'))`);
   const dxText = async () => (await evaluate(`document.querySelector('.dexed-lcd').getAttribute('aria-label')`)).replace(/^Display: /, '');
@@ -502,7 +543,7 @@ try {
   await evaluate(`(() => { const c = document.querySelector('.dexed-lcd'), r = c.getBoundingClientRect();
     const at = { clientX: r.left + r.width * (12 / 44) + 4, clientY: r.top + r.height * (3.5 / 10) };
     c.dispatchEvent(new PointerEvent('pointerdown', { ...at, button: 0, bubbles: true })); })()`);
-  check((await evaluate(`window.orangeMouse.tracker.song().dexed[0].program`)) === 9, 'clicking a name chooses that sound (column 2, row 2: #10)');
+  check((await evaluate(`window.orangeMouse.session.song().dexed[0].program`)) === 9, 'clicking a name chooses that sound (column 2, row 2: #10)');
   await press('ArrowRight', 'ArrowRight');
   check((await dxText()).startsWith('DX1 SYNPREZFM 02'), `the right arrow changes the bank: "${(await dxText()).split('\n')[0]}"`);
   const quiet = await peak(150);
@@ -566,7 +607,7 @@ try {
   const upgrade = await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');
     localStorage.setItem('om.seeded', JSON.stringify({ 'genre-electro': 1, 'genre-synthwave': 1, 'genre-dubtechno': 1 }));
-    const wrote = await lib.seed([{ id: 'genre-electro', make: () => ({ ...(window.orangeMouse.tracker.song()), name: 'Electro v2' }), version: 2 },
+    const wrote = await lib.seed([{ id: 'genre-electro', make: () => ({ ...(window.orangeMouse.session.song()), name: 'Electro v2' }), version: 2 },
       { id: 'genre-synthwave', make: () => null, version: 1 }]);
     const names = (await lib.list()).map((x) => x.name);
     const again = await lib.seed([{ id: 'genre-electro', make: () => null, version: 2 }]);
@@ -591,127 +632,16 @@ try {
   check(retired.removed === 2 && retired.again === 0 && !retired.names.includes('First steps') && retired.names.includes('Keep me'),
     `the retired songs leave the library once, the others stay (${retired.removed} removed)`);
 
-  console.log('== the effect column (PLAN.md 10.1)');
-  {
-    await evaluate(`window.orangeMouseUi.showDevice(0)`);
-    await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(lib.migrate({ name: 'Fx test' })); })()`);
-    await press('Backquote', '`');
-    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[0].focus()`);
-    for (let i = 0; i < 5; i++) await press('ArrowUp', 'ArrowUp', 8);   // FX: level, pan, send A, send B, cutoff
-    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[2].focus()`);
-    await press('ArrowUp', 'ArrowUp', 8);   // SLD on
-    await evaluate(`document.activeElement.blur()`);
-    const cellNow = await evaluate(`JSON.stringify(window.orangeMouse.tracker.song().patterns[0].cells['0:0'])`);
-    check(cellNow === '{"notes":[],"fx":5,"fxv":64,"fxs":true}', `the FX knobs give the empty cell a cutoff slide: ${cellNow}`);
-    check((await trackerRow(0)).includes('···  C40>'), `the display shows it: "${await trackerRow(0)}"`);
-    check((await evaluate(`[...document.querySelectorAll('.tracker-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'FX VAL SLD SWG LEN', 'the knobs are FX, VAL, SLD, SWG, LEN');
-    await evaluate(`document.querySelector('.tracker-lcd').dispatchEvent(new PointerEvent('pointermove', { clientX: 1, clientY: 1 }))`);
-    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[3].focus()`);
-    for (let i = 0; i < 8; i++) await press('ArrowUp', 'ArrowUp', 8);
-    await evaluate(`document.activeElement.blur()`);
-    check((await evaluate(`window.orangeMouse.tracker.song().patterns[0].swing`)) === 58 && (await trackerText()).includes('SWG 58%'), 'SWG swings the pattern: 58 %');
-    // the length view (PLAN.md 10.3): a note in the cell, half a row long, gliding in
-    await press('Backquote', '`');
-    check((await evaluate(`[...document.querySelectorAll('.tracker-knobs .caption')].map((c) => c.textContent).join(' ')`)) === 'CND NLN GLD SWG LEN', 'again: the length view, CND NLN GLD SWG LEN');
-    await key('KeyZ', 'z', true); await key('KeyZ', 'z', false);   // C-4, the cursor moves on
-    await press('ArrowUp', 'ArrowUp');
-    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[1].focus()`);
-    await press('ArrowUp', 'ArrowUp', 8); await press('ArrowUp', 'ArrowUp', 8);
-    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[2].focus()`);
-    await press('ArrowUp', 'ArrowUp', 8);
-    await evaluate(`document.querySelectorAll('.tracker-knobs .pot')[0].focus()`);
-    for (let i = 0; i < 10; i++) await press('ArrowUp', 'ArrowUp', 8);   // CND: past 90 %, to 1:2
-    await evaluate(`document.activeElement.blur()`);
-    check((await evaluate(`window.orangeMouse.tracker.song().patterns[0].cells['0:0'].cond`)) === 10 && (await trackerText()).includes('CND 1:2'), 'CND gives the cell a 1:2 condition');
-    const withLen = JSON.parse(await evaluate(`JSON.stringify(window.orangeMouse.tracker.song().patterns[0].cells['0:0'])`));
-    check(withLen.notes?.[0] === 60 && withLen.len === 2 && withLen.glide === true && withLen.fx === 5,
-      `NLN and GLD: half a row, gliding, the effect kept: ${JSON.stringify(withLen)}`);
-    check((await trackerRow(0)).includes('C-4 ~  .5'), `the length view shows it: "${await trackerRow(0)}"`);
-    await press('Backquote', '`');
-    check((await trackerRow(0)).includes('C-4 ?·· C'), `back in the note view, the cell shows its condition and its effect's letter: "${await trackerRow(0)}"`);
-  }
-
-  console.log('== the tracker follows the song');
-  await evaluate(`(async () => {
-    const { newSong, newPattern } = await import('./tracker/song.js');
-    const s = newSong();
-    s.name = 'Follow';
-    s.bpm = 240;
-    s.patterns = [newPattern(4), newPattern(4), newPattern(4)];
-    s.order = [0, 1, 2];
-    window.orangeMouseUi.showDevice(0);
-    window.orangeMouse.tracker.load(s);
-    window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'song', from: 0 });
-  })()`);
-  const seen = new Set();
-  for (let i = 0; i < 40; i++, await sleep(20)) seen.add(/PAT (\d\d)/.exec(await trackerText())?.[1]);
-  await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
-  check(seen.has('00') && seen.has('01') && seen.has('02'), `the display follows each next pattern (saw ${[...seen].join(', ')})`);
-
   console.log('== a genre song plays');
   await evaluate(`(async () => {
     const lib = await import('./tracker/library.js');
-    window.orangeMouse.tracker.load(await lib.load('genre-dubtechno'));
+    window.orangeMouse.session.load(await lib.load('genre-dubtechno'));
   })()`);
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'song', from: 0 })`);
   const genrePeak = await peak(1500);
   await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'stop' })`);
-  check(genrePeak > 0.05 && (await evaluate(`window.orangeMouse.tracker.song().name`)).startsWith('Dub Techno'),
+  check(genrePeak > 0.05 && (await evaluate(`window.orangeMouse.session.song().name`)).startsWith('Dub Techno'),
     `the dub techno song loads from the library and plays (peak ${genrePeak.toFixed(3)})`);
-
-  console.log('== the playlist (PLAN.md Phase 8.2)');
-  {
-    await evaluate(`(async () => {
-      const lib = await import('./tracker/library.js');
-      const t = window.orangeMouse.tracker;
-      for (const [id, name] of [['pl-one', 'Playlist one'], ['pl-two', 'Playlist two']]) {
-        const s = lib.migrate({ name, bpm: 240, patterns: [{ rows: 16, cells: { '0:0': { notes: [36] }, '8:0': { notes: [36] } } }] });
-        s.id = id;
-        await lib.save(s);
-      }
-      t.playlist.state.items = [];
-      t.playlist.add('pl-one'); t.playlist.add('pl-two'); t.playlist.setGap(1);
-    })()`);
-    await evaluate(`window.orangeMouseUi.showDevice(0)`);
-    await clickPad('.tracker-pads .pad:nth-last-child(2)');   // SONGS (PERF is last)
-    await sleep(300);
-    await press('KeyL', 'l');
-    await sleep(300);
-    check((await trackerText()).includes('PLAYLIST') && (await trackerText()).includes('Playlist two'), 'L shows the playlist with its songs');
-    await press('Enter', 'Enter');
-    await sleep(500);
-    check((await evaluate(`window.orangeMouse.tracker.song().name`)) === 'Playlist one', 'Enter plays its first song');
-    await sleep(2200);   // 1 s of song, 1 s of gap
-    check((await evaluate(`window.orangeMouse.tracker.song().name`)) === 'Playlist two', `after it and the gap, the next: "${await evaluate(`window.orangeMouse.tracker.song().name`)}"`);
-    await sleep(2500);
-    check(!(await evaluate(`window.orangeMouse.tracker.playlist.state.active`)), 'after the last, the playlist stops');
-    await press('Escape', 'Escape');
-    await press('Escape', 'Escape');
-  }
-
-  console.log('== WAV export (PLAN.md Phase 8.1)');
-  {
-    const wav = await evaluate(`(async () => {
-      const lib = await import('./tracker/library.js');
-      const s = lib.migrate({ name: 'Wav test', bpm: 120, patterns: [{ rows: 16, cells: { '0:0': { notes: [36] }, '4:7': { notes: [48] }, '8:13': { notes: [60] } } }] });
-      let sawRendering = false;
-      const watch = setInterval(() => { if (document.querySelector('.tracker-lcd').getAttribute('aria-label').includes('RENDERING')) sawRendering = true; }, 20);
-      const blob = await window.orangeMouse.tracker.exportWav(s);
-      clearInterval(watch);
-      if (!blob) return { error: document.querySelector('.tracker-lcd').getAttribute('aria-label').split('\\n')[0] };
-      const v = new DataView(await blob.arrayBuffer());
-      const tag = (at) => String.fromCharCode(...[0, 1, 2, 3].map((i) => v.getUint8(at + i)));
-      let peak = 0;
-      for (let at = 44; at + 2 < v.byteLength; at += 3) { const x = (v.getUint8(at) | (v.getUint8(at + 1) << 8) | (v.getInt8(at + 2) << 16)); peak = Math.max(peak, Math.abs(x)); }
-      return { riff: tag(0) + tag(8), rate: v.getUint32(24, true), bits: v.getUint16(34, true), bytes: v.getUint32(40, true), peak: peak / 8388607, sawRendering,
-        after: document.querySelector('.tracker-lcd').getAttribute('aria-label').split('\\n')[0] };
-    })()`);
-    const frames = Math.floor((4 * 44100) / 64) * 64;   // 2 s of song (16 rows at 120 BPM) and 2 s of tail
-    check(!wav.error && wav.riff === 'RIFFWAVE' && wav.rate === 44100 && wav.bits === 24 && wav.bytes === frames * 6,
-      `the song renders to a 24-bit WAV of ${frames} frames (${wav.error ?? `${wav.bytes / 6} frames, ${wav.bits} bits at ${wav.rate} Hz`})`);
-    check(wav.peak > 0.01, `it holds the song's drum, bass and Plaits notes (peak ${wav.peak?.toFixed(3)})`);
-    check(wav.sawRendering && /WAV EXPORTED/.test(wav.after ?? ''), `the display says RENDERING, then "${wav.after}"`);
-  }
 
   console.log('== the worst case in WebAssembly (the render worker; PLAN.md Phase 7.2)');
   {
@@ -746,7 +676,7 @@ try {
   console.log('== the perform view (PLAN.md Phase 8.3)');
   {
     // the dub techno song (the electro one was replaced by a test song above)
-    await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.tracker.load(await lib.load('genre-dubtechno')); })()`);
+    await evaluate(`(async () => { const lib = await import('./tracker/library.js'); window.orangeMouse.session.load(await lib.load('genre-dubtechno')); })()`);
     await evaluate(`window.orangeMouse.node.port.postMessage({ type: 'tracker', op: 'play', mode: 'song', from: 0 })`);
     await sleep(1500);
     await press('KeyF', 'f');

@@ -534,6 +534,32 @@ Fel-Tracker's suite showed this works: golden hashes, CPU counts and a layout li
 5. **Layout:** the whole studio fits on one desktop page, and you can move between devices. Phones are not a
    priority.
 
+## An external sequencer plays the studio (2026-11-05)
+
+The focus moved from writing music in the studio to playing it from outside. The tracker's panel
+is archived: see docs/TRACKER_ARCHIVED.md, which also says what its C code still does here and how
+it comes back. Where this plan says the tracker is the master clock, MIDI clock now is.
+
+1. **Routing** (studio/midi_in.c, web/app/midi/routes.js, the MIDI device in place of the tracker):
+   each MIDI channel plays one part. The defaults are the old tracks: 1-7 the LXR's voices, 8-11
+   VA, 12-13 Dexed, 14-15 Plaits, 16 Rings. LXR MENU hands a channel's notes to the firmware, by its
+   own MIDI settings (and it can record them). Routes, tempo and ports are remembered. A Stop, an
+   All Notes Off, a re-route or a lost port ends the notes the router started.
+2. **Timing** (web/app/midi/timing.js): a message is scheduled from Web MIDI's timestamp plus a
+   lookahead (AHEAD, 10 ms), so the browser's jitter becomes a fixed delay. Sample-exact on VA, Dexed,
+   Plaits and Rings; the LXR renders in 64-frame blocks, 1.5 ms, as on the hardware. Late messages
+   play at once and are counted on the display.
+3. **Clock and transport** (studio/midi_in.c): Start, Continue, Stop and the ticks drive the LXR's
+   own sequencer and the mixer's gates; the tempo measured from the ticks (a line through the last
+   4 beats' ticks, so jitter hardly moves it) reaches the delays and VA. Continue resumes where the
+   LXR stopped, which the firmware alone did not do (seq_holdPosition). Without a clock, the BPM knob
+   sets the tempo.
+
+Not done, on purpose: pitch bend, mod wheel and CCs to the other engines; Song Position Pointer;
+CC 21-28 still turn the knobs of the device on show, so they never reach the LXR. Not yet tried:
+real hardware or a DAW (the tests send the messages through the page's MIDI handler). The
+measurements to make with one: latency and jitter at the output, and whether 10 ms holds.
+
 ## Later
 
 **Done 2026-11-01** (you asked for the Later list before the listening; to listen: docs/listening/later.md):

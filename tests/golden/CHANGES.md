@@ -46,3 +46,13 @@ Each re-baseline: why, and which renders changed (PLAN.md Phase 7.5). Listen to 
 ## 2026-11-01: The trance song, version 2: the shaper, Rings and Clouds
 
 - `songs.txt`: 1 of 4 renders: trance
+
+## 2026-11-05: The tracker's card became the MIDI device's in the rack, and the MIDI device is new (the tracker's panel is archived)
+
+- `screens/midi.png` (new)
+- `screens/lxr.png` (1252 pixels)
+- `screens/va.png` (1258 pixels)
+- `screens/dexed.png` (1252 pixels)
+- `screens/plaits.png` (1252 pixels)
+- `screens/rings.png` (1252 pixels)
+- `screens/mixer.png` (1252 pixels)

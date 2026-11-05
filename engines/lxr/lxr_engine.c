@@ -8,9 +8,9 @@
  * FX bus (web/port/web_lxr_stems.c). It renders in its own 64-frame blocks,
  * as on the hardware.
  *
- * Its own sequencer follows the studio's clock while the tracker plays, as
- * it follows MIDI clock on the hardware; when the tracker stops, it runs on
- * its own clock again (the LXR alone).
+ * Its own sequencer follows the studio's clock while that runs (an external
+ * MIDI clock, studio/midi_in.c), as it follows MIDI clock on the hardware; when
+ * it stops, it runs on its own clock again (the LXR alone).
  *
  * The firmware keeps its state in globals, so there is one instance.
  *
@@ -158,10 +158,17 @@ static void lxrClock(void *self, uint8_t event)
 		sync_midiResetPosition();
 		sync_midiStartStop(1);
 		break;
+	case OM_CLOCK_CONTINUE:
+		lxr_ownSync = seq_getExtSync();
+		seq_setExtSync(2);
+		sync_midiStartStop(1);
+		seq_returnToHeldPosition();
+		break;
 	case OM_CLOCK_TICK:
 		seq_sync();
 		break;
 	case OM_CLOCK_STOP:
+		seq_holdPosition();
 		sync_midiStartStop(0);
 		seq_setExtSync(lxr_ownSync);
 		break;

@@ -6,8 +6,9 @@
  * Rings. The worklet loads
  * the saved SD card (web_sd_alloc) before om_web_init(), renders 64-frame
  * blocks with om_web_render(), and forwards the panels' notes and parameter
- * changes, which take effect at the start of the next block. The tracker
- * (studio/tracker.c) is the clock: it schedules its rows before each block.
+ * changes, which take effect at the start of the next block. MIDI in
+ * (studio/midi_in.c) plays the engines and is the clock. The tracker
+ * (studio/tracker.c, its panel archived) stays here, stopped: it costs nothing.
  *
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
@@ -15,6 +16,7 @@
 #include "web_port.h"
 #include "studio.h"
 #include "tracker.h"
+#include "midi_in.h"
 #include "VaEngine.h"
 #include "dexed_engine.h"
 #include "plaits_engine.h"
@@ -24,9 +26,11 @@
 
 extern const OmEngineClass om_lxr_engine, om_va_engine;
 void om_lxr_set_seed(uint32_t seed);
+void web_midi_in(uint8_t byte);
 
 static OmStudio *studio;
 static OmTracker *tracker;
+static OmMidiIn *midiIn;
 static float mix[2][OM_MAX_BLOCK];   // left block, right block
 
 WEB_EXPORT int om_web_init(float rate, uint32_t seed)
@@ -54,11 +58,15 @@ WEB_EXPORT int om_web_init(float rate, uint32_t seed)
 	for (uint8_t k = 0; k < PLAITS_PARTS; k++)
 		om_tracker_route(tracker, (uint8_t)(13 + k), 3, k);
 	om_tracker_route(tracker, 15, 4, 0);
+	midiIn = om_midi_in_create(studio, rate, web_midi_in);
+	if (!midiIn)
+		return -4;
 	return 0;
 }
 
 WEB_EXPORT float *om_web_render(void)
 {
+	om_midi_in_advance(midiIn, OM_MAX_BLOCK);
 	om_tracker_advance(tracker, OM_MAX_BLOCK);
 	om_studio_render(studio, mix[0], mix[1], OM_MAX_BLOCK);
 	return &mix[0][0];
@@ -92,6 +100,33 @@ WEB_EXPORT uint8_t om_web_get_param(uint8_t engine, uint8_t part, uint16_t param
 WEB_EXPORT void om_web_set_tempo(float bpm)
 {
 	om_studio_set_tempo(studio, bpm);
+}
+
+// ---- MIDI in (studio/midi_in.h) ----
+
+// The frame the next block starts on; a double, as JavaScript's numbers are.
+WEB_EXPORT double om_web_frame(void) { return (double)om_studio_frame(studio); }
+WEB_EXPORT void om_web_midi_event(double frame, uint8_t b0, uint8_t b1, uint8_t b2)
+{
+	om_midi_in_event(midiIn, frame > 0.0 ? (uint64_t)frame : 0, b0, b1, b2);
+}
+WEB_EXPORT void om_web_midi_route(uint8_t channel, uint8_t engine, uint8_t part) { om_midi_in_route(midiIn, channel, engine, part); }
+WEB_EXPORT void om_web_midi_tempo(float bpm) { om_midi_in_tempo(midiIn, bpm); }
+WEB_EXPORT void om_web_midi_reset(void) { om_midi_in_reset(midiIn); }
+
+// running, locked, tempo, late, the latest (ms), lost, the channels with a note since the last call
+WEB_EXPORT float *om_web_midi_state(void)
+{
+	static float out[7];
+	const OmMidiInState s = om_midi_in_state(midiIn);
+	out[0] = s.running;
+	out[1] = s.locked;
+	out[2] = s.bpm;
+	out[3] = (float)s.late;
+	out[4] = s.lateMs;
+	out[5] = (float)s.dropped;
+	out[6] = s.activity;
+	return out;
 }
 
 // ---- the mixer (studio.h, registry/mix.json and fx.json) ----

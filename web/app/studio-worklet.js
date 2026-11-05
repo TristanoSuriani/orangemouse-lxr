@@ -84,7 +84,8 @@ class StudioProcessor extends AudioWorkletProcessor {
       case 'encoder': w.web_encoder(msg.detents); break;
       case 'pot': w.web_pot_turn(msg.pot, msg.degrees); break;
       case 'fader': w.web_set_fader(msg.fader, msg.value); break;
-      case 'midi': for (const b of msg.bytes) w.web_midi_in(b); break;
+      // a MIDI message and the audio frame it should sound on (midi/timing.js)
+      case 'midiEvent': w.om_web_midi_event(msg.frame - (this.frameOffset ?? currentFrame), msg.bytes[0], msg.bytes[1] ?? 0, msg.bytes[2] ?? 0); break;
       case 'flushSd': this.flushSd(false); break;
       default:
         applyMessage(w, msg);
@@ -170,12 +171,12 @@ class StudioProcessor extends AudioWorkletProcessor {
       this.lastPots = potsKey;
       msg.lxrPots = lxrPots;
     }
-    // where the tracker plays: playing, pattern, order position, row, tempo
-    const tracker = Array.from(new Float32Array(w.memory.buffer, w.om_web_tracker_state(), 5));
-    const trackerKey = tracker.join(',');
-    if (force || trackerKey !== this.lastTracker) {
-      this.lastTracker = trackerKey;
-      msg.tracker = tracker;
+    // MIDI in: the clock, how late, which channels play (their bits clear on reading)
+    const midi = Array.from(new Float32Array(w.memory.buffer, w.om_web_midi_state(), 7));
+    const midiKey = midi.join(',');
+    if (force || midiKey !== this.lastMidi || midi[6]) {
+      this.lastMidi = midiKey;
+      msg.midiIn = midi;
     }
     // the LXR's kit, twice a second when it changed (its panel, a kit loaded from the SD card): the song keeps it
     if (force || this.uiCount++ % 30 === 0) {
@@ -218,8 +219,11 @@ class StudioProcessor extends AudioWorkletProcessor {
     });
   }
 
-  renderBlock() {
+  // written: how much of this render quantum is already filled
+  renderBlock(written) {
     const w = this.wasm;
+    // the studio's frames against the context's: the block starts there
+    this.frameOffset = currentFrame + written - w.om_web_frame();
     if (this.buttonQueue.length) this.applyButtons();
     this.blockCount++;
     const ptr = w.om_web_render();
@@ -242,7 +246,7 @@ class StudioProcessor extends AudioWorkletProcessor {
 
     let written = 0;
     while (written < frames) {
-      if (this.pendingRead >= this.pendingFrames) this.renderBlock();
+      if (this.pendingRead >= this.pendingFrames) this.renderBlock(written);
       const count = Math.min(frames - written, this.pendingFrames - this.pendingRead);
       for (let i = 0; i < count; i++) {
         const j = (this.pendingRead + i) * 2;

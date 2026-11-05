@@ -41,8 +41,10 @@ with Web MIDI (Chrome, Edge, Firefox).
   2 seconds after the last edit, but not while the sequencer runs. **Export SD card** downloads the card image,
   **Import SD card** restores an exported image and **Erase SD card** starts over.
 - **Output**: both stereo outputs of the LXR are mixed to the browser's stereo output.
-- **MIDI**: the MIDI in/out menus connect the LXR's DIN MIDI port to a Web MIDI device. Incoming notes and CCs
-  follow the LXR's own MIDI settings (channels and MIDI filters in the menu).
+- **MIDI**: MIDI in is how a sequencer plays the studio. The MIDI device (Alt+1) sets which channel plays which
+  part (by default 1-7 the LXR's voices, 8-11 VA, 12-13 Dexed, 14-15 Plaits, 16 Rings). MIDI clock, Start, Continue
+  and Stop drive the LXR's sequencer and the mixer's gates, and set the tempo. CCs other than 21-28 (a knob box's)
+  reach the LXR's firmware by its own settings. MIDI out sends what the LXR's firmware sends.
 
 ## How the port works
 

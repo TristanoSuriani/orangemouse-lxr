@@ -69,10 +69,12 @@ echo "== parameter registry"
 echo "== songs can't be lost (the backup folder, the export reminder)"
 node tests/backup_test.mjs | sed 's/^/   /' || fail=1
 node tests/playlist_test.mjs | sed 's/^/   /' || fail=1
+node tests/midi_test.mjs | sed 's/^/   /' || fail=1
 
-echo "== studio, tracker, clock, Dexed, Plaits and Rings tests"
+echo "== studio, tracker, MIDI in, clock, Dexed, Plaits and Rings tests"
 $BIN/studio_test | sed 's/^/   /' || fail=1
 $BIN/tracker_test | sed 's/^/   /' || fail=1
+$BIN/midi_in_test | sed 's/^/   /' || fail=1
 $BIN/lxr_sync_test | sed 's/^/   /' || fail=1
 $BIN/dexed_test | sed 's/^/   /' || fail=1
 $BIN/plaits_test | sed 's/^/   /' || fail=1
@@ -132,6 +134,7 @@ if command -v emcmake >/dev/null && command -v node >/dev/null; then
   cmake --build tests/host/build-wasm >/dev/null
   node tests/host/build-wasm/studio_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/tracker_test.js | sed 's/^/   wasm: /' || fail=1
+  node tests/host/build-wasm/midi_in_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/dexed_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/plaits_test.js | sed 's/^/   wasm: /' || fail=1
   node tests/host/build-wasm/rings_test.js | sed 's/^/   wasm: /' || fail=1

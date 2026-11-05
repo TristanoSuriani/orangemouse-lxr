@@ -219,6 +219,9 @@ uint8_t seq_getExtSync();
 void seq_setQuantisation(uint8_t value);
 //------------------------------------------------------------------------------
 void seq_setExtSync(uint8_t isExt);
+// for a MIDI Continue: where the tracks are at a stop, and back there after the start
+void seq_holdPosition();
+void seq_returnToHeldPosition();
 //------------------------------------------------------------------------------
 /** switch to pattern patNr after the current pattern has finished*/
 void seq_setNextPattern(const uint8_t patNr);

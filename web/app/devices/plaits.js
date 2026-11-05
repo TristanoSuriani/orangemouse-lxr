@@ -179,7 +179,7 @@ export function createPlaitsDevice({ send, help, song }) {
   // ---- pads ----
   const partPads = registry.parts.map((name, i) => {
     const pad = makePad(name, { kind: 'voice va', onChange: (down) => { if (down) { state.part = i; render(); } } });
-    describe(pad, help, `${name}: one of Plaits' two parts (tracker track ${14 + i}). Select it to choose its sound and play it.`);
+    describe(pad, help, `${name}: one of Plaits' two parts (MIDI channel ${14 + i}). Select it to choose its sound and play it.`);
     el.querySelector('.plaits-parts').append(pad);
     return pad;
   });

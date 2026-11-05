@@ -32,7 +32,7 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 const GUIDE = [
   { title: 'Choose a sound', text: 'The display lists the bank\'s 32 sounds. Click one, or use PRG &lt; and PRG &gt; (the up and down arrows). BNK &lt; and BNK &gt; (left and right arrows) change the bank: Dexed 01 and the 32 SynprezFM cartridges, over a thousand DX7 sounds.' },
   { title: 'Play', text: 'Keys Z to M play the lower octave, Q to I the upper; or click the keys. OCT - and OCT + (or [ and ]) move both octaves.' },
-  { title: 'Two parts', text: 'DX1 and DX2 are two separate DX7s, each with its own sound, on tracker tracks 12 and 13 and on their own mixer strips.' },
+  { title: 'Two parts', text: 'DX1 and DX2 are two separate DX7s, each with its own sound, on MIDI channels 12 and 13 and on their own mixer strips.' },
   { title: 'Fit it in', text: 'DX7 sounds differ a lot in loudness: VOL evens them out. TRN moves a sound by semitones, for a bass an octave down or a bell an octave up.' },
   { title: 'Saved with the song', text: 'Each part\'s bank, sound, volume and transpose are part of the song.' },
 ];
@@ -126,7 +126,7 @@ export function createDexedDevice({ send, help, song }) {
       kind: 'voice va',
       onChange: (down) => { if (down) { state.part = i; render(); } },
     });
-    describe(pad, help, `${name}: one of Dexed's two parts (tracker track ${12 + i}). Select it to choose its sound and play it.`);
+    describe(pad, help, `${name}: one of Dexed's two parts (MIDI channel ${12 + i}). Select it to choose its sound and play it.`);
     el.querySelector('.dexed-parts').append(pad);
     return pad;
   });

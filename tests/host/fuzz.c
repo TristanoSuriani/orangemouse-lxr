@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "tracker.h"
+#include "midi_in.h"
 #include "om_registry_fx.h"
 #include "om_registry_mix.h"
 #include "rings_engine.h"
@@ -59,6 +60,7 @@ static int chance(int percent) { return below(100) < percent; }
 
 static OmStudio *st;
 static OmTracker *tr;
+static OmMidiIn *midi;
 static const OmEngineClass *engines[ENGINES] = {&om_lxr_engine, &om_va_engine, &om_dexed_engine, &om_plaits_engine, &om_rings_engine};
 static int failures;
 
@@ -74,6 +76,7 @@ static void render(uint32_t blocks, Health *h)
 	const int n = om_studio_channels(st) + 4;   // the channels, the two buses, the master's left and right
 	for (uint32_t b = 0; b < blocks; b++)
 	{
+		om_midi_in_advance(midi, OM_MAX_BLOCK);
 		om_tracker_advance(tr, OM_MAX_BLOCK);
 		om_studio_render(st, l, r, OM_MAX_BLOCK);
 		for (int i = 0; i < OM_MAX_BLOCK; i++)
@@ -255,6 +258,27 @@ static void phaseMidi(int round)
 	}
 	render(200, &h);
 	healthy(&h, round, "MIDI");
+
+	// the same through the router (studio/midi_in.c): random routes, stamps
+	// late and early, whole messages of any bytes, clock and all
+	Health hr = {0};
+	for (int step = 0; step < 50; step++)
+	{
+		if (chance(20))
+			om_midi_in_route(midi, (uint8_t)below(20), chance(10) ? 0xff : chance(10) ? 0xfe : (uint8_t)below(ENGINES + 2), (uint8_t)below(9));
+		if (chance(5))
+			om_midi_in_tempo(midi, (float)below(500));
+		if (chance(2))
+			om_midi_in_reset(midi);
+		for (int i = 0; i < 40; i++)
+		{
+			const uint8_t b0 = chance(30) ? status[below(sizeof status)] : (uint8_t)below(256);
+			om_midi_in_event(midi, now() + below(2000) - (chance(10) ? 1000 : 0), b0, (uint8_t)below(256), (uint8_t)below(256));
+		}
+		render(4, &hr);
+	}
+	render(200, &hr);
+	healthy(&hr, round, "MIDI router");
 }
 
 // Each engine queues OM_MAX_EVENTS events: the panic renders a block after
@@ -298,6 +322,7 @@ static void phasePanic(int round)
 {
 	om_tracker_stop(tr);
 	om_tracker_clear(tr);
+	om_midi_in_reset(midi);
 	web_midi_in(0xfc);   // MIDI stop, and all notes off on every channel
 	for (uint8_t ch = 0; ch < 16; ch++)
 	{
@@ -365,6 +390,7 @@ int main(int argc, char **argv)
 	for (int e = 0; e < ENGINES; e++)
 		if (om_studio_add_engine(st, engines[e]) != e) { fprintf(stderr, "cannot create engine %d\n", e); return 1; }
 	tr = om_tracker_create(st, RATE);
+	midi = om_midi_in_create(st, RATE, web_midi_in);
 	Health boot = {0};
 	render(400, &boot);   // the LXR boots
 	for (int round = 1; round <= rounds; round++)

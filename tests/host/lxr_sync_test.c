@@ -9,6 +9,8 @@
  *     lands on every beat, in time with the tracker's rows;
  *   - when the tracker stops, the LXR stops too, and plays on its own clock
  *     again afterwards (its own Start).
+ * Then the same from an external MIDI clock (studio/midi_in.c): Start and the
+ * ticks play it, Stop stops it, Continue picks up where it stopped.
  * And its stems: each voice is its own mixer channel.
  * Exit code 0 when every check passes.
  *
@@ -19,6 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "tracker.h"
+#include "midi_in.h"
 
 extern const OmEngineClass om_lxr_engine;
 void web_set_button(uint8_t button, uint8_t pressed);
@@ -57,6 +60,24 @@ static void pressButton(uint8_t id)
 	run(8, -1);
 	web_set_button(id, 0);
 	run(8, -1);
+}
+
+// `count` ticks of MIDI clock from now, each block's applied before it renders
+// (peaks from 0); returns the blocks rendered
+static int clockTicks(OmMidiIn *midi, int count, double perTick)
+{
+	const uint64_t from = om_studio_frame(st);
+	double t = (double)from;
+	int rendered = 0;
+	for (int k = 0; k < count; k++, t += perTick)
+	{
+		om_midi_in_event(midi, (uint64_t)t, 0xF8, 0, 0);
+		const int want = (int)((t + perTick - (double)from) / OM_MAX_BLOCK);
+		om_midi_in_advance(midi, (uint32_t)(want - rendered) * OM_MAX_BLOCK);
+		run(want - rendered, rendered);
+		rendered = want;
+	}
+	return rendered;
 }
 
 // blocks where the level jumps: a hit starts
@@ -121,9 +142,51 @@ int main(void)
 	const int alone = onsets(0, blocks, hits, 64);
 	CHECK(alone >= 6, "the LXR alone played %d kicks in 4 s", alone);
 
-	// each voice on its own channel: drum 1-3, snare, cymbal, hihat (open and closed), FX bus
 	pressButton(33);   // Start/Stop: stops it
 	run(800, -1);
+
+	// an external MIDI clock at 120 BPM drives it: ticks stamped ahead, each block's applied before it renders
+	{
+		OmMidiIn *midi = om_midi_in_create(st, RATE, NULL);
+		const double perTick = RATE * 60.0 / 120.0 / 24.0;
+		int rendered;
+		om_midi_in_event(midi, om_studio_frame(st), 0xFA, 0, 0);   // Start
+		rendered = clockTicks(midi, 36, perTick);                                 // a beat and a half: kicks on 0 and 24
+		int ext = onsets(0, rendered, hits, 64);
+		const int firstHit = ext ? hits[0] : 0;   // a kick shows this many blocks after its tick
+		CHECK(ext == 2, "Start and 36 ticks of MIDI clock: %d kicks, not 2", ext);
+		if (ext == 2)
+			CHECK(fabs((hits[1] - hits[0]) - beat) <= 3.0, "the kicks are a beat apart: %d blocks", hits[1] - hits[0]);
+		om_midi_in_event(midi, om_studio_frame(st), 0xFC, 0, 0);   // Stop
+		om_midi_in_advance(midi, OM_MAX_BLOCK);
+		run(400, -1);
+		run(344, 0);
+		float stoppedPeak = 0.f;
+		for (int b = 0; b < 344; b++) stoppedPeak = fmaxf(stoppedPeak, peaks[b]);
+		CHECK(stoppedPeak < 0.01f, "the LXR stopped with Stop (peak %g)", stoppedPeak);
+
+		om_midi_in_event(midi, om_studio_frame(st), 0xFB, 0, 0);   // Continue: 12 ticks to the next kick
+		rendered = clockTicks(midi, 24, perTick);
+		ext = onsets(0, rendered, hits, 64);
+		CHECK(ext == 1, "Continue and 24 ticks: %d kicks, not 1", ext);
+		if (ext >= 1)
+		{
+			const int expected = firstHit + (int)(12 * perTick / OM_MAX_BLOCK);
+			CHECK(abs(hits[0] - expected) <= 3, "Continue picks up mid-bar: the kick is at block %d, not at %d", hits[0], expected);
+			printf("from MIDI clock: kicks a beat apart; after Continue the next is at block %d (a restart would be %d)\n", hits[0], firstHit);
+		}
+		om_midi_in_event(midi, om_studio_frame(st), 0xFC, 0, 0);
+		om_midi_in_advance(midi, OM_MAX_BLOCK);
+		om_midi_in_destroy(midi);
+		run(800, -1);
+		pressButton(33);   // on its own clock again
+		run(blocks, 0);
+		CHECK(onsets(0, blocks, hits, 64) >= 6, "after the MIDI clock the LXR plays alone again");
+		pressButton(33);
+		run(800, -1);
+	}
+
+	// each voice on its own channel: drum 1-3, snare, cymbal, hihat (open and closed), FX bus
 	CHECK(om_studio_channels(st) == 7, "the LXR has %d channels, not 7", om_studio_channels(st));
 	const uint8_t channelOf[7] = {0, 1, 2, 3, 4, 5, 5};
 	for (uint8_t part = 0; part < 7; part++)

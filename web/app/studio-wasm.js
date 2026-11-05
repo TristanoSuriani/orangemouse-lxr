@@ -66,6 +66,9 @@ export function applyMessage(w, msg) {
       else w.om_web_note_off(msg.engine, msg.part, msg.note);
       return true;
     case 'param': w.om_web_set_param(msg.engine, msg.part, msg.param, msg.value); return true;
+    case 'midiRoute': w.om_web_midi_route(msg.channel, msg.engine, msg.part); return true;
+    case 'midiTempo': w.om_web_midi_tempo(msg.bpm); return true;
+    case 'midiReset': w.om_web_midi_reset(); return true;
     case 'mix': w.om_web_mix(msg.target, msg.param, msg.value); return true;
     case 'fx': w.om_web_fx(msg.bus, msg.param, msg.value); return true;
     case 'tracker':

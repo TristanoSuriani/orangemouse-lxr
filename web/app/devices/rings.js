@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
 // The Rings panel (PLAN.md "Later", 2026-11-01): Mutable Instruments'
-// resonator, one part (RN1, tracker track 16), with presets for each genre.
+// resonator, one part (RN1, MIDI channel 16), with presets for each genre.
 //
 //   display  row 0: the part, its preset (* once changed) and model; rows
 //            1-3: every preset, a column per genre, the chosen one lit
@@ -51,7 +51,7 @@ const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 
 
 const GUIDE = [
   { title: 'Choose a sound', text: 'The display lists every preset, a column per genre: trance, electro, synthwave, dub techno. Click one, or PRE &lt; / PRE &gt; (up and down arrows; left and right change the column).' },
-  { title: 'Play', text: 'Keys Z to M and Q to I, or the keybed; OCT - / OCT + (or [ and ]) move the octave. Each note strikes the next voice and rings until it fades: there is no note off. Chords strum. Track 16 of the tracker plays Rings too.' },
+  { title: 'Play', text: 'Keys Z to M and Q to I, or the keybed; OCT - / OCT + (or [ and ]) move the octave. Each note strikes the next voice and rings until it fades: there is no note off. Chords strum. MIDI channel 16 plays Rings too.' },
   { title: 'Shape it', text: 'Rings has four knobs: STRUCTURE, BRIGHTNESS, DAMPING, POSITION. What they do depends on the model (modal bars and bells, sympathetic strings, a plucked string, FM, chords, a string with reverb); the display names them. MDL &lt; / MDL &gt; change the model. Harder notes are brighter.' },
   { title: 'Feed it', text: 'PAGE to SETUP: IN chooses what strikes Rings. "own" is its built-in strike; a channel (a drum, VA2, PL1...) sends that sound through the resonator, tuned by the notes Rings plays. Mute the channel in the mixer to hear only the ringing.' },
   { title: 'Saved with the song', text: 'The part\'s settings are part of the song. A * after the preset name means you changed it.' },
@@ -181,7 +181,7 @@ export function createRingsDevice({ send, help, song }) {
 
   // ---- pads ----
   const partPad = makePad(registry.parts[0], { kind: 'voice va', onChange: () => {} });
-  describe(partPad, help, 'RN1: Rings\' one part (tracker track 16). Up to four voices ring at once.');
+  describe(partPad, help, 'RN1: Rings\' one part (MIDI channel 16). Up to four voices ring at once.');
   el.querySelector('.rings-parts').append(partPad);
   const stepPreset = (d) => loadPreset((part()[P.PRESET] + d + PRESETS) % Math.max(1, PRESETS));
   const NAV = [

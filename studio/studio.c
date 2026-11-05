@@ -66,7 +66,7 @@ typedef struct
 	Biquad eq[3];     // low shelf, mid peak, high shelf
 } Channel;
 
-// the clock the gates follow: the tracker's (24 ticks a beat, a gate step
+// the clock the gates follow: a running clock's (24 ticks a beat, a gate step
 // every 6), or the tempo when nothing plays
 #define CLOCK_QUEUE 256
 typedef struct { uint64_t frame; uint8_t event; } ClockEvent;
@@ -674,7 +674,7 @@ static void renderEngine(OmStudio *st, Engine *en, uint64_t start)
 }
 
 // The clock for this block's frames: each frame's gate step (a 16th: 6
-// ticks, 16 to the bar). The tracker's ticks set it; between them, and when
+// ticks, 16 to the bar). A running clock's ticks set it; between them, and when
 // nothing plays, it runs on at the tempo.
 static void clockBlock(OmStudio *st)
 {

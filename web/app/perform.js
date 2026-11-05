@@ -91,7 +91,7 @@ export function createPerformView({ song, playing }) {
     // the picture
     lit.fill(0);
     const hex = (n) => n.toString(16).toUpperCase().padStart(2, '0');
-    const where = state[0] ? `P${hex(state[1])}:${hex(state[3])} ${Math.round(state[4])}BPM` : 'STOPPED';
+    const where = state[0] ? `${Math.round(state[4])}BPM` : 'STOPPED';
     text(W - 1 - where.length * 6, 1, where);
     text(1, 1, (s.name || '').toUpperCase().slice(0, Math.floor((W - 8 - where.length * 6) / 6)));
     for (let x = 0; x < W; x += 2) set(x, 10);

@@ -28,8 +28,9 @@
 
 #define OM_MAX_BLOCK 64   // the most frames the studio asks an engine for at once
 
-// the studio's clock, as MIDI clock: start, 24 ticks a beat, stop
-enum { OM_CLOCK_START, OM_CLOCK_TICK, OM_CLOCK_STOP };
+// the studio's clock, as MIDI clock: start, 24 ticks a beat, stop, and
+// continue (a start from where it stopped)
+enum { OM_CLOCK_START, OM_CLOCK_TICK, OM_CLOCK_STOP, OM_CLOCK_CONTINUE };
 
 typedef struct OmEngineClass
 {

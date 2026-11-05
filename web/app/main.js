@@ -11,12 +11,15 @@ import { SdCardStore, SD_SECTORS, SECTOR_SIZE, flushOnHide } from './sdcard.js';
 import { makePad, makeRotary, setKnobValue } from './kit/controls.js';
 import { KEY_SEMITONES } from './kit/keybed.js';
 import { createVaDevice } from './devices/va.js';
-import { createTrackerDevice } from './devices/tracker.js';
+import { createMidiDevice } from './devices/midi.js';
 import { createMixerDevice } from './devices/mixer.js';
 import { createDexedDevice } from './devices/dexed.js';
 import { createPlaitsDevice } from './devices/plaits.js';
 import { createRingsDevice } from './devices/rings.js';
 import { createPerformView } from './perform.js';
+import { createSession } from './session.js';
+import { createTiming } from './midi/timing.js';
+import { parseSettings, routeMessages } from './midi/routes.js';
 import { songMessages } from './tracker/song.js';
 import * as library from './tracker/library.js';
 import { backup } from './tracker/backup.js';
@@ -212,7 +215,7 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   const device = devices[shown]?.id;
-  if (device === 'tracker' && tracker.handleKey(e, true)) {
+  if (device === 'midi' && midiDevice.handleKey(e, true)) {
     e.preventDefault();
     return;
   }
@@ -251,7 +254,6 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.addEventListener('keyup', (e) => {
-  if (devices[shown]?.id === 'tracker' && tracker.handleKey(e, false)) return;
   if (e.code in KEY_SEMITONES) {   // released on both, in case the device changed while a key was down
     va.noteFromKey(KEY_SEMITONES[e.code], false);
     dexed.noteFromKey(KEY_SEMITONES[e.code], false);
@@ -270,6 +272,16 @@ window.addEventListener('keyup', (e) => {
 // ---- MIDI ------------------------------------------------------------------------
 
 const midi = { access: null, input: null, output: null };
+
+// the channels' routes, the tempo, the lookahead, the ports (midi/routes.js)
+const SETTINGS_KEY = 'om.midi';
+const settings = (() => {
+  try { return parseSettings(localStorage.getItem(SETTINGS_KEY)); } catch { return parseSettings(null); }
+})();
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* storage unavailable: the defaults next time */ }
+}
+let timing = null;   // from Web MIDI's timestamps to audio frames, once switched on
 
 async function setUpMidi() {
   if (!navigator.requestMIDIAccess) {
@@ -291,16 +303,37 @@ async function setUpMidi() {
       for (const port of ports.values()) sel.add(new Option(port.name, port.id));
       sel.value = [...ports.keys()].includes(current) ? current : '';
     }
+    // the ports last used, when they are (or come back); and a port that went away
+    if (!inSel.value) inSel.value = [...midi.access.inputs.values()].find((p) => p.name === settings.input)?.id ?? '';
+    if (!outSel.value) outSel.value = [...midi.access.outputs.values()].find((p) => p.name === settings.output)?.id ?? '';
+    connectInput();
+    connectOutput();
+  };
+  const connectInput = () => {
+    const port = midi.access.inputs.get(inSel.value) || null;
+    if (port === midi.input) return;
+    if (midi.input) {
+      midi.input.onmidimessage = null;
+      send({ type: 'midiReset' });   // nothing would end its notes now
+    }
+    midi.input = port;
+    if (port) port.onmidimessage = (e) => midiIn(Array.from(e.data), e.timeStamp);
+    midiDevice.render();
+  };
+  const connectOutput = () => {
+    midi.output = midi.access.outputs.get(outSel.value) || null;
   };
   fill();
   midi.access.onstatechange = fill;
   inSel.addEventListener('change', () => {
-    if (midi.input) midi.input.onmidimessage = null;
-    midi.input = midi.access.inputs.get(inSel.value) || null;
-    if (midi.input) midi.input.onmidimessage = (e) => midiIn(Array.from(e.data));
+    connectInput();
+    settings.input = midi.input?.name ?? '';
+    saveSettings();
   });
   outSel.addEventListener('change', () => {
-    midi.output = midi.access.outputs.get(outSel.value) || null;
+    connectOutput();
+    settings.output = midi.output?.name ?? '';
+    saveSettings();
   });
 }
 
@@ -308,13 +341,14 @@ async function setUpMidi() {
 // messages, so split it up again.
 const midiOutParser = { status: 0, data: [], sysex: null };
 
-// MIDI in (PLAN.md 10.5): a knob box's CC 21-28 turn knobs 1-8 of the device
-// on show (in the panel's order), whatever it is; everything else goes to the
-// LXR, as on the hardware. The studio's knobs are endless: a CC turns its knob
-// by how far it moved since its last value, so nothing jumps.
+// MIDI in: a knob box's CC 21-28 turn knobs 1-8 of the device on show (in the
+// panel's order), whatever it is (PLAN.md 10.5). The studio's knobs are endless:
+// a CC turns its knob by how far it moved since its last value, so nothing
+// jumps. Everything else goes to the worklet's router (studio/midi_in.c), with
+// the frame it should sound on.
 const KNOB_CCS = 21;
 const lastCc = new Map();
-function midiIn(bytes) {
+function midiIn(bytes, stamp = performance.now()) {
   const [status, cc, value] = bytes;
   if ((status & 0xf0) === 0xb0 && cc >= KNOB_CCS && cc < KNOB_CCS + 8) {
     const key = `${status & 0x0f}:${cc}`;
@@ -325,7 +359,7 @@ function midiIn(bytes) {
     if (pot?.turn && before !== undefined && value !== before) pot.turn(value - before);
     return;
   }
-  send({ type: 'midi', bytes });
+  if (timing) send({ type: 'midiEvent', frame: timing.frameFor(stamp, settings.lookahead), bytes });
 }
 
 function sendMidiBytes(bytes) {
@@ -356,6 +390,8 @@ function sendMidiBytes(bytes) {
 
 const store = new SdCardStore();
 flushOnHide(store);
+
+const TIMING_SAMPLE_MS = 100;
 
 async function switchOn() {
   const power = document.getElementById('power');
@@ -389,7 +425,11 @@ async function switchOn() {
   });
   node.connect(gain).connect(context.destination);
   node.port.onmessage = (e) => onWorkletMessage(e.data);
-  for (const m of songMessages(tracker.song())) send(m);   // the worklet's tracker gets the song
+  for (const m of songMessages(session.song())) send(m);   // the worklet gets the sounds and the mix
+  for (const m of routeMessages(settings.routes)) send(m);
+  send({ type: 'midiTempo', bpm: settings.tempo });
+  timing = createTiming({ audioTime: () => context.currentTime, rate: context.sampleRate });
+  setInterval(() => timing.sample(), TIMING_SAMPLE_MS);
   node.onprocessorerror = () => setStatus('The studio stopped with an error, reload the page.');
 
   for (const [i, input] of document.querySelectorAll('.fader').entries()) {
@@ -397,7 +437,7 @@ async function switchOn() {
   }
   await context.resume();
   power.hidden = true;
-  window.orangeMouse = { context, node, va, tracker, mixer, dexed, plaits, rings, perform };   // for the browser tests (tests/browser/)
+  window.orangeMouse = { context, node, va, session, midi: midiDevice, mixer, dexed, plaits, rings, perform };   // for the browser tests (tests/browser/)
   setStatus(card.blank ? 'New SD card formatted' : 'SD card loaded');
 }
 
@@ -413,7 +453,7 @@ function describeLxr() {
     if (!info) return `Pot ${i + 1}: a setting of this page (the display shows its name and value).`;
     return `Pot ${i + 1} (${info.part ? info.part + ' ' : ''}${info.group}): ${helpLine(info, lxrPots.values[i])}`;
   }));
-  describe(document.getElementById('midiIn'), help, 'MIDI in: a knob box on CC 21-28 turns knobs 1-8 of the device on show; notes and the other CCs play the LXR.');
+  describe(document.getElementById('midiIn'), help, 'MIDI in: your sequencer\'s port. The MIDI device (Alt+1) says which channel plays what. CC 21-28 turn knobs 1-8 of the device on show; the other CCs reach the LXR.');
   describe(document.getElementById('encoder'), help, 'Data encoder: turn it to move the cursor on the display, or to change the value. Click (or Enter) switches between the two.');
   document.querySelectorAll('.fader').forEach((f, i) => describe(f, help, `${FADERS[i]} volume fader.`));
   const pads = [
@@ -443,12 +483,9 @@ function onWorkletMessage(msg) {
         devices[1].mini(lcd.toString().split('\n'));
       }
       if (msg.leds) showLeds(msg.leds);
-      if (msg.tracker) {
-        tracker.onState(msg.tracker);
-        devices[0].mini(tracker.summary());
-      }
+      if (msg.midiIn) midiDevice.onStatus(msg.midiIn);
       if (msg.meters) { mixer.onMeters(msg.meters); perform.onMeters(msg.meters); }
-      if (msg.lxrKit) tracker.keepLxrKit(msg.lxrKit);
+      if (msg.lxrKit) session.keepLxrKit(msg.lxrKit);
       if (msg.lxrPots) {
         lxrPots = msg.lxrPots;
         // the pots' slider values: the parameters they change now
@@ -516,22 +553,22 @@ const help = new HelpStrip(document.getElementById('help'),
 
 buildPanel();
 describeLxr();
-const tracker = createTrackerDevice({ send, help, sdImage: () => store.image, onPerform: () => perform.show() });   // WAV export renders with the LXR's card
-// VA's slots are part of the song: its changes go through the tracker, which saves them
-const va = createVaDevice({ send: tracker.send, help, song: tracker.song });
-// the mix is part of the song: its changes go through the tracker, which saves them
-const mixer = createMixerDevice({ send: tracker.send, help, song: tracker.song });
-const dexed = createDexedDevice({ send: tracker.send, help, song: tracker.song });
-const plaits = createPlaitsDevice({ send: tracker.send, help, song: tracker.song });
-const rings = createRingsDevice({ send: tracker.send, help, song: tracker.song });
-tracker.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); rings.render(); va.load(s); });
-// the perform view: the tracks' levels as visuals, full screen (F, or the Perform button)
-const perform = createPerformView({ song: tracker.song, playing: tracker.playing });
+// the sounds and the mix: the session keeps them (the devices' changes go through it, which saves them)
+const session = createSession({ send });
+const va = createVaDevice({ send: session.send, help, song: session.song });
+const mixer = createMixerDevice({ send: session.send, help, song: session.song });
+const dexed = createDexedDevice({ send: session.send, help, song: session.song });
+const plaits = createPlaitsDevice({ send: session.send, help, song: session.song });
+const rings = createRingsDevice({ send: session.send, help, song: session.song });
+const midiDevice = createMidiDevice({ send, help, session, settings, saveSettings, inputName: () => midi.input?.name ?? '', onPerform: () => perform.show() });
+session.onLoad((s) => { mixer.render(); dexed.render(); plaits.render(); rings.render(); va.load(s); midiDevice.render(); });
+// the perform view: the parts' levels as visuals, full screen (F, or the PERF pad)
+const perform = createPerformView({ song: session.song, playing: () => { const s = midiDevice.status(); return [s.running, 0, 0, 0, s.bpm]; } });
 document.body.append(perform.el);
 
 // an empty song at once; when the library answers, the song last edited,
 // else the library's newest, takes its place
-tracker.load(library.migrate({}));
+session.load(library.migrate({}));
 // songs can't be lost: persistent storage, and the backup folder copies each save
 library.onSave((s) => backup.saved(s));
 (async () => {
@@ -544,11 +581,10 @@ library.onSave((s) => backup.saved(s));
   const saved = id && (await library.load(id));
   if (saved) {
     saved.id = id;
-    tracker.load(saved);
-    devices[0].mini(tracker.summary());
+    session.load(saved);
   }
 })();
-document.getElementById('devices').prepend(tracker.el);
+document.getElementById('devices').prepend(midiDevice.el);
 document.getElementById('devices').append(va.el);
 document.getElementById('devices').append(dexed.el);
 document.getElementById('devices').append(plaits.el);
@@ -569,7 +605,7 @@ const machine = document.getElementById('machine');
 addGuide(machine, machine.querySelector('.device-head'), LXR_GUIDE, help);
 
 const devices = [
-  { id: 'tracker', name: 'TRK', what: 'tracker', el: tracker.el },
+  { id: 'midi', name: 'MIDI', what: 'MIDI', el: midiDevice.el },
   { id: 'lxr', name: 'LXR', what: 'drum machine', el: machine },
   { id: 'va', name: 'VA', what: 'Orange Mouse VA', el: va.el },
   { id: 'dexed', name: 'DX', what: 'Dexed', el: dexed.el },
@@ -599,7 +635,7 @@ dexed.onSummary((rows) => card('dexed').mini(rows));
 plaits.onSummary((rows) => card('plaits').mini(rows));
 rings.onSummary((rows) => card('rings').mini(rows));
 mixer.onSummary((rows) => card('mixer').mini(rows));
-devices[0].mini(tracker.summary());
+midiDevice.onSummary((rows) => card('midi').mini(rows));
 
 function showDevice(i) {
   if (i < 0 || i >= devices.length) return;

@@ -74,6 +74,7 @@ target_compile_definitions(lxr_firmware PRIVATE ${musl_math_definition})
 add_library(om_core OBJECT
     ${LXR_ROOT}/studio/studio.c
     ${LXR_ROOT}/studio/tracker.c
+    ${LXR_ROOT}/studio/midi_in.c
     ${LXR_ROOT}/engines/orangemouse-va/VaEngine.c
     ${LXR_ROOT}/engines/orangemouse-va/VaPresets.c
     ${LXR_ROOT}/engines/orangemouse-va/va_engine.c
@@ -130,6 +131,7 @@ endforeach()
 add_executable(studio_render studio_render.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(studio_test studio_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(tracker_test tracker_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
+add_executable(midi_in_test midi_in_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(lxr_sync_test lxr_sync_test.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(dexed_test dexed_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 target_include_directories(dexed_test PRIVATE ${LXR_ROOT}/engines/dexed)
@@ -143,7 +145,7 @@ target_include_directories(fuzz PRIVATE ${LXR_ROOT}/engines/rings)   # the panic
 # the tests that print a hash for the parity check make their input as the browser does: unfused
 target_compile_options(studio_test PRIVATE -ffp-contract=off)
 target_compile_options(rings_test PRIVATE -ffp-contract=off)
-foreach(tool studio_render studio_test tracker_test lxr_sync_test dexed_test plaits_test rings_test song_render fuzz)
+foreach(tool studio_render studio_test tracker_test midi_in_test lxr_sync_test dexed_test plaits_test rings_test song_render fuzz)
     target_include_directories(${tool} PRIVATE ${LXR_ROOT}/studio ${LXR_ROOT}/engines ${LXR_ROOT}/generated/registry)
     target_link_libraries(${tool} PRIVATE m)
 endforeach()
@@ -152,7 +154,7 @@ endforeach()
 # show the browser computes what the native tests checked.
 #   emcmake cmake -S tests/host -B tests/host/build-wasm -G Ninja
 if(EMSCRIPTEN)
-    foreach(tool ${lxr_tools} studio_render studio_test tracker_test dexed_test plaits_test rings_test song_render)
+    foreach(tool ${lxr_tools} studio_render studio_test tracker_test midi_in_test dexed_test plaits_test rings_test song_render)
         target_link_options(${tool} PRIVATE -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=1MB -sEXIT_RUNTIME=1)
     endforeach()
 endif()

@@ -1980,6 +1980,23 @@ void seq_setRunning(uint8_t isRunning)
 
 }
 //------------------------------------------------------------------------------
+// Where the tracks are, for a MIDI Continue: seq_setRunning() puts them back at
+// their start on every stop and start.
+static int8_t seq_heldStepIndex[NUM_TRACKS];
+static uint8_t seq_heldMasterStepCnt;
+
+void seq_holdPosition()
+{
+	memcpy(seq_heldStepIndex, seq_stepIndex, sizeof(seq_heldStepIndex));
+	seq_heldMasterStepCnt = seq_masterStepCnt;
+}
+//------------------------------------------------------------------------------
+void seq_returnToHeldPosition()
+{
+	memcpy(seq_stepIndex, seq_heldStepIndex, sizeof(seq_heldStepIndex));
+	seq_masterStepCnt = seq_heldMasterStepCnt;
+}
+//------------------------------------------------------------------------------
 void seq_setSongModeEnabled(uint8_t onOff)
 {
 	seq_songModeEnabled = onOff;
