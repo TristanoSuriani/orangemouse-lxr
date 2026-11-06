@@ -14,6 +14,10 @@
 #include <string.h>
 #include "midi_in.h"
 
+#include "om_registry_va.h"
+#include "om_registry_dexed.h"
+#include "om_registry_plaits.h"
+#include "om_registry_rings.h"
 extern const OmEngineClass om_va_engine, om_dexed_engine, om_plaits_engine, om_rings_engine;
 
 static int failures;
@@ -25,7 +29,7 @@ static int failures;
 // ---- a mock engine: 2 parts, renders any length, logs each event with the
 // frame it lands on (it counts the frames it rendered) ----
 typedef struct { int type; int part, note, value; uint64_t frame; } Logged;
-enum { L_ON, L_OFF, L_CLOCK, L_PARAM };
+enum { L_ON, L_OFF, L_CLOCK, L_PARAM, L_BEND, L_PROGRAM };
 static Logged logged[4096];
 static int logCount;
 static uint64_t rendered;
@@ -75,6 +79,9 @@ static const OmParamInfo mappedParams[] = {
 	{"HELD", "HLD", "Held", 0, 127, 0, 0, 7},
 };
 static OmEngineClass mappedClass;
+static float bendSeen[2];
+static void mappedBend(void *self, uint8_t part, float semitones) { (void)self; record(L_BEND, part, 0, 0); bendSeen[part] = semitones; }
+static void mappedProgram(void *self, uint8_t part, uint8_t number) { (void)self; record(L_PROGRAM, part, number, 0); mockValues[part][0] = number; }
 static void mappedRender(void *self, float *const *stems, uint32_t frames)
 {
 	(void)self;
@@ -102,6 +109,9 @@ static void setUp(void)
 	mappedClass.numParams = 4;
 	mappedClass.clock = NULL;
 	mappedClass.render = mappedRender;
+	mappedClass.pitch_bend = mappedBend;
+	mappedClass.program = mappedProgram;
+	bendSeen[0] = bendSeen[1] = 0.f;
 	om_studio_add_engine(st, &mappedClass);
 	memset(mockValues, 0, sizeof(mockValues));
 	mappedRendered = 0;
@@ -513,6 +523,201 @@ static double stepUnderCc(const OmEngineClass *cls, uint8_t cc, int ride, double
 	return worst;
 }
 
+static void sendNow(uint8_t b0, uint8_t b1, uint8_t b2)
+{
+	om_midi_in_event(m, om_studio_frame(st), b0, b1, b2);
+	run(1);
+}
+
+static void testBendAndProgram(void)
+{
+	setUp();
+	om_midi_in_route(m, 2, 1, 1);   // channel 3: the engine that takes them, part 1
+	om_midi_in_route(m, 3, 0, 0);   // channel 4: one that does not, as the LXR
+
+	// the middle is none, the ends are the range: 2 semitones
+	static const struct { uint8_t lsb, msb; float want; } bends[] = {
+		{0x7F, 0x7F, 2.f}, {0, 0, -2.f}, {0, 0x40, 0.f}, {0, 0x60, 1.f},
+	};
+	for (size_t i = 0; i < sizeof(bends) / sizeof(bends[0]); i++)
+	{
+		sendNow(0xE2, bends[i].lsb, bends[i].msb);
+		CHECK(fabsf(bendSeen[1] - bends[i].want) < 1e-3f, "bend %02x %02x: %.4f semitones, not %.1f", bends[i].msb, bends[i].lsb, bendSeen[1], bends[i].want);
+	}
+	CHECK(rawCount == 0, "a bend for the engine stops here (%d bytes)", rawCount);
+
+	// RPN 0 sets the range; another RPN's data does not
+	sendNow(0xB2, 101, 0); sendNow(0xB2, 100, 0); sendNow(0xB2, 6, 12);
+	sendNow(0xE2, 0x7F, 0x7F);
+	CHECK(fabsf(bendSeen[1] - 12.f) < 1e-3f, "RPN 0 = 12: the wheel's end is 12 semitones (%.3f)", bendSeen[1]);
+	sendNow(0xB2, 100, 1); sendNow(0xB2, 6, 1);
+	sendNow(0xE2, 0x7F, 0x7F);
+	CHECK(fabsf(bendSeen[1] - 12.f) < 1e-3f, "RPN 1's data leaves the range alone (%.3f)", bendSeen[1]);
+	sendNow(0xB2, 100, 0); sendNow(0xB2, 6, 100);
+	sendNow(0xE2, 0x7F, 0x7F);
+	CHECK(fabsf(bendSeen[1] - 24.f) < 1e-3f, "the range stops at 24 (%.3f)", bendSeen[1]);
+	CHECK(paramCount() == 0 && rawCount == 0, "RPN messages move no parameter, reach no firmware");
+
+	// Reset All Controllers, a re-route and a lost port each end the bend
+	sendNow(0xB2, 121, 0);
+	CHECK(bendSeen[1] == 0.f, "CC 121 ends the bend (%.3f)", bendSeen[1]);
+	sendNow(0xE2, 0x7F, 0x7F);
+	om_midi_in_route(m, 2, 1, 0);
+	run(1);
+	CHECK(bendSeen[1] == 0.f, "a re-route ends the bend on the part it left (%.3f)", bendSeen[1]);
+	sendNow(0xE2, 0x7F, 0x7F);
+	om_midi_in_reset(m);
+	run(1);
+	CHECK(bendSeen[0] == 0.f, "a lost port ends the bend (%.3f)", bendSeen[0]);
+	om_midi_in_route(m, 2, 1, 1);
+
+	// a program: the engine loads it, the panels read the whole part, once
+	OmMidiInChange c;
+	while (om_midi_in_change(m, &c)) {}
+	logCount = rawCount = 0;
+	sendNow(0xB2, 74, 50);            // a single change, then the program
+	om_midi_in_event(m, om_studio_frame(st), 0xC2, 7, 0);
+	run(1);
+	CHECK(countOf(L_PROGRAM) == 1 && logged[logCount - 1].note == 7 && logged[logCount - 1].part == 1, "program change 7 reaches part 1");
+	CHECK(rawCount == 0, "and stops here");
+	int whole = 0, single = 0;
+	while (om_midi_in_change(m, &c))
+		c.param == OM_MIDI_WHOLE_PART ? whole++ : single++;
+	CHECK(whole == 1 && single == 0, "it is one whole-part change (%d whole, %d single)", whole, single);
+
+	// a CC right after a program, in the same block, is not taken for a repeat
+	// of the value the engine had before the program
+	mockValues[1][0] = 50;
+	const uint64_t f = om_studio_frame(st);
+	om_midi_in_event(m, f, 0xC2, 9, 0);
+	om_midi_in_event(m, f + 1, 0xB2, 74, 50);
+	run(1);
+	CHECK(mockValues[1][0] == 50, "CC 74 = 50 after program 9 sets 50, not the program's 9 (%d)", mockValues[1][0]);
+	while (om_midi_in_change(m, &c)) {}
+
+	// an engine that takes neither: both go to the firmware, as before
+	rawCount = 0;
+	sendNow(0xE3, 0x7F, 0x7F);
+	sendNow(0xC3, 5, 0);
+	CHECK(rawCount == 5, "bend and program on the LXR's channel reach the raw sink (%d bytes)", rawCount);
+	tearDown();
+}
+
+// A note's period in frames, by autocorrelation, half a second in (the real engines)
+#define PITCH_WINDOW 4096
+static double period(const OmEngineClass *cls, int bendMsb, double *level)
+{
+	OmStudio *studio = om_studio_create(RATE);
+	const int e = om_studio_add_engine(studio, cls);
+	OmMidiIn *in = om_midi_in_create(studio, RATE, NULL);
+	om_midi_in_route(in, 0, (uint8_t)e, 0);
+	if (cls == &om_va_engine)   // one oscillator, no drift, no vibrato, the filter open: one clear period
+	{
+		static const uint8_t plain[][2] = {{17, 0}, {109, 0}, {1, 0}, {74, 127}, {111, 0}};
+		for (size_t k = 0; k < sizeof(plain) / sizeof(plain[0]); k++)
+			om_midi_in_event(in, 0, 0xB0, plain[k][0], plain[k][1]);
+	}
+	om_midi_in_event(in, 0, 0xE0, bendMsb == 0x7F ? 0x7F : 0, (uint8_t)bendMsb);
+	om_midi_in_event(in, 0, 0x90, cls == &om_va_engine ? 81 : 45, 110);   // A2, 110 Hz (VA's slot 1 plays bass, 3 octaves down)
+	static float x[PITCH_WINDOW];
+	float l[OM_MAX_BLOCK], r[OM_MAX_BLOCK];
+	const int skip = (int)RATE / 4 / OM_MAX_BLOCK;
+	for (int b = 0; b < skip + PITCH_WINDOW / OM_MAX_BLOCK; b++)
+	{
+		om_midi_in_advance(in, OM_MAX_BLOCK);
+		om_studio_render(studio, l, r, OM_MAX_BLOCK);
+		if (b >= skip)   // both sides: Rings' models can sound on one only
+			for (int i = 0; i < OM_MAX_BLOCK; i++)
+				x[(b - skip) * OM_MAX_BLOCK + i] = l[i] + r[i];
+	}
+	om_midi_in_destroy(in);
+	om_studio_destroy(studio);
+	double energy = 0.0;
+	for (int i = 0; i < PITCH_WINDOW; i++)
+		energy += (double)x[i] * x[i];
+	*level = sqrt(energy / PITCH_WINDOW);
+	// the normalised autocorrelation from 40 to 1000 Hz; the shortest lag within
+	// 5 % of the best one, so an octave below is not taken
+	enum { MIN_LAG = 44, MAX_LAG = 1102 };
+	static double ac[MAX_LAG + 2];
+	double best = 0.0;
+	for (int lag = MIN_LAG - 1; lag <= MAX_LAG + 1; lag++)
+	{
+		double s = 0.0, a = 0.0, c = 0.0;
+		for (int i = 0; i + lag < PITCH_WINDOW; i++)
+		{
+			s += (double)x[i] * x[i + lag];
+			a += (double)x[i] * x[i];
+			c += (double)x[i + lag] * x[i + lag];
+		}
+		ac[lag] = a > 0.0 && c > 0.0 ? s / sqrt(a * c) : 0.0;
+		if (lag >= MIN_LAG && lag <= MAX_LAG && ac[lag] > best)
+			best = ac[lag];
+	}
+	for (int lag = MIN_LAG; lag <= MAX_LAG; lag++)
+		if (ac[lag] >= 0.95 * best && ac[lag] >= ac[lag - 1] && ac[lag] >= ac[lag + 1])
+		{
+			// a parabola through the peak: a fraction of a frame
+			const double d = ac[lag - 1] - 2.0 * ac[lag] + ac[lag + 1];
+			return lag + (d != 0.0 ? 0.5 * (ac[lag - 1] - ac[lag + 1]) / d : 0.0);
+		}
+	return 0.0;
+}
+
+static void testRealBendAndProgram(void)
+{
+	static const struct { const char *name; const OmEngineClass *cls; } engines[] = {
+		{"VA", &om_va_engine}, {"Dexed", &om_dexed_engine}, {"Plaits", &om_plaits_engine}, {"Rings", &om_rings_engine},
+	};
+	for (size_t i = 0; i < sizeof(engines) / sizeof(engines[0]); i++)
+	{
+		double lf, lu, ld;
+		const double flat = period(engines[i].cls, 0x40, &lf), up = period(engines[i].cls, 0x7F, &lu), down = period(engines[i].cls, 0, &ld);
+		printf("%-7s period %.2f frames; bent up %.4f, down %.4f of it (2 semitones: 0.8909, 1.1225); level %.4f\n",
+			engines[i].name, flat, up / flat, down / flat, lf);
+		CHECK(lf > 1e-3 && flat > 0.0 && fabs(up / flat - 0.8909) < 0.005 && fabs(down / flat - 1.1225) < 0.005, "%s bends 2 semitones", engines[i].name);
+	}
+
+	// a program loads the preset, as the panel does
+	OmStudio *studio = om_studio_create(RATE);
+	om_studio_add_engine(studio, &om_va_engine);
+	om_studio_add_engine(studio, &om_dexed_engine);
+	om_studio_add_engine(studio, &om_plaits_engine);
+	om_studio_add_engine(studio, &om_rings_engine);
+	OmMidiIn *in = om_midi_in_create(studio, RATE, NULL);
+	static const struct { uint8_t engine, preset; uint16_t param; uint8_t number; } programs[] = {
+		{0, VA_P_PRESET, VA_P_PRESET, 5}, {1, DEXED_P_PROGRAM, DEXED_P_PROGRAM, 9}, {2, PL_P_PRESET, PL_P_PRESET, 3}, {3, RN_P_PRESET, RN_P_PRESET, 4},
+	};
+	float l[OM_MAX_BLOCK], r[OM_MAX_BLOCK];
+	for (size_t i = 0; i < sizeof(programs) / sizeof(programs[0]); i++)
+	{
+		om_midi_in_route(in, (uint8_t)i, programs[i].engine, 1 % om_studio_engine(studio, programs[i].engine)->parts);
+		om_midi_in_event(in, om_studio_frame(studio), (uint8_t)(0xC0 | i), programs[i].number, 0);
+	}
+	om_midi_in_advance(in, OM_MAX_BLOCK);
+	om_studio_render(studio, l, r, OM_MAX_BLOCK);
+	for (size_t i = 0; i < sizeof(programs) / sizeof(programs[0]); i++)
+	{
+		const uint8_t part = 1 % om_studio_engine(studio, programs[i].engine)->parts;
+		const uint8_t got = om_studio_get_param(studio, programs[i].engine, part, programs[i].param);
+		CHECK(got == programs[i].number, "%s takes program %d (%d)", om_studio_engine(studio, programs[i].engine)->name, programs[i].number, got);
+	}
+	int same = 1;
+	for (int k = 0; k < PLAITS_PRESET_PARAMS; k++)
+		same &= om_studio_get_param(studio, 2, 1, (uint16_t)k) == om_plaits_presets[3].p[k];
+	CHECK(same, "Plaits' program 3 is its preset 3's sound");
+	same = 1;
+	for (int k = 0; k < RINGS_PRESET_PARAMS; k++)
+		same &= om_studio_get_param(studio, 3, 0, (uint16_t)k) == om_rings_presets[4].p[k];
+	CHECK(same, "Rings' program 4 is its preset 4's sound");
+	om_midi_in_event(in, om_studio_frame(studio), 0xC2, 120, 0);   // Plaits has 64
+	om_midi_in_advance(in, OM_MAX_BLOCK);
+	om_studio_render(studio, l, r, OM_MAX_BLOCK);
+	CHECK(om_studio_get_param(studio, 2, 1, PL_P_PRESET) == 3, "a program it does not have changes nothing");
+	om_midi_in_destroy(in);
+	om_studio_destroy(studio);
+}
+
 static void testRealEngines(void)
 {
 	static const struct { const char *name; const OmEngineClass *cls; uint8_t cc; } cases[] = {
@@ -544,6 +749,8 @@ int main(void)
 	testBadInput();
 	testCcs();
 	testRealEngines();
+	testBendAndProgram();
+	testRealBendAndProgram();
 	if (failures)
 	{
 		printf("%d midi_in check(s) failed\n", failures);

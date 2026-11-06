@@ -17,13 +17,14 @@
 #include "filter.h"
 #include "shaper.h"
 
-enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK };
+enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK, EV_BEND, EV_PROGRAM };
 
 typedef struct
 {
 	uint64_t frame;
 	uint16_t param;
 	uint8_t type, part, note, value;
+	float amount;   // a bend's semitones
 } Event;
 
 typedef struct
@@ -269,6 +270,20 @@ int om_studio_note_off(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t par
 int om_studio_set_param(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint16_t param, uint8_t value)
 {
 	return push(st, engine, (Event){.frame = frame, .type = EV_PARAM, .part = part, .param = param, .value = value});
+}
+
+int om_studio_pitch_bend(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, float semitones)
+{
+	if (engine >= st->engines || !st->engine[engine].cls->pitch_bend || !(semitones >= -48.f && semitones <= 48.f))
+		return -1;
+	return push(st, engine, (Event){.frame = frame, .type = EV_BEND, .part = part, .amount = semitones});
+}
+
+int om_studio_program(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t number)
+{
+	if (engine >= st->engines || !st->engine[engine].cls->program || number > 127)
+		return -1;
+	return push(st, engine, (Event){.frame = frame, .type = EV_PROGRAM, .part = part, .value = number});
 }
 
 void om_studio_cancel_after(OmStudio *st, uint64_t frame)
@@ -630,6 +645,8 @@ static void dispatch(Engine *en, uint64_t until)
 		case EV_NOTE_OFF: en->cls->note_off(en->self, ev->part, ev->note); break;
 		case EV_PARAM:    en->cls->set_param(en->self, ev->part, ev->param, ev->value); break;
 		case EV_CLOCK:    en->cls->clock(en->self, ev->note); break;
+		case EV_BEND:     en->cls->pitch_bend(en->self, ev->part, ev->amount); break;
+		case EV_PROGRAM:  en->cls->program(en->self, ev->part, ev->value); break;
 		}
 		en->head = (en->head + 1) % OM_MAX_EVENTS;
 		en->count--;

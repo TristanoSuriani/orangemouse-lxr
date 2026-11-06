@@ -64,6 +64,14 @@ typedef struct OmEngineClass
 	// engine added later, or of the engine itself, gives the block before.
 	int (*input_source)(void *self);
 	void (*input)(void *self, const float *left, const float *right);
+
+	// optional (NULL): MIDI pitch bend, in semitones (0: none), for the part's
+	// sounding notes and the next ones
+	void (*pitch_bend)(void *self, uint8_t part, float semitones);
+	// optional (NULL): MIDI program change: the part loads its preset (VA,
+	// Plaits, Rings) or its bank's program (Dexed) `number`; one it does not
+	// have is ignored
+	void (*program)(void *self, uint8_t part, uint8_t number);
 } OmEngineClass;
 
 #endif /* OM_ENGINE_H_ */

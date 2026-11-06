@@ -132,6 +132,7 @@ add_executable(studio_render studio_render.c $<TARGET_OBJECTS:lxr_firmware> $<TA
 add_executable(studio_test studio_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(tracker_test tracker_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(midi_in_test midi_in_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
+target_include_directories(midi_in_test PRIVATE ${LXR_ROOT}/engines/plaits ${LXR_ROOT}/engines/rings ${LXR_ROOT}/engines/dexed ${LXR_ROOT}/engines/orangemouse-va)
 add_executable(lxr_sync_test lxr_sync_test.c $<TARGET_OBJECTS:lxr_firmware> $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 add_executable(dexed_test dexed_test.c $<TARGET_OBJECTS:om_core> ${om_fx_objects} ${musl_objects})
 target_include_directories(dexed_test PRIVATE ${LXR_ROOT}/engines/dexed)

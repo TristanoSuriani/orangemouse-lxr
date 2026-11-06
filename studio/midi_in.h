@@ -10,8 +10,10 @@
  *    LXR firmware's own MIDI settings), or nowhere.
  *  - moves a parameter on a CC of a channel whose engine has a CC map (the
  *    registry's "cc": VA, Dexed, Plaits, Rings; docs/MIDI_CC.md). Those CCs stop
- *    here. Everything else that is not a clock message goes to the raw sink, so
- *    the firmware's CCs and program changes work as on the hardware.
+ *    here, as do pitch bend (+-2 semitones, or what RPN 0 sets) and program
+ *    changes on a channel whose engine takes them (engine.h). Everything else
+ *    that is not a clock message goes to the raw sink, so the firmware's CCs,
+ *    program changes and bends work as on the hardware.
  *  - follows MIDI clock: Start, Continue, Stop and the ticks go to the studio's
  *    clock (the LXR's sequencer, the mixer's gates), and the tempo measured from
  *    the ticks goes to the engines and the send effects. Ticks also arrive while
@@ -56,7 +58,9 @@ void om_midi_in_event(OmMidiIn *m, uint64_t frame, uint8_t b0, uint8_t b1, uint8
 void om_midi_in_advance(OmMidiIn *m, uint32_t frames);
 
 // The next parameter a CC changed since the last call, with its value now: the
-// panels follow them. Returns 0 when there are no more. Call it between blocks.
+// panels follow them. A program change gives param OM_MIDI_WHOLE_PART: read all
+// of that part's. Returns 0 when there are no more. Call it between blocks.
+#define OM_MIDI_WHOLE_PART 0xFFFF
 typedef struct
 {
 	uint8_t engine, part;
@@ -65,7 +69,7 @@ typedef struct
 } OmMidiInChange;
 int om_midi_in_change(OmMidiIn *m, OmMidiInChange *out);
 
-// The port went away: stops the clock, ends the notes, forgets what is queued.
+// The port went away: stops the clock, ends the notes and the bends, forgets what is queued.
 void om_midi_in_reset(OmMidiIn *m);
 
 typedef struct

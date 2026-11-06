@@ -20,7 +20,13 @@
 #define MAX_BPM 400.f
 #define CHANGES 256          // more than the CC maps' parameters on all parts (226 now)
 
-enum { NOTE_OFF = 0x80, NOTE_ON = 0x90, CC = 0xB0, CC_ALL_SOUND_OFF = 120, CC_ALL_NOTES_OFF = 123, FIRST_MODE_CC = 120 };
+enum { NOTE_OFF = 0x80, NOTE_ON = 0x90, CC = 0xB0, PROGRAM = 0xC0, BEND = 0xE0 };
+enum { CC_DATA = 6, CC_DATA_LSB = 38, CC_RPN_LSB = 100, CC_RPN_MSB = 101,
+       CC_ALL_SOUND_OFF = 120, CC_RESET_CONTROLLERS = 121, CC_ALL_NOTES_OFF = 123, FIRST_MODE_CC = 120 };
+#define BEND_RANGE 2           // semitones, until an RPN 0 says otherwise
+#define MAX_BEND_RANGE 24
+#define NO_RPN 0x7F
+#define WHOLE_PART 0xFFFF      // a change: every parameter of the part (a program)
 enum { MIDI_TICK = 0xF8, MIDI_START = 0xFA, MIDI_CONTINUE = 0xFB, MIDI_STOP = 0xFC };
 
 typedef struct
@@ -33,8 +39,17 @@ typedef struct
 {
 	uint8_t engine, part;
 	uint8_t ownCcs;      // the engine has a CC map: its CCs stop here
+	uint8_t bends;       // the engine takes pitch bend
+	uint8_t programs;    // the engine takes program changes
 	uint8_t held[128];
 } Route;
+
+typedef struct
+{
+	float bend;          // semitones, as last sent
+	uint8_t range;       // the bend's semitones at the wheel's end (RPN 0)
+	uint8_t rpnMsb, rpnLsb;
+} Controllers;
 
 typedef struct
 {
@@ -48,6 +63,7 @@ struct OmMidiIn
 	float rate;
 	void (*raw)(uint8_t);
 	Route route[OM_MIDI_CHANNELS];
+	Controllers ctl[OM_MIDI_CHANNELS];
 	Message queue[QUEUE];
 	uint32_t head, count;
 	uint64_t lastFrame;      // the order: no message goes before this
@@ -80,7 +96,10 @@ OmMidiIn *om_midi_in_create(OmStudio *st, float sampleRate, void (*raw)(uint8_t 
 	m->raw = raw;
 	m->tempo = om_studio_tempo(st);
 	for (int c = 0; c < OM_MIDI_CHANNELS; c++)
+	{
 		m->route[c].engine = OM_MIDI_OFF;
+		m->ctl[c] = (Controllers){0.f, BEND_RANGE, NO_RPN, NO_RPN};
+	}
 	return m;
 }
 
@@ -107,15 +126,27 @@ static void endAllNotes(OmMidiIn *m, uint64_t frame)
 		endNotes(m, frame, c);
 }
 
+// The part plays in tune again.
+static void unbend(OmMidiIn *m, uint64_t frame, int channel)
+{
+	const Route *r = &m->route[channel];
+	if (m->ctl[channel].bend != 0.f && r->bends)
+		om_studio_pitch_bend(m->st, frame, r->engine, r->part, 0.f);
+	m->ctl[channel].bend = 0.f;
+}
+
 void om_midi_in_route(OmMidiIn *m, uint8_t channel, uint8_t engine, uint8_t part)
 {
 	if (channel >= OM_MIDI_CHANNELS)
 		return;
 	endNotes(m, om_studio_frame(m->st), channel);
+	unbend(m, om_studio_frame(m->st), channel);
 	m->route[channel].engine = engine;
 	m->route[channel].part = part;
 	m->route[channel].ownCcs = 0;
 	const OmEngineClass *cls = om_studio_engine(m->st, engine);
+	m->route[channel].bends = cls && cls->pitch_bend;
+	m->route[channel].programs = cls && cls->program;
 	for (uint16_t p = 0; cls && p < cls->numParams; p++)
 		if (cls->params[p].cc)
 			m->route[channel].ownCcs = 1;
@@ -305,17 +336,67 @@ static void moveParam(OmMidiIn *m, uint64_t frame, const Route *r, uint8_t cc, u
 		// A repeated value does nothing, so a CC that moves within one slice of a
 		// parameter of a few values costs nothing. What it was last set to may
 		// still be queued: the engine does not have it yet.
-		uint32_t i = 0;
-		while (i < m->changeCount && !(m->changes[i].engine == r->engine && m->changes[i].part == r->part && m->changes[i].param == p))
-			i++;
-		const uint8_t now = i < m->changeCount ? m->changes[i].value : om_studio_get_param(m->st, r->engine, r->part, p);
-		if (v == now || om_studio_set_param(m->st, frame, r->engine, r->part, p, v) != 0)
+		uint32_t i = 0, whole = 0;
+		for (uint32_t k = 0; k < m->changeCount; k++)
+			if (m->changes[k].engine == r->engine && m->changes[k].part == r->part)
+			{
+				if (m->changes[k].param == p)
+					i = k + 1;
+				whole |= m->changes[k].param == WHOLE_PART;   // a program is queued: the engine's value is not known yet
+			}
+		const int known = i > 0 || !whole;
+		const uint8_t now = i > 0 ? m->changes[i - 1].value : om_studio_get_param(m->st, r->engine, r->part, p);
+		i = i > 0 ? i - 1 : m->changeCount;
+		if ((known && v == now) || om_studio_set_param(m->st, frame, r->engine, r->part, p, v) != 0)
 			return;
 		if (i < m->changeCount)
 			m->changes[i].value = v;
 		else if (m->changeCount < CHANGES)
 			m->changes[m->changeCount++] = (Change){r->engine, r->part, v, p};
 		return;
+	}
+}
+
+// A program change: the part's whole sound changes; the panels read all of it.
+static void program(OmMidiIn *m, uint64_t frame, const Route *r, uint8_t number)
+{
+	if (om_studio_program(m->st, frame, r->engine, r->part, number) != 0)
+		return;
+	uint32_t kept = 0;   // the part's single changes are part of the whole one now
+	for (uint32_t k = 0; k < m->changeCount; k++)
+		if (!(m->changes[k].engine == r->engine && m->changes[k].part == r->part))
+			m->changes[kept++] = m->changes[k];
+	m->changeCount = kept;
+	if (m->changeCount < CHANGES)
+		m->changes[m->changeCount++] = (Change){r->engine, r->part, 0, WHOLE_PART};
+}
+
+// 14 bits, 0x2000 in the middle; both ends reach the range
+static void bend(OmMidiIn *m, uint64_t frame, int channel, uint8_t lsb, uint8_t msb)
+{
+	const int v = ((int)msb << 7 | lsb) - 0x2000;
+	Controllers *c = &m->ctl[channel];
+	const float s = (float)v / (v > 0 ? 8191.f : 8192.f) * (float)c->range;
+	const Route *r = &m->route[channel];
+	if (om_studio_pitch_bend(m->st, frame, r->engine, r->part, s) == 0)
+		c->bend = s;
+}
+
+// The registered parameters a sequencer sets with CC 101, 100 and 6: RPN 0, the
+// bend's range in semitones, is the one used.
+static int rpn(OmMidiIn *m, int channel, uint8_t cc, uint8_t value)
+{
+	Controllers *c = &m->ctl[channel];
+	switch (cc)
+	{
+	case CC_RPN_MSB: c->rpnMsb = value; return 1;
+	case CC_RPN_LSB: c->rpnLsb = value; return 1;
+	case CC_DATA:
+		if (c->rpnMsb == 0 && c->rpnLsb == 0)
+			c->range = value > MAX_BEND_RANGE ? MAX_BEND_RANGE : value;
+		return 1;
+	case CC_DATA_LSB: return 1;   // cents: too fine to matter here
+	default: return 0;
 	}
 }
 
@@ -328,13 +409,25 @@ static void apply(OmMidiIn *m, const Message *q)
 		note(m, q->frame, q->b);
 	else
 	{
-		const Route *r = &m->route[status & 0x0f];
-		if ((status & 0xf0) == CC && (q->b[1] == CC_ALL_NOTES_OFF || q->b[1] == CC_ALL_SOUND_OFF))
-			endNotes(m, q->frame, status & 0x0f);
-		if ((status & 0xf0) == CC && r->ownCcs && q->b[1] < FIRST_MODE_CC)
-			moveParam(m, q->frame, r, q->b[1], q->b[2]);
+		const int channel = status & 0x0f, type = status & 0xf0;
+		const Route *r = &m->route[channel];
+		if (type == BEND && r->bends)
+			bend(m, q->frame, channel, q->b[1], q->b[2]);
+		else if (type == PROGRAM && r->programs)
+			program(m, q->frame, r, q->b[1]);
+		else if (type == CC && r->ownCcs && q->b[1] < FIRST_MODE_CC)
+		{
+			if (!rpn(m, channel, q->b[1], q->b[2]))
+				moveParam(m, q->frame, r, q->b[1], q->b[2]);
+		}
 		else
+		{
+			if (type == CC && (q->b[1] == CC_ALL_NOTES_OFF || q->b[1] == CC_ALL_SOUND_OFF))
+				endNotes(m, q->frame, channel);
+			if (type == CC && q->b[1] == CC_RESET_CONTROLLERS)
+				unbend(m, q->frame, channel);
 			toRaw(m, q->b);
+		}
 	}
 }
 
@@ -358,6 +451,8 @@ void om_midi_in_reset(OmMidiIn *m)
 		om_studio_clock(m->st, now, OM_CLOCK_STOP);
 	m->running = 0;
 	endAllNotes(m, now);
+	for (int c = 0; c < OM_MIDI_CHANNELS; c++)
+		unbend(m, now, c);
 	m->everTicked = 0;
 	m->tickCount = m->tickPos = m->sinceTempo = 0;
 	m->applied = 0.f;
@@ -370,7 +465,7 @@ int om_midi_in_change(OmMidiIn *m, OmMidiInChange *out)
 		return 0;
 	const Change *c = &m->changes[--m->changeCount];
 	// the engine's own value: it may have held it closer (Dexed's banks)
-	*out = (OmMidiInChange){c->engine, c->part, c->param, om_studio_get_param(m->st, c->engine, c->part, c->param)};
+	*out = (OmMidiInChange){c->engine, c->part, c->param, c->param == WHOLE_PART ? 0 : om_studio_get_param(m->st, c->engine, c->part, c->param)};
 	return 1;
 }
 

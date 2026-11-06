@@ -10,6 +10,7 @@
  * Copyright (C) 2026 Erica Synths
  * SPDX-License-Identifier: GPL-3.0-only
  */
+#include <cmath>
 #include <cstring>
 #include <memory>
 #include <new>
@@ -148,7 +149,7 @@ void *dexedCreate(float rate)
 		Controllers &c = p.ctrls;
 		c.core = &d->core;
 		c.masterTune = 0;
-		c.pitch_range_up = c.pitch_range_dn = 2;
+		c.pitch_range_up = c.pitch_range_dn = 24;   // pitch_cc's full swing: dexedPitchBend scales to it
 		c.pitch_step = 0;
 		c.pitch_cc = 0x2000;
 		c.modwheel_cc = c.foot_cc = c.breath_cc = c.aftertouch_cc = 0;
@@ -231,6 +232,23 @@ void dexedSetParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 		loadPatch(p);   // the notes that sound keep theirs; the next ones play the new one
 }
 
+// msfa's bend: 0x2000 is none, 0 and 0x4000 the range, 24 semitones
+void dexedPitchBend(void *self, uint8_t part, float semitones)
+{
+	if (part >= DEXED_PARTS)
+		return;
+	const float s = semitones < -24.f ? -24.f : semitones > 24.f ? 24.f : semitones;
+	const int cc = 0x2000 + (int)std::lrint(s * (8192.f / 24.f));
+	static_cast<Dexed *>(self)->part[part].ctrls.pitch_cc = cc > 0x3fff ? 0x3fff : cc;
+}
+
+// a program of the part's bank
+void dexedProgram(void *self, uint8_t part, uint8_t number)
+{
+	if (number <= om_dexed_params[DEXED_P_PROGRAM].max)
+		dexedSetParam(self, part, DEXED_P_PROGRAM, number);
+}
+
 uint8_t dexedGetParam(void *self, uint8_t part, uint16_t param)
 {
 	if (part >= DEXED_PARTS || param >= DEXED_NUM_PARAMS)
@@ -281,7 +299,7 @@ extern "C" {
 const OmEngineClass om_dexed_engine = {
 	"Dexed", DEXED_PARTS, DEXED_PARTS, N, om_dexed_params, OM_DEXED_NUM_PARAMS,
 	dexedCreate, dexedDestroy, dexedNoteOn, dexedNoteOff, dexedSetParam, dexedGetParam, dexedSetTempo,
-	nullptr, dexedRender,
+	nullptr, dexedRender, nullptr, nullptr, dexedPitchBend, dexedProgram,
 };
 
 const char *om_dexed_bank_name(int bank)

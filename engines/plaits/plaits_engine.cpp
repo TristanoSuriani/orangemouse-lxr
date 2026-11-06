@@ -49,6 +49,7 @@ struct Voice
 struct Part
 {
 	float lastGain;   // -1: none yet
+	float bend;       // pitch bend, semitones
 	uint8_t value[PLAITS_NUM_PARAMS];
 	Voice voice[PLAITS_VOICES];
 	om::Resampler<QUEUE> out;   // rendered frames at Plaits' rate
@@ -91,7 +92,7 @@ void renderBlock(Plaits *pl, Part &p)
 		vo.retrigger = false;
 		vo.env = vo.gate ? std::fmin(1.f, vo.env + step) : 0.f;
 		m.level = vo.env * vo.velocity;
-		patch.note = vo.pitch;
+		patch.note = vo.pitch + p.bend;
 		float out[kBlockSize], aux[kBlockSize];
 		vo.dsp.Render(patch, m, out, aux, kBlockSize);
 		float peak = 0.f;
@@ -202,6 +203,22 @@ void plaitsSetParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 				vo.pitch = pitchOf(pl, p, vo.note);
 }
 
+void plaitsPitchBend(void *self, uint8_t part, float semitones)
+{
+	if (part < PLAITS_PARTS)
+		static_cast<Plaits *>(self)->part[part].bend = semitones;
+}
+
+// a preset: its sound parameters, as the panel loads it
+void plaitsProgram(void *self, uint8_t part, uint8_t number)
+{
+	if (part >= PLAITS_PARTS || number >= OM_PLAITS_NUM_PRESETS)
+		return;
+	for (int k = 0; k < PLAITS_PRESET_PARAMS; k++)
+		plaitsSetParam(self, part, (uint16_t)k, om_plaits_presets[number].p[k]);
+	plaitsSetParam(self, part, PL_P_PRESET, number);
+}
+
 uint8_t plaitsGetParam(void *self, uint8_t part, uint16_t param)
 {
 	if (part >= PLAITS_PARTS || param >= PLAITS_NUM_PARAMS)
@@ -231,5 +248,6 @@ void plaitsRender(void *self, float *const *stems, uint32_t frames)
 extern "C" const OmEngineClass om_plaits_engine = {
 	"Plaits", PLAITS_PARTS, PLAITS_PARTS, 0, om_plaits_params, OM_PLAITS_NUM_PARAMS,
 	plaitsCreate, plaitsDestroy, plaitsNoteOn, plaitsNoteOff, plaitsSetParam, plaitsGetParam, plaitsSetTempo,
-	nullptr, plaitsRender,
+	nullptr, plaitsRender, nullptr, nullptr,
+	plaitsPitchBend, plaitsProgram,
 };

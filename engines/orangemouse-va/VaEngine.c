@@ -672,6 +672,7 @@ typedef struct
 	VaVoice voice[VA_MAX_NOTES];
 	VaHalfband hb1[2], hb2[2];
 	float hpf[2];          // the output high-pass's states
+	float bend;            // pitch bend, semitones
 	float lastGain;        // the output level at the end of the last block
 	uint8_t hasGain;
 	float lfoPhase, lfoValue, lfoSh;
@@ -1009,7 +1010,7 @@ static void va_renderVoice(VaSlot *sl, VaVoice *v, const VaBlock *b, const float
 		const float l = lfo[i] * v->lfoFade;
 
 		v->pitch = v->targetPitch + (v->pitch - v->targetPitch) * b->glideCoef;
-		const float basePitch = v->pitch + b->octave + l * b->lfoPitch + drift * 0.01f;
+		const float basePitch = v->pitch + b->octave + l * b->lfoPitch + drift * 0.01f + sl->bend;
 
 		// cutoff in octaves above 20 Hz
 		const float cutOct = b->cutoff + b->fenv * fenv + b->keytrack * (v->pitch - 60.f) / 12.f +
@@ -1198,6 +1199,12 @@ void va_paramChanged(uint8_t slot, uint8_t paramIdx)
 		va_loadPreset(slot, va_params(slot)[VA_P_PRESET]);
 	else if (paramIdx == VA_P_MODE)
 		va_allNotesOff(slot);
+}
+
+void va_setBend(uint8_t slot, float semitones)
+{
+	if (slot < VA_NUM_SLOTS)
+		va_slot[slot].bend = semitones;
 }
 
 void va_loadPreset(uint8_t slot, uint8_t presetNr)

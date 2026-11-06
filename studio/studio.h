@@ -62,6 +62,10 @@ float om_studio_tempo(const OmStudio *st);
 int om_studio_note_on(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t note, uint8_t velocity);
 int om_studio_note_off(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t note);
 int om_studio_set_param(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint16_t param, uint8_t value);
+// Pitch bend (semitones) and program change, to an engine that takes them
+// (engine.h); -1 also for one that does not.
+int om_studio_pitch_bend(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, float semitones);
+int om_studio_program(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t number);
 // A clock event (OM_CLOCK_*) to every engine that follows the clock.
 void om_studio_clock(OmStudio *st, uint64_t frame, uint8_t event);
 // Drops the note-ons and clock ticks queued for after `frame`, on every

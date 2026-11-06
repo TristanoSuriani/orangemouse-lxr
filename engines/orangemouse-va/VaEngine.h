@@ -88,6 +88,8 @@ uint8_t va_getParam(uint8_t slot, uint8_t paramIdx);
 void va_paramChanged(uint8_t slot, uint8_t paramIdx);
 // copies preset presetNr of the slot's preset list into the slot's parameters
 void va_loadPreset(uint8_t slot, uint8_t presetNr);
+// pitch bend, in semitones, on the slot's sounding notes and the next ones
+void va_setBend(uint8_t slot, float semitones);
 // the default sound of every slot (its first preset) and mix settings
 void va_initKitParameters(uint8_t *params);
 // renders up to VA_BLOCK samples of a slot, stereo, full scale = 1.0;

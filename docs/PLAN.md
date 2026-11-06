@@ -561,9 +561,13 @@ it comes back. Where this plan says the tracker is the master clock, MIDI clock 
    CC 0-127 spans the parameter's range. The panels follow, and the sound set keeps the last value,
    as with a knob. Those engines' volumes ramp across a block, so riding one does not click
    (no sound changes while it holds still). CCs on the LXR's channels still go to its firmware.
-   Presets are not on CCs: Plaits' and Rings' are loaded by their panels.
+5. **Pitch bend and program change** (engine.h `pitch_bend`, `program`; studio/midi_in.c): on the
+   same channels, a bend moves the part's notes by 2 semitones, or the range RPN 0 sets (up to 24);
+   CC 121, a re-route and a lost port end it. A program change loads a preset as the panel does
+   (Dexed: a program of the part's bank); the panels read the whole part back. On the LXR's channels
+   both still go to its firmware.
 
-Not done, on purpose: pitch bend; Program Change to the other engines; CCs to the mixer; Song Position
+Not done, on purpose: CCs to the mixer; Song Position
 Pointer; CC 21-28 still turn the knobs of the device on show, so they never reach an engine. To listen
 to: VA's resonance on a fast CC sweep (its sample steps grow 3 times, with no ramp on it). Not yet tried:
 real hardware or a DAW (the tests send the messages through the page's MIDI handler). The

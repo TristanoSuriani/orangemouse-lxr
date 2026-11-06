@@ -66,6 +66,19 @@ static void vaSetTempo(void *self, float bpm)
 	va_setTempo(bpm);
 }
 
+static void vaPitchBend(void *self, uint8_t part, float semitones)
+{
+	(void)self;
+	va_setBend(part, semitones);
+}
+
+// a preset of the slot's bank; it loads the slot's whole sound
+static void vaProgram(void *self, uint8_t part, uint8_t number)
+{
+	if (number <= om_va_params[VA_P_PRESET].max)
+		vaSetParam(self, part, VA_P_PRESET, number);
+}
+
 static void vaRender(void *self, float *const *stems, uint32_t frames)
 {
 	(void)self;
@@ -92,4 +105,6 @@ const OmEngineClass om_va_engine = {
 	.get_param = vaGetParam,
 	.set_tempo = vaSetTempo,
 	.render = vaRender,
+	.pitch_bend = vaPitchBend,
+	.program = vaProgram,
 };

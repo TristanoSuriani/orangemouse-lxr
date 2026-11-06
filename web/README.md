@@ -44,8 +44,8 @@ with Web MIDI (Chrome, Edge, Firefox).
 - **MIDI**: MIDI in is how a sequencer plays the studio. The MIDI device (Alt+1) sets which channel plays which
   part (by default 1-7 the LXR's voices, 8-11 VA, 12-13 Dexed, 14-15 Plaits, 16 Rings). MIDI clock, Start, Continue
   and Stop drive the LXR's sequencer and the mixer's gates, and set the tempo. CCs other than 21-28 (a knob box's)
-  move the parameters of the part the channel plays (`docs/MIDI_CC.md`); on the LXR's channels they reach its firmware
-  by its own settings. MIDI out sends what the LXR's firmware sends.
+  move the parameters of the part the channel plays, and pitch bend and program change reach it too (`docs/MIDI_CC.md`);
+  on the LXR's channels they reach its firmware by its own settings. MIDI out sends what the LXR's firmware sends.
 
 ## How the port works
 

@@ -49,6 +49,7 @@ struct Rings
 	uint16_t reverb[32768];   // the string-and-reverb model's, as on the module
 	uint8_t value[RINGS_NUM_PARAMS];
 	float lastGain;   // -1: none yet
+	float bend;       // pitch bend, semitones
 	om::SincKernel down;      // 48 kHz to the studio's rate
 	om::SincKernel up;        // and back, for the input
 	om::Resampler<QUEUE> out;
@@ -96,7 +97,7 @@ void renderBlock(Rings *rn)
 		const float shift = (float)(v[RN_P_TRANSPOSE] - 24);
 		perf.internal_exciter = !external;
 		perf.tonic = TONIC + shift;
-		perf.note = rn->note - TONIC;
+		perf.note = rn->note - TONIC + rn->bend;
 		perf.chord = (int32_t)(unit(v[RN_P_STRUCTURE]) * (rings::kNumChords - 1) + 0.5f);
 		rings::Patch patch;
 		patch.structure = unit(v[RN_P_STRUCTURE]);
@@ -165,6 +166,24 @@ void ringsNoteOn(void *self, uint8_t part, uint8_t note, uint8_t velocity)
 
 void ringsNoteOff(void *, uint8_t, uint8_t) {}   // a resonator rings on
 
+void ringsPitchBend(void *self, uint8_t part, float semitones)
+{
+	if (part < RINGS_PARTS)
+		static_cast<Rings *>(self)->bend = semitones;
+}
+
+void ringsSetParam(void *self, uint8_t part, uint16_t param, uint8_t value);
+
+// a preset: its sound parameters, as the panel loads it (not the input: routing)
+void ringsProgram(void *self, uint8_t part, uint8_t number)
+{
+	if (part >= RINGS_PARTS || number >= OM_RINGS_NUM_PRESETS)
+		return;
+	for (int k = 0; k < RINGS_PRESET_PARAMS; k++)
+		ringsSetParam(self, part, (uint16_t)k, om_rings_presets[number].p[k]);
+	ringsSetParam(self, part, RN_P_PRESET, number);
+}
+
 void ringsSetParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 {
 	if (part >= RINGS_PARTS || param >= RINGS_NUM_PARAMS)
@@ -223,4 +242,5 @@ extern "C" const OmEngineClass om_rings_engine = {
 	"Rings", RINGS_PARTS, RINGS_PARTS, 0, om_rings_params, OM_RINGS_NUM_PARAMS,
 	ringsCreate, ringsDestroy, ringsNoteOn, ringsNoteOff, ringsSetParam, ringsGetParam, ringsSetTempo,
 	nullptr, ringsRender, ringsInputSource, ringsInput,
+	ringsPitchBend, ringsProgram,
 };

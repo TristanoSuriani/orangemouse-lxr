@@ -516,6 +516,15 @@ try {
       check(open > closed * 2, `CC 74 opens VA's filter on a held note: ${closed.toFixed(4)} to ${open.toFixed(4)}`);
       await midiIn(0xb7, 74, 90);
       await midiIn(0xb7, 71, 0);
+
+      // a program change loads a preset, the panels and the song follow
+      await midiIn(0xc7, 5);         // VA slot 1: preset #6
+      await midiIn(0xcd, 3);         // Plaits part 1: preset 3
+      await sleep(400);
+      const after = await evaluate(`(() => { const s = window.orangeMouse.session.song(); return { va: s.va[0].params?.[44], plaits: s.plaits[0].p }; })()`);
+      const preset3 = await evaluate(`window.orangeMouse.plaits.presets()[3].params`);
+      check(after.va === 5, `program 5 on channel 8 loads VA's preset #6 (${after.va})`);
+      check(after.plaits[11] === 3 && preset3.every((v, i) => after.plaits[i] === v), `program 3 on channel 14 loads Plaits' preset 3 (${after.plaits})`);
     }
 
     // on time: a message that has just arrived is not late; one half a second old is

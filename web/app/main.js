@@ -462,7 +462,7 @@ function describeLxr() {
     if (!info) return `Pot ${i + 1}: a setting of this page (the display shows its name and value).`;
     return `Pot ${i + 1} (${info.part ? info.part + ' ' : ''}${info.group}): ${helpLine(info, lxrPots.values[i])}`;
   }));
-  describe(document.getElementById('midiIn'), help, 'MIDI in: your sequencer\'s port. The MIDI device (Alt+1) says which channel plays what. CC 21-28 turn knobs 1-8 of the device on show; the other CCs reach what the channel plays.');
+  describe(document.getElementById('midiIn'), help, 'MIDI in: your sequencer\'s port. The MIDI device (Alt+1) says which channel plays what. CC 21-28 turn knobs 1-8 of the device on show; the other CCs, pitch bend and program changes reach what the channel plays (docs/MIDI_CC.md).');
   describe(document.getElementById('encoder'), help, 'Data encoder: turn it to move the cursor on the display, or to change the value. Click (or Enter) switches between the two.');
   document.querySelectorAll('.fader').forEach((f, i) => describe(f, help, `${FADERS[i]} volume fader.`));
   const pads = [
