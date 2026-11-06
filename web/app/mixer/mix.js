@@ -68,6 +68,20 @@ export const channelMessage = (index, field, value) =>
 export const busMessage = (bus, param, value) => ({ type: 'mix', target: BUS_A + bus, param, value });
 export const fxMessage = (bus, index, value) => ({ type: 'fx', bus, param: index, value });
 
+// A control the studio's mixer changed (a MIDI CC), into the mix.
+const FIELD_OF = Object.fromEntries(Object.entries(CHANNEL_FIELDS).map(([k, v]) => [v, k]));
+export function applyMixValue(mix, target, param, value) {
+  if (target === MASTER) { if (param === MIX.LEVEL) mix.master = value; return; }
+  if (target === BUS_A || target === BUS_A + 1) {
+    const b = mix.buses[target - BUS_A];
+    if (param === MIX.RETURN) b.ret = value;
+    else if (param === MIX.FX_TYPE) b.type = value;
+    return;
+  }
+  const c = CHANNELS[target];
+  if (c && FIELD_OF[param]) mix.channels[c.key][FIELD_OF[param]] = value;
+}
+
 // Every message that makes the studio's mixer a copy of the mix.
 export function mixMessages(mix) {
   const msgs = [];

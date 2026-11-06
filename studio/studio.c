@@ -42,6 +42,7 @@ typedef struct
 	int on;
 	float b0, b1, b2, a1, a2;
 	float x1[2], x2[2], y1[2], y2[2];
+	float hz, db, targetDb;   // where it is, and where it glides to (eqProcess)
 } Biquad;
 
 // gains: where they are, and where they go during the next block
@@ -386,7 +387,45 @@ static void retarget(OmStudio *st)
 // a band's gain in dB from its byte (registry "bipolar": 64 is 0 dB, 12 dB at the ends)
 static float eqDb(uint8_t v) { return (v - 64) * 0.1905f; }
 
-// the channel's three bands from its EQ bytes; a band at 0 dB is off (and forgets its state)
+#define EQ_GLIDE_DB 0.75f   // per block: a band already on glides to a new gain (a ridden CC does not zip)
+
+// A band's coefficients for its frequency and gain; 0 dB passes the signal
+// through exactly (its other coefficients are 0).
+static void eqCoefs(const OmStudio *st, Biquad *q, int k)
+{
+	if (q->db == 0.f)
+	{
+		q->b0 = 1.f, q->b1 = q->b2 = q->a1 = q->a2 = 0.f;
+		return;
+	}
+	const float A = powf(10.f, q->db / 40.f);
+	const float w = 2.f * (float)M_PI * fminf(q->hz, 0.45f * st->rate) / st->rate;
+	const float c = cosf(w), sn = sinf(w);
+	float b0, b1, b2, a0, a1, a2;
+	if (k == 1)
+	{
+		const float alpha = sn / (2.f * EQ_MID_Q);
+		b0 = 1.f + alpha * A; b1 = -2.f * c; b2 = 1.f - alpha * A;
+		a0 = 1.f + alpha / A; a1 = -2.f * c; a2 = 1.f - alpha / A;
+	}
+	else
+	{
+		const float alpha = sn / 2.f * sqrtf(2.f), r = 2.f * sqrtf(A) * alpha;
+		const float s = k == 0 ? 1.f : -1.f;   // the high shelf mirrors the low one
+		b0 = A * ((A + 1.f) - s * (A - 1.f) * c + r);
+		b1 = s * 2.f * A * ((A - 1.f) - s * (A + 1.f) * c);
+		b2 = A * ((A + 1.f) - s * (A - 1.f) * c - r);
+		a0 = (A + 1.f) + s * (A - 1.f) * c + r;
+		a1 = -s * 2.f * ((A - 1.f) + s * (A + 1.f) * c);
+		a2 = (A + 1.f) + s * (A - 1.f) * c - r;
+	}
+	q->b0 = b0 / a0; q->b1 = b1 / a0; q->b2 = b2 / a0; q->a1 = a1 / a0; q->a2 = a2 / a0;
+}
+
+// The channel's three bands from its EQ bytes. A band at 0 dB is off until it
+// is moved; one that is on stays on, glides to its new gain (eqProcess) and
+// keeps its state, so a ride through the middle (a CC) does not restart the
+// filter from silence or step its gain, which clicked.
 static void eqSet(const OmStudio *st, Channel *ch)
 {
 	const uint8_t *v = ch->value;
@@ -395,44 +434,33 @@ static void eqSet(const OmStudio *st, Channel *ch)
 	for (int k = 0; k < 3; k++)
 	{
 		Biquad *q = &ch->eq[k];
-		if (gains[k] == 64)
+		const float db = gains[k] == 64 ? 0.f : eqDb(gains[k]);
+		q->hz = hz[k];
+		q->targetDb = db;
+		if (!q->on)
 		{
-			memset(q, 0, sizeof(*q));
-			continue;
+			if (gains[k] == 64)
+				continue;
+			q->on = 1;   // from off: at its gain at once
+			q->db = db;
 		}
-		const float A = powf(10.f, eqDb(gains[k]) / 40.f);
-		const float w = 2.f * (float)M_PI * fminf(hz[k], 0.45f * st->rate) / st->rate;
-		const float c = cosf(w), sn = sinf(w);
-		float b0, b1, b2, a0, a1, a2;
-		if (k == 1)
-		{
-			const float alpha = sn / (2.f * EQ_MID_Q);
-			b0 = 1.f + alpha * A; b1 = -2.f * c; b2 = 1.f - alpha * A;
-			a0 = 1.f + alpha / A; a1 = -2.f * c; a2 = 1.f - alpha / A;
-		}
-		else
-		{
-			const float alpha = sn / 2.f * sqrtf(2.f), r = 2.f * sqrtf(A) * alpha;
-			const float s = k == 0 ? 1.f : -1.f;   // the high shelf mirrors the low one
-			b0 = A * ((A + 1.f) - s * (A - 1.f) * c + r);
-			b1 = s * 2.f * A * ((A - 1.f) - s * (A + 1.f) * c);
-			b2 = A * ((A + 1.f) - s * (A - 1.f) * c - r);
-			a0 = (A + 1.f) + s * (A - 1.f) * c + r;
-			a1 = -s * 2.f * ((A - 1.f) + s * (A + 1.f) * c);
-			a2 = (A + 1.f) + s * (A - 1.f) * c - r;
-		}
-		q->b0 = b0 / a0; q->b1 = b1 / a0; q->b2 = b2 / a0; q->a1 = a1 / a0; q->a2 = a2 / a0;
-		q->on = 1;
+		eqCoefs(st, q, k);
 	}
 }
 
-static void eqProcess(Channel *ch, float *sl, float *sr)
+static void eqProcess(const OmStudio *st, Channel *ch, float *sl, float *sr)
 {
 	for (int k = 0; k < 3; k++)
 	{
 		Biquad *q = &ch->eq[k];
 		if (!q->on)
 			continue;
+		if (q->db != q->targetDb)
+		{
+			const float d = q->targetDb - q->db;
+			q->db = fabsf(d) <= EQ_GLIDE_DB ? q->targetDb : q->db + (d > 0.f ? EQ_GLIDE_DB : -EQ_GLIDE_DB);
+			eqCoefs(st, q, k);
+		}
 		for (int side = 0; side < 2; side++)
 		{
 			float *x = side ? sr : sl;
@@ -784,7 +812,7 @@ void om_studio_render(OmStudio *st, float *left, float *right, uint32_t frames)
 			Engine *en = &st->engine[ch->engine];
 			om_filter_process(ch->filter, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1], OM_MAX_BLOCK);
 			om_shaper_process(ch->shaper, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1], OM_MAX_BLOCK);
-			eqProcess(ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
+			eqProcess(st, ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
 			gate(st, ch, en->buf[2 * ch->stem], en->buf[2 * ch->stem + 1]);
 		}
 		for (int c = 0; c < st->channels; c++)

@@ -14,6 +14,7 @@ export const DEFAULT_LOOKAHEAD = 10;   // ms
 
 const OFF = 0xff;
 const RAW = 0xfe;
+const MIXER = 0xfd;
 
 const part = (key, name, engine, p, words) => ({ key, name, engine, part: p, words });
 
@@ -27,6 +28,7 @@ export const DESTINATIONS = [
   part('pl0', 'PL1', 3, 0, 'Plaits\' first part'),
   part('pl1', 'PL2', 3, 1, 'Plaits\' second part'),
   part('rn0', 'RN1', 4, 0, 'Rings'),
+  part('mixer', 'MIXER', MIXER, 0, 'the mixer: CCs set the drums\' channels, the send returns and the master (docs/MIDI_CC.md); notes are ignored'),
   part('lxrmenu', 'LXR MENU', RAW, 0, 'the LXR, by its own MIDI settings (its config menu: channels, a note for each voice); it can record these'),
 ];
 

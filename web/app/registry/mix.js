@@ -15,7 +15,8 @@ export default {
    "display": {
     "kind": "fader"
    },
-   "help": "How loud it is in the mix. 0 dB leaves it as the instrument makes it."
+   "help": "How loud it is in the mix. 0 dB leaves it as the instrument makes it.",
+   "cc": 11
   },
   {
    "id": "OM_MIX_PAN",
@@ -28,7 +29,8 @@ export default {
    "display": {
     "kind": "pan"
    },
-   "help": "Where it sits between the speakers: L, center, R."
+   "help": "Where it sits between the speakers: L, center, R.",
+   "cc": 10
   },
   {
    "id": "OM_MIX_SEND_A",
@@ -41,7 +43,8 @@ export default {
    "display": {
     "kind": "fader"
    },
-   "help": "How much of it goes to effect A (a reverb at first)."
+   "help": "How much of it goes to effect A (a reverb at first).",
+   "cc": 91
   },
   {
    "id": "OM_MIX_SEND_B",
@@ -54,7 +57,8 @@ export default {
    "display": {
     "kind": "fader"
    },
-   "help": "How much of it goes to effect B (a delay at first)."
+   "help": "How much of it goes to effect B (a delay at first).",
+   "cc": 93
   },
   {
    "id": "OM_MIX_MUTE",
@@ -71,7 +75,8 @@ export default {
      "on"
     ]
    },
-   "help": "Silences the channel, sends included."
+   "help": "Silences the channel, sends included.",
+   "cc": 9
   },
   {
    "id": "OM_MIX_SOLO",
@@ -88,7 +93,8 @@ export default {
      "on"
     ]
    },
-   "help": "Plays only the soloed channels (and the effects they send to)."
+   "help": "Plays only the soloed channels (and the effects they send to).",
+   "cc": 119
   },
   {
    "id": "OM_MIX_FX_TYPE",
@@ -179,7 +185,8 @@ export default {
      "obxbp"
     ]
    },
-   "help": "Surge's filters on the channel: low-pass, ladders, high-pass, band-pass, notch."
+   "help": "Surge's filters on the channel: low-pass, ladders, high-pass, band-pass, notch.",
+   "cc": 113
   },
   {
    "id": "OM_MIX_CUTOFF",
@@ -195,7 +202,8 @@ export default {
     "octaves": 10.833333,
     "unit": "Hz"
    },
-   "help": "The filter's frequency. Sweep it for the build-ups and breakdowns."
+   "help": "The filter's frequency. Sweep it for the build-ups and breakdowns.",
+   "cc": 114
   },
   {
    "id": "OM_MIX_RESONANCE",
@@ -208,7 +216,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How much the filter rings at its cutoff; the ladders whistle at the top."
+   "help": "How much the filter rings at its cutoff; the ladders whistle at the top.",
+   "cc": 115
   },
   {
    "id": "OM_MIX_DUCK",
@@ -221,7 +230,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "How far it dips each time its key hits (the kick, at first): the pump of trance."
+   "help": "How far it dips each time its key hits (the kick, at first): the pump of trance.",
+   "cc": 2
   },
   {
    "id": "OM_MIX_DUCK_KEY",
@@ -270,7 +280,8 @@ export default {
      "RN1"
     ]
    },
-   "help": "The channel that makes this one dip. It works muted too: a silent kick can pump a pad."
+   "help": "The channel that makes this one dip. It works muted too: a silent kick can pump a pad.",
+   "cc": 118
   },
   {
    "id": "OM_MIX_DUCK_RELEASE",
@@ -286,7 +297,8 @@ export default {
     "octaves": 6,
     "unit": "s"
    },
-   "help": "How fast the channel comes back after a dip: short is a tight pump, long a slow swell."
+   "help": "How fast the channel comes back after a dip: short is a tight pump, long a slow swell.",
+   "cc": 3
   },
   {
    "id": "OM_MIX_GATE",
@@ -299,7 +311,8 @@ export default {
    "display": {
     "kind": "percent"
    },
-   "help": "The trance gate: how far the steps that are off cut the sound, in time with the song."
+   "help": "The trance gate: how far the steps that are off cut the sound, in time with the song.",
+   "cc": 4
   },
   {
    "id": "OM_MIX_GATE_SMOOTH",
@@ -315,7 +328,8 @@ export default {
     "octaves": 7,
     "unit": "s"
    },
-   "help": "How softly the gate opens and closes: short is a hard chop, long a soft pulse."
+   "help": "How softly the gate opens and closes: short is a hard chop, long a soft pulse.",
+   "cc": 8
   },
   {
    "id": "OM_MIX_GATE_STEPS1",
@@ -371,7 +385,8 @@ export default {
     "digits": 1,
     "unit": "dB"
    },
-   "help": "The lows, a shelf below 120 Hz: up for weight, down to make room for the kick."
+   "help": "The lows, a shelf below 120 Hz: up for weight, down to make room for the kick.",
+   "cc": 20
   },
   {
    "id": "OM_MIX_EQ_MID",
@@ -388,7 +403,8 @@ export default {
     "digits": 1,
     "unit": "dB"
    },
-   "help": "A band around FREQ: cut it to clear a muddy part, boost it to bring one forward."
+   "help": "A band around FREQ: cut it to clear a muddy part, boost it to bring one forward.",
+   "cc": 29
   },
   {
    "id": "OM_MIX_EQ_MID_FREQ",
@@ -404,7 +420,8 @@ export default {
     "octaves": 6.3219,
     "unit": "Hz"
    },
-   "help": "Where the mid band sits, from 100 Hz to 8 kHz."
+   "help": "Where the mid band sits, from 100 Hz to 8 kHz.",
+   "cc": 30
   },
   {
    "id": "OM_MIX_EQ_HIGH",
@@ -421,7 +438,8 @@ export default {
     "digits": 1,
     "unit": "dB"
    },
-   "help": "The highs, a shelf above 8 kHz: air and sparkle, or less hiss and harshness."
+   "help": "The highs, a shelf above 8 kHz: air and sparkle, or less hiss and harshness.",
+   "cc": 31
   },
   {
    "id": "OM_MIX_SHAPE",
@@ -470,7 +488,8 @@ export default {
      "digi"
     ]
    },
-   "help": "Surge's waveshapers, after the filter: saturation, folds, fuzz, added harmonics."
+   "help": "Surge's waveshapers, after the filter: saturation, folds, fuzz, added harmonics.",
+   "cc": 116
   },
   {
    "id": "OM_MIX_DRIVE",
@@ -487,7 +506,31 @@ export default {
     "digits": 1,
     "unit": "dB"
    },
-   "help": "How hard the sound goes into the shaper, up to +30 dB; the output comes down to match."
+   "help": "How hard the sound goes into the shaper, up to +30 dB; the output comes down to match.",
+   "cc": 117
   }
- ]
+ ],
+ "mixer_channel": {
+  "grid": {
+   "OM_MIX_LEVEL": 11,
+   "OM_MIX_PAN": 71,
+   "OM_MIX_SEND_A": 81,
+   "OM_MIX_SEND_B": 102,
+   "OM_MIX_MUTE": 111
+  },
+  "grid_names": [
+   "Drum 1",
+   "Drum 2",
+   "Drum 3",
+   "Snare",
+   "Cymbal",
+   "Hihats",
+   "LXR FX bus"
+  ],
+  "master": 7,
+  "returns": [
+   4,
+   9
+  ]
+ }
 };

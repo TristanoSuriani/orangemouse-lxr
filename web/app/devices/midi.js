@@ -33,6 +33,7 @@ const GUIDE = [
   { title: 'Who plays what', text: 'Each MIDI channel plays one part: 1-7 the LXR\'s voices, 8-11 VA\'s slots, 12-13 Dexed, 14-15 Plaits, 16 Rings. Click a channel (or the up and down arrows), then turn PLAYS (or the left and right arrows) to change it. A * shows notes arriving.' },
   { title: 'The LXR\'s notes', text: 'On a drum voice\'s channel the note sets its pitch: 60 (C4) is the kit\'s own. To keep the kit\'s pitch with a drum map, choose LXR MENU and give each voice its note in the LXR\'s config menu (Shift + Save); it can also record those notes.' },
   { title: 'CCs', text: 'A CC on a channel that plays VA, Dexed, Plaits or Rings moves that part\'s parameter: 74 cutoff or timbre, 71 resonance, harmonics or structure, 7 volume, 1 the mod wheel. A knob\'s help line says its CC; docs/MIDI_CC.md lists them all. The panel follows and the sound set keeps the last value. On the LXR\'s channels, CCs go to its firmware.' },
+  { title: 'The mixer', text: 'On a part\'s channel (VA, Dexed, Plaits, Rings), CC 11 sets its mixer level, 10 its pan, 91 and 93 its sends, and more (the mixer\'s help lines say which). The LXR\'s channels belong to its firmware, so the drums\' channels, the send returns and the master are on a channel set to MIXER.' },
   { title: 'Bend and programs', text: 'Pitch bend bends those parts by 2 semitones (RPN 0 sets another range, up to 24). A program change loads a preset: program 0 is the panel\'s #1; on Dexed, a program of the part\'s bank. On the LXR\'s channels both go to its firmware, which changes patterns on a program change.' },
   { title: 'Clock', text: 'Send MIDI clock and the studio follows it: Start, Continue and Stop drive the LXR\'s own sequencer and the mixer\'s gates, and the tempo reaches the delays and VA. The display says EXT and the BPM it measured. Without a clock, the BPM knob sets the tempo.' },
   { title: 'Tight timing', text: 'Messages are scheduled from the moment they reached the computer, plus AHEAD (10 ms), which absorbs the browser\'s delays. If LATE counts up, turn AHEAD up. A lower AHEAD responds sooner, a higher one stays tighter. Shift the sequencer\'s track delay by the same amount to line up with other gear.' },
@@ -227,5 +228,7 @@ export function createMidiDevice({ send, help, session, settings, saveSettings, 
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
   backup.onChange(() => render());
-  return { el, render, handleKey, onStatus, status: () => state.status, onSummary: (fn) => { summary = fn; render(); } };
+  // for the browser tests: a channel's destination
+  const setRouteOf = (channel, key) => { const was = state.channel; state.channel = channel; setRoute(key); state.channel = was; render(); };
+  return { el, render, handleKey, onStatus, setRoute: setRouteOf, status: () => state.status, onSummary: (fn) => { summary = fn; render(); } };
 }

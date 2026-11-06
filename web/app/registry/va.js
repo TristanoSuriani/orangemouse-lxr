@@ -609,7 +609,7 @@ export default {
     ]
    },
    "help": "The LFO's shape. S&H jumps to a random value each cycle.",
-   "cc": 91
+   "cc": 77
   },
   {
    "id": "VA_P_LPITCH",
@@ -659,7 +659,7 @@ export default {
     "kind": "percent"
    },
    "help": "Moves the square wave's pulse width: a chorus-like shimmer.",
-   "cc": 93
+   "cc": 79
   },
   {
    "id": "VA_P_LDELAY",

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "midi_in.h"
+#include "om_registry_mix.h"
 
 #define QUEUE 1024
 #define TICKS 96             // the tempo: a line through the last 4 beats' ticks
@@ -18,7 +19,7 @@
 #define TEMPO_MOVE 0.3f      // BPM: a smaller change is jitter, and would make the delay flutter
 #define MIN_BPM 20.f
 #define MAX_BPM 400.f
-#define CHANGES 256          // more than the CC maps' parameters on all parts (226 now)
+#define CHANGES 512          // more than the CC maps' parameters on all parts (226) and the mixer's (16 channels x 20 + 3)
 
 enum { NOTE_OFF = 0x80, NOTE_ON = 0x90, CC = 0xB0, PROGRAM = 0xC0, BEND = 0xE0 };
 enum { CC_DATA = 6, CC_DATA_LSB = 38, CC_RPN_LSB = 100, CC_RPN_MSB = 101,
@@ -108,6 +109,11 @@ void om_midi_in_destroy(OmMidiIn *m)
 	free(m);
 }
 
+static int playsNotes(const Route *r)
+{
+	return r->engine != OM_MIDI_OFF && r->engine != OM_MIDI_RAW && r->engine != OM_MIDI_MIXER;
+}
+
 static void endNotes(OmMidiIn *m, uint64_t frame, int channel)
 {
 	Route *r = &m->route[channel];
@@ -115,7 +121,7 @@ static void endNotes(OmMidiIn *m, uint64_t frame, int channel)
 		if (r->held[n])
 		{
 			r->held[n] = 0;
-			if (r->engine != OM_MIDI_OFF && r->engine != OM_MIDI_RAW)
+			if (playsNotes(r))
 				om_studio_note_off(m->st, frame, r->engine, r->part, (uint8_t)n);
 		}
 }
@@ -298,7 +304,7 @@ static void note(OmMidiIn *m, uint64_t frame, const uint8_t *b)
 	Route *r = &m->route[channel];
 	if (on)
 		m->activity |= (uint16_t)(1u << channel);
-	if (r->engine == OM_MIDI_OFF)
+	if (r->engine == OM_MIDI_OFF || r->engine == OM_MIDI_MIXER)
 		return;
 	if (r->engine == OM_MIDI_RAW)
 	{
@@ -357,6 +363,54 @@ static void moveParam(OmMidiIn *m, uint64_t frame, const Route *r, uint8_t cc, u
 	}
 }
 
+// A mixer control, from a CC: where it is now, as a parameter's is (moveParam).
+static void moveMix(OmMidiIn *m, uint8_t target, uint8_t param, uint8_t value)
+{
+	const uint8_t v = scaled(&om_mix_params[param], value);
+	uint32_t i = 0;
+	while (i < m->changeCount && !(m->changes[i].engine == OM_MIDI_MIXER && m->changes[i].part == target && m->changes[i].param == param))
+		i++;
+	const uint8_t now = i < m->changeCount ? m->changes[i].value : om_studio_mix_value(m->st, target, param);
+	if (v == now)
+		return;
+	om_studio_mix(m->st, target, param, v);
+	if (i < m->changeCount)
+		m->changes[i].value = v;
+	else if (m->changeCount < CHANGES)
+		m->changes[m->changeCount++] = (Change){OM_MIDI_MIXER, target, v, param};
+}
+
+// On a part's channel: its mixer channel's strip (registry/mix.json "cc"). 0: not one of them.
+static int stripCc(OmMidiIn *m, const Route *r, uint8_t cc, uint8_t value)
+{
+	for (uint8_t p = 0; p < OM_MIX_NUM_PARAMS; p++)
+		if (om_mix_params[p].cc == cc)
+		{
+			const int target = om_studio_channel(m->st, r->engine, r->part);   // these engines have a stem per part
+			if (target >= 0)
+				moveMix(m, (uint8_t)target, p, value);
+			return 1;
+		}
+	return 0;
+}
+
+// On a channel set to MIXER: the grid of the first mixer channels (the LXR's),
+// the returns, the master (registry/mix.json "mixer_channel").
+static void mixerChannelCc(OmMidiIn *m, uint8_t cc, uint8_t value)
+{
+	if (cc == OM_MIX_CC_MASTER)
+		moveMix(m, OM_MIX_MASTER, OM_MIX_LEVEL, value);
+	else if (cc == OM_MIX_CC_RETURN_A || cc == OM_MIX_CC_RETURN_B)
+		moveMix(m, cc == OM_MIX_CC_RETURN_A ? OM_MIX_BUS_A : OM_MIX_BUS_B, OM_MIX_RETURN, value);
+	else
+		for (uint8_t p = 0; p < OM_MIX_NUM_PARAMS; p++)
+			if (om_mix_grid_first[p] && cc >= om_mix_grid_first[p] && cc < om_mix_grid_first[p] + OM_MIX_GRID_CHANNELS)
+			{
+				moveMix(m, (uint8_t)(cc - om_mix_grid_first[p]), p, value);
+				return;
+			}
+}
+
 // A program change: the part's whole sound changes; the panels read all of it.
 static void program(OmMidiIn *m, uint64_t frame, const Route *r, uint8_t number)
 {
@@ -364,7 +418,7 @@ static void program(OmMidiIn *m, uint64_t frame, const Route *r, uint8_t number)
 		return;
 	uint32_t kept = 0;   // the part's single changes are part of the whole one now
 	for (uint32_t k = 0; k < m->changeCount; k++)
-		if (!(m->changes[k].engine == r->engine && m->changes[k].part == r->part))
+		if (!(m->changes[k].engine == r->engine && m->changes[k].part == r->part))   // mixer entries are engine OM_MIDI_MIXER: kept
 			m->changes[kept++] = m->changes[k];
 	m->changeCount = kept;
 	if (m->changeCount < CHANGES)
@@ -415,9 +469,11 @@ static void apply(OmMidiIn *m, const Message *q)
 			bend(m, q->frame, channel, q->b[1], q->b[2]);
 		else if (type == PROGRAM && r->programs)
 			program(m, q->frame, r, q->b[1]);
+		else if (type == CC && r->engine == OM_MIDI_MIXER && q->b[1] < FIRST_MODE_CC)
+			mixerChannelCc(m, q->b[1], q->b[2]);
 		else if (type == CC && r->ownCcs && q->b[1] < FIRST_MODE_CC)
 		{
-			if (!rpn(m, channel, q->b[1], q->b[2]))
+			if (!rpn(m, channel, q->b[1], q->b[2]) && !stripCc(m, r, q->b[1], q->b[2]))
 				moveParam(m, q->frame, r, q->b[1], q->b[2]);
 		}
 		else
@@ -465,7 +521,9 @@ int om_midi_in_change(OmMidiIn *m, OmMidiInChange *out)
 		return 0;
 	const Change *c = &m->changes[--m->changeCount];
 	// the engine's own value: it may have held it closer (Dexed's banks)
-	*out = (OmMidiInChange){c->engine, c->part, c->param, c->param == WHOLE_PART ? 0 : om_studio_get_param(m->st, c->engine, c->part, c->param)};
+	const uint8_t value = c->engine == OM_MIDI_MIXER ? om_studio_mix_value(m->st, c->part, (uint8_t)c->param)
+		: c->param == WHOLE_PART ? 0 : om_studio_get_param(m->st, c->engine, c->part, c->param);
+	*out = (OmMidiInChange){c->engine, c->part, c->param, value};
 	return 1;
 }
 

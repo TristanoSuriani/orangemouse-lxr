@@ -525,6 +525,17 @@ try {
       const preset3 = await evaluate(`window.orangeMouse.plaits.presets()[3].params`);
       check(after.va === 5, `program 5 on channel 8 loads VA's preset #6 (${after.va})`);
       check(after.plaits[11] === 3 && preset3.every((v, i) => after.plaits[i] === v), `program 3 on channel 14 loads Plaits' preset 3 (${after.plaits})`);
+
+      // the mixer: a part's strip on its channel, the rest on a MIXER channel
+      await evaluate(`window.orangeMouse.midi.setRoute?.(15, 'mixer')`);
+      await midiIn(0xb7, 11, 40);    // VA1's level
+      await midiIn(0xbf, 81, 33);    // with channel 16 set to MIXER: Drum 1's send A
+      await midiIn(0xbf, 7, 88);     // the master
+      await sleep(400);
+      const m = await evaluate(`(() => { const x = window.orangeMouse.session.song().mix; return { va1: x.channels.va1.level, dr1: x.channels.lxr1.sendA, master: x.master }; })()`);
+      check(m.va1 === 40, `CC 11 on channel 8 sets VA1's mixer level (${m.va1})`);
+      check(m.dr1 === 33 && m.master === 88, `a MIXER channel sets Drum 1's send A and the master (${JSON.stringify(m)})`);
+      await evaluate(`window.orangeMouse.midi.setRoute?.(15, 'rn0')`);
     }
 
     // on time: a message that has just arrived is not late; one half a second old is

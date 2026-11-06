@@ -35,31 +35,39 @@ _Static_assert(OM_MIX_SHAPE == 23, "registry/mix.json: OM_MIX_SHAPE is not entry
 _Static_assert(OM_MIX_DRIVE == 24, "registry/mix.json: OM_MIX_DRIVE is not entry 24");
 
 static const OmParamInfo om_mix_params[OM_MIX_NUM_PARAMS] = {
-	{"OM_MIX_LEVEL", "LEV", "Level", 0, 127, 100, 0, 0},
-	{"OM_MIX_PAN", "PAN", "Pan", 0, 127, 64, 0, 0},
-	{"OM_MIX_SEND_A", "SDA", "Send A", 0, 127, 0, 0, 0},
-	{"OM_MIX_SEND_B", "SDB", "Send B", 0, 127, 0, 0, 0},
-	{"OM_MIX_MUTE", "MUT", "Mute", 0, 1, 0, 0, 0},
-	{"OM_MIX_SOLO", "SOL", "Solo", 0, 1, 0, 0, 0},
+	{"OM_MIX_LEVEL", "LEV", "Level", 0, 127, 100, 0, 11},
+	{"OM_MIX_PAN", "PAN", "Pan", 0, 127, 64, 0, 10},
+	{"OM_MIX_SEND_A", "SDA", "Send A", 0, 127, 0, 0, 91},
+	{"OM_MIX_SEND_B", "SDB", "Send B", 0, 127, 0, 0, 93},
+	{"OM_MIX_MUTE", "MUT", "Mute", 0, 1, 0, 0, 9},
+	{"OM_MIX_SOLO", "SOL", "Solo", 0, 1, 0, 0, 119},
 	{"OM_MIX_FX_TYPE", "FX", "Effect", 0, 7, 1, 0, 0},
 	{"OM_MIX_RETURN", "RET", "Return", 0, 127, 100, 0, 0},
-	{"OM_MIX_FILTER", "FLT", "Filter", 0, 13, 0, 0, 0},
-	{"OM_MIX_CUTOFF", "CUT", "Cutoff", 0, 127, 127, 0, 0},
-	{"OM_MIX_RESONANCE", "RES", "Resonance", 0, 127, 0, 0, 0},
-	{"OM_MIX_DUCK", "DCK", "Duck", 0, 127, 0, 0, 0},
-	{"OM_MIX_DUCK_KEY", "KEY", "Duck key", 0, 15, 0, 0, 0},
-	{"OM_MIX_DUCK_RELEASE", "REL", "Duck release", 0, 127, 62, 0, 0},
-	{"OM_MIX_GATE", "GAT", "Gate", 0, 127, 0, 0, 0},
-	{"OM_MIX_GATE_SMOOTH", "SMO", "Gate smoothing", 0, 127, 47, 0, 0},
+	{"OM_MIX_FILTER", "FLT", "Filter", 0, 13, 0, 0, 113},
+	{"OM_MIX_CUTOFF", "CUT", "Cutoff", 0, 127, 127, 0, 114},
+	{"OM_MIX_RESONANCE", "RES", "Resonance", 0, 127, 0, 0, 115},
+	{"OM_MIX_DUCK", "DCK", "Duck", 0, 127, 0, 0, 2},
+	{"OM_MIX_DUCK_KEY", "KEY", "Duck key", 0, 15, 0, 0, 118},
+	{"OM_MIX_DUCK_RELEASE", "REL", "Duck release", 0, 127, 62, 0, 3},
+	{"OM_MIX_GATE", "GAT", "Gate", 0, 127, 0, 0, 4},
+	{"OM_MIX_GATE_SMOOTH", "SMO", "Gate smoothing", 0, 127, 47, 0, 8},
 	{"OM_MIX_GATE_STEPS1", "ST1", "Gate steps 1-6", 0, 63, 21, 0, 0},
 	{"OM_MIX_GATE_STEPS2", "ST2", "Gate steps 7-12", 0, 63, 21, 0, 0},
 	{"OM_MIX_GATE_STEPS3", "ST3", "Gate steps 13-16", 0, 15, 5, 0, 0},
-	{"OM_MIX_EQ_LOW", "LOW", "EQ low", 0, 127, 64, 0, 0},
-	{"OM_MIX_EQ_MID", "MID", "EQ mid", 0, 127, 64, 0, 0},
-	{"OM_MIX_EQ_MID_FREQ", "FRQ", "EQ mid frequency", 0, 127, 67, 0, 0},
-	{"OM_MIX_EQ_HIGH", "HI", "EQ high", 0, 127, 64, 0, 0},
-	{"OM_MIX_SHAPE", "SHP", "Shaper", 0, 15, 0, 0, 0},
-	{"OM_MIX_DRIVE", "DRV", "Drive", 0, 127, 0, 0, 0},
+	{"OM_MIX_EQ_LOW", "LOW", "EQ low", 0, 127, 64, 0, 20},
+	{"OM_MIX_EQ_MID", "MID", "EQ mid", 0, 127, 64, 0, 29},
+	{"OM_MIX_EQ_MID_FREQ", "FRQ", "EQ mid frequency", 0, 127, 67, 0, 30},
+	{"OM_MIX_EQ_HIGH", "HI", "EQ high", 0, 127, 64, 0, 31},
+	{"OM_MIX_SHAPE", "SHP", "Shaper", 0, 15, 0, 0, 116},
+	{"OM_MIX_DRIVE", "DRV", "Drive", 0, 127, 0, 0, 117},
 };
+
+// a MIDI channel set to MIXER (studio/midi_in.c): a control's CC on mixer channel 0;
+// channel k's is k more (0: not on that channel)
+#define OM_MIX_GRID_CHANNELS 7
+static const uint8_t om_mix_grid_first[OM_MIX_NUM_PARAMS] = {11, 71, 81, 102, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+#define OM_MIX_CC_MASTER 7
+#define OM_MIX_CC_RETURN_A 4
+#define OM_MIX_CC_RETURN_B 9
 
 #endif /* OM_REGISTRY_MIX_H_ */

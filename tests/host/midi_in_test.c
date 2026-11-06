@@ -18,6 +18,7 @@
 #include "om_registry_dexed.h"
 #include "om_registry_plaits.h"
 #include "om_registry_rings.h"
+#include "om_registry_mix.h"
 extern const OmEngineClass om_va_engine, om_dexed_engine, om_plaits_engine, om_rings_engine;
 
 static int failures;
@@ -491,6 +492,8 @@ static double stepUnderCc(const OmEngineClass *cls, uint8_t cc, int ride, double
 	const int e = om_studio_add_engine(studio, cls);
 	OmMidiIn *in = om_midi_in_create(studio, RATE, NULL);
 	om_midi_in_route(in, 0, (uint8_t)e, 0);
+	if (cc != 7)   // well under the master's limiter, which would otherwise hide what a ride does
+		om_midi_in_event(in, 0, 0xB0, 7, 50);
 	om_midi_in_event(in, 0, 0xB0, cc, 127);   // no louder than the ride gets
 	om_midi_in_event(in, 0, 0x90, 48, 110);
 	const int total = (int)RATE * 3 / OM_MAX_BLOCK;
@@ -509,13 +512,14 @@ static double stepUnderCc(const OmEngineClass *cls, uint8_t cc, int ride, double
 		if (b > total / 3)
 			for (int i = 0; i < OM_MAX_BLOCK; i++)
 			{
-				const double d = fabs((double)l[i] - last);
+				const float x = l[i] + r[i];   // both sides: a pan moves the sound between them
+				const double d = fabs((double)x - last);
 				worst = d > worst ? d : worst;
-				sum += (double)l[i] * l[i];
-				last = l[i];
+				sum += (double)x * x;
+				last = x;
 			}
 		else
-			last = l[OM_MAX_BLOCK - 1];
+			last = l[OM_MAX_BLOCK - 1] + r[OM_MAX_BLOCK - 1];
 	}
 	*rms = sqrt(sum / (double)((total - total / 3) * OM_MAX_BLOCK));
 	om_midi_in_destroy(in);
@@ -718,6 +722,60 @@ static void testRealBendAndProgram(void)
 	om_studio_destroy(studio);
 }
 
+// The mixer: a part's strip on its channel, the MIXER channel's grid, returns, master
+static void testMixer(void)
+{
+	OmStudio *studio = om_studio_create(RATE);
+	om_studio_add_engine(studio, &mockClass);   // as the LXR: 1 stem, no CC map
+	om_studio_add_engine(studio, &om_va_engine);
+	OmMidiIn *in = om_midi_in_create(studio, RATE, rawSink);
+	om_midi_in_route(in, 0, 0, 0);               // channel 1: the mock (the LXR)
+	om_midi_in_route(in, 7, 1, 2);               // channel 8: VA's slot 3
+	om_midi_in_route(in, 15, OM_MIDI_MIXER, 0);  // channel 16: the mixer
+	float l[OM_MAX_BLOCK], r[OM_MAX_BLOCK];
+	const int va3 = om_studio_channel(studio, 1, 2);
+	#define SEND(b0, b1, b2) do { om_midi_in_event(in, om_studio_frame(studio), b0, b1, b2); om_midi_in_advance(in, OM_MAX_BLOCK); om_studio_render(studio, l, r, OM_MAX_BLOCK); } while (0)
+
+	SEND(0xB7, 11, 30);
+	SEND(0xB7, 10, 0);
+	SEND(0xB7, 9, 100);
+	SEND(0xB7, 113, 127);
+	CHECK(om_studio_mix_value(studio, (uint8_t)va3, OM_MIX_LEVEL) == 30 && om_studio_mix_value(studio, (uint8_t)va3, OM_MIX_PAN) == 0,
+		"CC 11 and 10 on VA3's channel set its mixer channel's level and pan");
+	CHECK(om_studio_mix_value(studio, (uint8_t)va3, OM_MIX_MUTE) == 1, "CC 9 >= 64 mutes it");
+	CHECK(om_studio_mix_value(studio, (uint8_t)va3, OM_MIX_FILTER) == om_mix_params[OM_MIX_FILTER].max, "CC 113 = 127 is the last filter type");
+	CHECK(om_studio_get_param(studio, 1, 2, VA_P_VOLUME) == om_va_params[VA_P_VOLUME].def, "and VA's own volume stays");
+
+	rawCount = 0;
+	SEND(0xB0, 11, 30);
+	CHECK(rawCount == 3 && om_studio_mix_value(studio, 0, OM_MIX_LEVEL) == 100, "on the LXR's channel CC 11 is the firmware's");
+
+	SEND(0xBF, 11, 50);     // Drum 1's level
+	SEND(0xBF, 72, 0);      // Drum 2's pan: the grid's second column
+	SEND(0xBF, 4, 20);      // send A's return
+	SEND(0xBF, 9, 21);      // send B's
+	SEND(0xBF, 7, 90);      // the master
+	CHECK(om_studio_mix_value(studio, 0, OM_MIX_LEVEL) == 50, "the MIXER channel's CC 11 is mixer channel 1's level");
+	CHECK(om_studio_mix_value(studio, 1, OM_MIX_PAN) == 0, "CC 72 is mixer channel 2's pan");
+	CHECK(om_studio_mix_value(studio, OM_MIX_BUS_A, OM_MIX_RETURN) == 20 && om_studio_mix_value(studio, OM_MIX_BUS_B, OM_MIX_RETURN) == 21, "CC 4 and 9: the returns");
+	CHECK(om_studio_mix_value(studio, OM_MIX_MASTER, OM_MIX_LEVEL) == 90, "CC 7: the master");
+	SEND(0x9F, 60, 100);
+	CHECK(rawCount == 3, "the MIXER channel's notes go nowhere");
+
+	// the panels hear of each, with the value the mixer has
+	OmMidiInChange c;
+	int mixes = 0, master = 0;
+	while (om_midi_in_change(in, &c))
+	{
+		mixes += c.engine == OM_MIDI_MIXER;
+		master |= c.engine == OM_MIDI_MIXER && c.part == OM_MIX_MASTER && c.param == OM_MIX_LEVEL && c.value == 90;
+	}
+	CHECK(mixes == 9 && master, "9 mixer changes reported, the master's at 90 (%d)", mixes);
+	#undef SEND
+	om_midi_in_destroy(in);
+	om_studio_destroy(studio);
+}
+
 static void testRealEngines(void)
 {
 	static const struct { const char *name; const OmEngineClass *cls; uint8_t cc; } cases[] = {
@@ -725,6 +783,8 @@ static void testRealEngines(void)
 		{"Dexed volume", &om_dexed_engine, 7},
 		{"Plaits volume", &om_plaits_engine, 7}, {"Plaits timbre", &om_plaits_engine, 74},
 		{"Rings volume", &om_rings_engine, 7}, {"Rings brightness", &om_rings_engine, 74},
+		{"Mixer level", &om_va_engine, 11}, {"Mixer pan", &om_va_engine, 10}, {"Mixer send A", &om_va_engine, 91},
+		{"Mixer EQ low", &om_va_engine, 20}, {"Mixer drive", &om_va_engine, 117},
 	};
 	for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
 	{
@@ -750,6 +810,7 @@ int main(void)
 	testCcs();
 	testRealEngines();
 	testBendAndProgram();
+	testMixer();
 	testRealBendAndProgram();
 	if (failures)
 	{

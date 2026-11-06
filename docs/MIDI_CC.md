@@ -12,6 +12,51 @@ parameter's range, so a parameter with few values takes equal slices of it: `ste
 CC 21-28 stay with a knob box (knobs 1-8 of the device on show). A preset is not on a CC: a
 program change loads it.
 
+## The mixer, on a part's channel
+
+On a channel that plays VA, Dexed, Plaits or Rings, these move that part's mixer channel. They
+take effect at the start of the 64-frame block they fall in (1.5 ms); levels, pans and sends glide.
+
+| CC | Control | Steps |
+|---|---|---|
+| 2 | Duck |  |
+| 3 | Duck release |  |
+| 4 | Gate |  |
+| 8 | Gate smoothing |  |
+| 9 | Mute | 2 |
+| 10 | Pan |  |
+| 11 | Level |  |
+| 20 | EQ low |  |
+| 29 | EQ mid |  |
+| 30 | EQ mid frequency |  |
+| 31 | EQ high |  |
+| 91 | Send A |  |
+| 93 | Send B |  |
+| 113 | Filter | 14 |
+| 114 | Cutoff |  |
+| 115 | Resonance |  |
+| 116 | Shaper | 16 |
+| 117 | Drive |  |
+| 118 | Duck key | 16 |
+| 119 | Solo | 2 |
+
+## The MIXER channel
+
+The LXR's channels pass their CCs to its firmware, which uses nearly every number, so the drums'
+mixer channels, the send returns and the master are on a channel of their own: set one to MIXER on
+the MIDI device. Its notes are ignored.
+
+| Control | Drum 1 | Drum 2 | Drum 3 | Snare | Cymbal | Hihats | LXR FX bus |
+|---|---|---|---|---|---|---|---|
+| Level | 11 | 12 | 13 | 14 | 15 | 16 | 17 |
+| Pan | 71 | 72 | 73 | 74 | 75 | 76 | 77 |
+| Send A | 81 | 82 | 83 | 84 | 85 | 86 | 87 |
+| Send B | 102 | 103 | 104 | 105 | 106 | 107 | 108 |
+| Mute | 111 | 112 | 113 | 114 | 115 | 116 | 117 |
+
+Master level: CC 7. Send A's return: CC 4. Send B's return: CC 9.
+The effects' types stay on the panel: changing one rebuilds the effect.
+
 ## Dexed
 
 | CC | Parameter | Page | Steps |
@@ -71,7 +116,9 @@ program change loads it.
 | 74 | Cutoff | Filter |  |
 | 75 | Amp decay | Amp envelope |  |
 | 76 | LFO rate | LFO |  |
+| 77 | LFO wave | LFO | 5 |
 | 78 | LFO delay | LFO |  |
+| 79 | LFO to PW | LFO |  |
 | 80 | Filter type | Filter | 4 |
 | 81 | Envelope amount | Filter |  |
 | 82 | Key tracking | Filter |  |
@@ -83,9 +130,7 @@ program change loads it.
 | 88 | Filter release | Filter envelope |  |
 | 89 | Amp sustain | Amp envelope |  |
 | 90 | Vel to level | Amp envelope |  |
-| 91 | LFO wave | LFO | 5 |
 | 92 | LFO to cutoff | LFO |  |
-| 93 | LFO to PW | LFO |  |
 | 94 | Voice mode | Voice | 3 |
 | 95 | Gate length | Voice |  |
 | 102 | Osc level | Mixer |  |

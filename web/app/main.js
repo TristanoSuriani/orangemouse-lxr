@@ -339,8 +339,10 @@ async function setUpMidi() {
 
 // Parameters a CC moved (studio/midi_in.c): the song keeps them and the panel shows them.
 function followCcs(changes) {
+  const mixes = changes.filter((c) => c.mix);
+  if (mixes.length) mixer.followCcs(mixes);
   [va, dexed, plaits, rings].forEach((device, i) => {
-    const mine = changes.filter((c) => c.engine === i + 1);
+    const mine = changes.filter((c) => !c.mix && c.engine === i + 1);
     if (mine.length) device.followCcs(mine);
   });
   session.saveSoon();

@@ -180,9 +180,11 @@ class StudioProcessor extends AudioWorkletProcessor {
     }
     // the parameters CCs moved: the panels follow, the song keeps them
     const midiParams = [];
-    for (let c = w.om_web_midi_change(); c >= 0; c = w.om_web_midi_change()) {
+    const NO_MORE = 0xffffffff;
+    for (let c = w.om_web_midi_change() >>> 0; c !== NO_MORE; c = w.om_web_midi_change() >>> 0) {
       const engine = c >>> 24, part = (c >> 16) & 0xff, param = (c >> 8) & 0xff;
-      if (param !== 255) midiParams.push({ engine, part, param, value: c & 0xff });
+      if (engine === 253) midiParams.push({ mix: true, target: part, param, value: c & 0xff });   // a mixer control (OM_MIDI_MIXER)
+      else if (param !== 255) midiParams.push({ engine, part, param, value: c & 0xff });
       else for (let p = 0; p < w.om_web_param_count(engine); p++) midiParams.push({ engine, part, param: p, value: w.om_web_get_param(engine, part, p) });   // a program: all of the part
     }
     if (midiParams.length) msg.midiParams = midiParams;

@@ -567,7 +567,14 @@ it comes back. Where this plan says the tracker is the master clock, MIDI clock 
    (Dexed: a program of the part's bank); the panels read the whole part back. On the LXR's channels
    both still go to its firmware.
 
-Not done, on purpose: CCs to the mixer; Song Position
+6. **The mixer's CCs** (registry/mix.json `cc` and `mixer_channel`, studio/midi_in.c): on a part's
+   channel (VA, Dexed, Plaits, Rings) CCs move its mixer channel: 11 level, 10 pan, 91 and 93 the
+   sends, 9 mute and more. The LXR's channels belong to its firmware, so a channel set to MIXER holds
+   the drums' level, pan, sends and mute, the returns and the master. VA's LFO wave and LFO to PW
+   moved to CC 77 and 79 to free 91 and 93. The effects' types stay on the panel (a change rebuilds
+   the effect). Mixer CCs act at the start of their 64-frame block.
+
+Not done, on purpose: the trance gate's steps on CCs; Song Position
 Pointer; CC 21-28 still turn the knobs of the device on show, so they never reach an engine. To listen
 to: VA's resonance on a fast CC sweep (its sample steps grow 3 times, with no ramp on it). Not yet tried:
 real hardware or a DAW (the tests send the messages through the page's MIDI handler). The

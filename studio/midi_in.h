@@ -10,7 +10,8 @@
  *    LXR firmware's own MIDI settings), or nowhere.
  *  - moves a parameter on a CC of a channel whose engine has a CC map (the
  *    registry's "cc": VA, Dexed, Plaits, Rings; docs/MIDI_CC.md). Those CCs stop
- *    here, as do pitch bend (+-2 semitones, or what RPN 0 sets) and program
+ *    here, as do the mixer's CCs for the part's mixer channel (registry/mix.json),
+ *    pitch bend (+-2 semitones, or what RPN 0 sets) and program
  *    changes on a channel whose engine takes them (engine.h). Everything else
  *    that is not a clock message goes to the raw sink, so the firmware's CCs,
  *    program changes and bends work as on the hardware.
@@ -35,6 +36,7 @@
 #define OM_MIDI_CHANNELS 16
 #define OM_MIDI_OFF 0xFF   // route: the channel's notes are ignored
 #define OM_MIDI_RAW 0xFE   // route: the channel's notes go to the raw sink
+#define OM_MIDI_MIXER 0xFD // route: the channel's CCs set the mixer (registry/mix.json "mixer_channel"); notes are ignored
 
 typedef struct OmMidiIn OmMidiIn;
 
@@ -59,7 +61,9 @@ void om_midi_in_advance(OmMidiIn *m, uint32_t frames);
 
 // The next parameter a CC changed since the last call, with its value now: the
 // panels follow them. A program change gives param OM_MIDI_WHOLE_PART: read all
-// of that part's. Returns 0 when there are no more. Call it between blocks.
+// of that part's. A mixer control comes as engine OM_MIDI_MIXER, part its
+// target (studio.h om_studio_mix), param the control. Returns 0 when there are
+// no more. Call it between blocks.
 #define OM_MIDI_WHOLE_PART 0xFFFF
 typedef struct
 {

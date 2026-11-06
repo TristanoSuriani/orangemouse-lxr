@@ -114,14 +114,15 @@ WEB_EXPORT void om_web_midi_route(uint8_t channel, uint8_t engine, uint8_t part)
 WEB_EXPORT void om_web_midi_tempo(float bpm) { om_midi_in_tempo(midiIn, bpm); }
 WEB_EXPORT void om_web_midi_reset(void) { om_midi_in_reset(midiIn); }
 
-// A parameter a CC moved: engine << 24 | part << 16 | param << 8 | value; -1: no
-// more. Param 255: a program changed all of the part's.
-WEB_EXPORT int om_web_midi_change(void)
+// A parameter a CC moved: engine << 24 | part << 16 | param << 8 | value, unsigned
+// (the mixer's engine, OM_MIDI_MIXER, sets the top bit); 0xFFFFFFFF: no more.
+// Param 255: a program changed all of the part's.
+WEB_EXPORT uint32_t om_web_midi_change(void)
 {
 	OmMidiInChange c;
 	if (!om_midi_in_change(midiIn, &c))
-		return -1;
-	return (c.engine << 24) | (c.part << 16) | ((c.param == OM_MIDI_WHOLE_PART ? 255 : c.param) << 8) | c.value;
+		return 0xFFFFFFFFu;
+	return ((uint32_t)c.engine << 24) | (c.part << 16) | ((c.param == OM_MIDI_WHOLE_PART ? 255 : c.param) << 8) | c.value;
 }
 WEB_EXPORT int om_web_param_count(uint8_t engine)
 {

@@ -24,7 +24,7 @@ import { DotMatrix } from '../kit/dotmatrix.js';
 import { describe } from '../kit/help.js';
 import { makePad, makeKnob, setLed, setKnobValue } from '../kit/controls.js';
 import { addGuide } from '../kit/guide.js';
-import { CHANNELS, gateSteps, setGateSteps, GATE_PATTERNS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage } from '../mixer/mix.js';
+import { CHANNELS, gateSteps, setGateSteps, GATE_PATTERNS, MIX, FX_TYPES, fxValue, channelMessage, busMessage, fxMessage, applyMixValue } from '../mixer/mix.js';
 
 const COLS = 84;
 const ROWS = 16;
@@ -316,6 +316,26 @@ export function createMixerDevice({ send, help, song }) {
     return [`A ${type(0)} B ${type(1)}`, `OUT ${'■'.repeat(lit)}`];
   }
 
+  // ---- MIDI: which CC moves a knob's control (docs/MIDI_CC.md) ----
+  const grid = mixRegistry.mixer_channel;
+  function ccWords(info) {
+    if (state.fx !== null) return '';
+    const s = strip();
+    const id = mixRegistry.params.find((p) => p.short === info.short && p.name === info.name)?.id ?? info.id;
+    if (s.kind === 'channel' && CHANNELS[s.index].engine !== 0)
+      return info.cc ? ` CC ${info.cc} on its part's channel.` : '';
+    if (s.kind === 'channel')
+      return grid.grid[id] && s.index < grid.grid_names.length ? ` CC ${grid.grid[id] + s.index} on a MIXER channel.` : '';
+    if (s.kind === 'bus') return id === 'OM_MIX_RETURN' ? ` CC ${grid.returns[s.bus]} on a MIXER channel.` : '';
+    return ` CC ${grid.master} on a MIXER channel.`;
+  }
+
+  // controls a CC moved (main.js): the song keeps them
+  function followCcs(changes) {
+    for (const { target, param, value } of changes) applyMixValue(mix(), target, param, value);
+    render();
+  }
+
   // ---- knobs ----
   const knobs = el.querySelector('.mixer-knobs');
   const captions = [];
@@ -335,7 +355,7 @@ export function createMixerDevice({ send, help, song }) {
     });
     describe(pot, help, () => {
       const t = target();
-      return t ? helpLine(t[0], t[1]()) : 'This knob does nothing here.';
+      return t ? helpLine({ ...t[0], cc: undefined }, t[1]()) + ccWords(t[0]) : 'This knob does nothing here.';
     });
     pot.addEventListener('focus', () => {
       const t = target();
@@ -468,7 +488,7 @@ export function createMixerDevice({ send, help, song }) {
 
   addGuide(el, el.querySelector('.device-head'), GUIDE, help);
   return {
-    el, handleKey, onMeters, render,
+    el, handleKey, onMeters, render, followCcs,
     onSummary: (fn) => { summary = fn; render(); },
   };
 }
