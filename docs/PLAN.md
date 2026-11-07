@@ -573,9 +573,13 @@ it comes back. Where this plan says the tracker is the master clock, MIDI clock 
    the drums' level, pan, sends and mute, the returns and the master. VA's LFO wave and LFO to PW
    moved to CC 77 and 79 to free 91 and 93. The effects' types stay on the panel (a change rebuilds
    the effect). Mixer CCs act at the start of their 64-frame block.
+7. **Song position pointer** (engine.h `song_position`, studio.c `om_studio_song_position`): a DAW
+   starting mid-song sends it before Continue; the LXR's sequencer and the gates then pick up on that
+   16th. The firmware had it as a TODO (MidiParser.c), so seq_holdSongPosition sets each track's step
+   (wrapped at its length) for the next Continue; while running it moves the next tick. The LXR's
+   pattern does not change with it (no song mode), and the LXR playing alone ignores it.
 
-Not done, on purpose: the trance gate's steps on CCs; Song Position
-Pointer; CC 21-28 still turn the knobs of the device on show, so they never reach an engine. To listen
+Not done, on purpose: the trance gate's steps on CCs; CC 21-28 still turn the knobs of the device on show, so they never reach an engine. To listen
 to: VA's resonance on a fast CC sweep (its sample steps grow 3 times, with no ramp on it). Not yet tried:
 real hardware or a DAW (the tests send the messages through the page's MIDI handler). The
 measurements to make with one: latency and jitter at the output, and whether 10 ms holds.

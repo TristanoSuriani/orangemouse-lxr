@@ -41,5 +41,6 @@ void sync_midiResetPosition();
 void sync_midiStartStop(uint8_t isStart);
 uint8_t sync_getClockCnt();
 extern uint32_t sync_delayedStepTimer;
+extern uint8_t sync_clockCnt;
 
 #endif /* CLOCKSYNC_H_ */

@@ -1997,6 +1997,23 @@ void seq_returnToHeldPosition()
 	seq_masterStepCnt = seq_heldMasterStepCnt;
 }
 //------------------------------------------------------------------------------
+// A MIDI song position pointer, for the next Continue: each track's next step
+// is the one `sixteenths` steps from the active pattern's start, wrapped at
+// the track's length (the pattern does not change).
+void seq_holdSongPosition(uint16_t sixteenths)
+{
+	for(uint8_t i=0;i<NUM_TRACKS;i++) {
+		uint8_t len = seq_patternSet.length[seq_activePattern][i];
+		if(!len)
+			len = 16;
+		if(len > 64)
+			len = 64;   // nextStep wraps at 64 whatever the length says
+		// -1: nextStep increments first
+		seq_heldStepIndex[i] = (int8_t)(sixteenths % len) - 1;
+	}
+	seq_heldMasterStepCnt = (uint8_t)sixteenths;   // only its parity and &0xf are used
+}
+//------------------------------------------------------------------------------
 void seq_setSongModeEnabled(uint8_t onOff)
 {
 	seq_songModeEnabled = onOff;

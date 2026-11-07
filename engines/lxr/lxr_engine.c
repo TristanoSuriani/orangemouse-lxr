@@ -146,6 +146,7 @@ static void lxrSetTempo(void *self, float bpm)
 }
 
 static uint8_t lxr_ownSync;   // the sync mode before the studio's clock took over
+static uint8_t lxr_following; // between the studio clock's start or continue and its stop
 
 static void lxrClock(void *self, uint8_t event)
 {
@@ -157,12 +158,14 @@ static void lxrClock(void *self, uint8_t event)
 		seq_setExtSync(2);            // MIDI clock (seq_sync ticks only in this mode)
 		sync_midiResetPosition();
 		sync_midiStartStop(1);
+		lxr_following = 1;
 		break;
 	case OM_CLOCK_CONTINUE:
 		lxr_ownSync = seq_getExtSync();
 		seq_setExtSync(2);
 		sync_midiStartStop(1);
 		seq_returnToHeldPosition();
+		lxr_following = 1;
 		break;
 	case OM_CLOCK_TICK:
 		seq_sync();
@@ -171,7 +174,22 @@ static void lxrClock(void *self, uint8_t event)
 		seq_holdPosition();
 		sync_midiStartStop(0);
 		seq_setExtSync(lxr_ownSync);
+		lxr_following = 0;
 		break;
+	}
+}
+
+// The firmware leaves the song position pointer as a TODO (MidiParser.c): the
+// studio's clock sets where the next Continue starts, or, while it runs, where
+// the next tick goes. The LXR playing alone on its own clock is left alone.
+static void lxrSongPosition(void *self, uint16_t sixteenths)
+{
+	(void)self;
+	seq_holdSongPosition(sixteenths);
+	if (lxr_following)
+	{
+		seq_returnToHeldPosition();
+		sync_clockCnt = 0;   // the next tick starts a step
 	}
 }
 
@@ -201,4 +219,5 @@ const OmEngineClass om_lxr_engine = {
 	.set_tempo = lxrSetTempo,
 	.clock = lxrClock,
 	.render = lxrRender,
+	.song_position = lxrSongPosition,
 };

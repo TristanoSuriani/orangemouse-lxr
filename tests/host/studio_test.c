@@ -336,7 +336,7 @@ int main(void)
 		static float gl[LONG], gr[LONG];
 		const OmEngineClass cls = mockClass(0);
 		#define AT(f) gl[(f) + OM_STUDIO_LATENCY]
-		for (int mode = 0; mode < 3; mode++)
+		for (int mode = 0; mode < 4; mode++)
 		{
 			OmStudio *st = mockStudio();
 			om_studio_add_engine(st, &cls);
@@ -349,15 +349,24 @@ int main(void)
 				om_studio_clock(st, 1000, OM_CLOCK_START);
 				for (int t = 0; t < 40; t++) om_studio_clock(st, 1000 + 1000 * (uint64_t)t, OM_CLOCK_TICK);
 			}
+			if (mode == 3)   // the same from a song position pointer to 16th 17 (bar 2, 16th 1: off), then Continue
+			{
+				om_studio_song_position(st, 1000, 17);
+				om_studio_clock(st, 1000, OM_CLOCK_CONTINUE);
+				for (int t = 0; t < 40; t++) om_studio_clock(st, 1000 + 1000 * (uint64_t)t, OM_CLOCK_TICK);
+			}
 			om_studio_render(st, gl, gr, 48000);
 			if (mode == 0)
 				CHECK(AT(3000) == MOCK && AT(9000) == MOCK, "gate 0 leaves the pad alone: %g %g", AT(3000), AT(9000));
 			else if (mode == 1)
 				CHECK(fabsf(AT(3000) - MOCK) < 0.001f && AT(9000) < 0.001f && fabsf(AT(15000) - MOCK) < 0.001f,
 				      "on the tempo: step 1 on (%g), 2 off (%g), 3 on (%g)", AT(3000), AT(9000), AT(15000));
-			else
+			else if (mode == 2)
 				CHECK(fabsf(AT(1000 + 3000) - MOCK) < 0.001f && AT(1000 + 9000) < 0.001f && fabsf(AT(1000 + 15000) - MOCK) < 0.001f,
 				      "on the clock: on (%g), off (%g), on (%g) from its start", AT(4000), AT(10000), AT(16000));
+			if (mode == 3)
+				CHECK(AT(1000 + 3000) < 0.001f && fabsf(AT(1000 + 9000) - MOCK) < 0.001f && AT(1000 + 15000) < 0.001f,
+				      "from 16th 17: off (%g), on (%g), off (%g)", AT(4000), AT(10000), AT(16000));
 			om_studio_destroy(st);
 		}
 		{   // smoothing: a long one rounds the step's edges

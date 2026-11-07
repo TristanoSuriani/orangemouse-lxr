@@ -72,6 +72,10 @@ typedef struct OmEngineClass
 	// Plaits, Rings) or its bank's program (Dexed) `number`; one it does not
 	// have is ignored
 	void (*program)(void *self, uint8_t part, uint8_t number);
+	// optional (NULL), for an engine that follows the clock: MIDI song
+	// position pointer. The next tick after it (a Continue's, or a running
+	// clock's) is the first of 16th `sixteenths` from the song's start.
+	void (*song_position)(void *self, uint16_t sixteenths);
 } OmEngineClass;
 
 #endif /* OM_ENGINE_H_ */

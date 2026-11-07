@@ -68,6 +68,10 @@ int om_studio_pitch_bend(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t p
 int om_studio_program(OmStudio *st, uint64_t frame, uint8_t engine, uint8_t part, uint8_t number);
 // A clock event (OM_CLOCK_*) to every engine that follows the clock.
 void om_studio_clock(OmStudio *st, uint64_t frame, uint8_t event);
+// A MIDI song position pointer: the clock's next tick is the first of 16th
+// `sixteenths` from the song's start, for the gates and every engine that
+// takes it (engine.h song_position: the LXR's sequencer).
+void om_studio_song_position(OmStudio *st, uint64_t frame, uint16_t sixteenths);
 // Drops the note-ons and clock ticks queued for after `frame`, on every
 // engine: a stop. The tracker schedules a row's retrig hits and its clock
 // ticks ahead; played after a stop, a hit was a note nothing ended (found by

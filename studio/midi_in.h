@@ -18,7 +18,8 @@
  *  - follows MIDI clock: Start, Continue, Stop and the ticks go to the studio's
  *    clock (the LXR's sequencer, the mixer's gates), and the tempo measured from
  *    the ticks goes to the engines and the send effects. Ticks also arrive while
- *    stopped: they give the tempo but move nothing.
+ *    stopped: they give the tempo but move nothing. A song position pointer
+ *    sets where the next Continue (or, while running, the next tick) is.
  *  - remembers the notes it started, so a Stop, an All Notes Off, a re-route or
  *    a lost port never leaves one hanging.
  *

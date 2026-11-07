@@ -30,7 +30,7 @@ static int failures;
 // ---- a mock engine: 2 parts, renders any length, logs each event with the
 // frame it lands on (it counts the frames it rendered) ----
 typedef struct { int type; int part, note, value; uint64_t frame; } Logged;
-enum { L_ON, L_OFF, L_CLOCK, L_PARAM, L_BEND, L_PROGRAM };
+enum { L_ON, L_OFF, L_CLOCK, L_PARAM, L_BEND, L_PROGRAM, L_POSITION };
 static Logged logged[4096];
 static int logCount;
 static uint64_t rendered;
@@ -57,6 +57,7 @@ static void mockParam(void *self, uint8_t part, uint16_t param, uint8_t value)
 static uint8_t mockGet(void *self, uint8_t part, uint16_t param) { (void)self; return mockValues[part][param]; }
 static void mockTempo(void *self, float bpm) { (void)self; tempoSeen = bpm; }
 static void mockClock(void *self, uint8_t event) { (void)self; record(L_CLOCK, 0, event, 0); }
+static void mockPosition(void *self, uint16_t sixteenths) { (void)self; record(L_POSITION, 0, 0, sixteenths); }
 static void mockRender(void *self, float *const *stems, uint32_t frames)
 {
 	(void)self;
@@ -68,6 +69,7 @@ static const OmEngineClass mockClass = {
 	.name = "mock", .parts = 2, .stems = 1, .block = 0,
 	.create = mockCreate, .destroy = mockDestroy, .note_on = mockOn, .note_off = mockOff,
 	.set_param = mockParam, .get_param = mockGet, .set_tempo = mockTempo, .clock = mockClock, .render = mockRender,
+	.song_position = mockPosition,
 };
 
 // the same engine with a CC map, as VA, Dexed, Plaits and Rings have: a full
@@ -109,6 +111,7 @@ static void setUp(void)
 	mappedClass.params = mappedParams;
 	mappedClass.numParams = 4;
 	mappedClass.clock = NULL;
+	mappedClass.song_position = NULL;
 	mappedClass.render = mappedRender;
 	mappedClass.pitch_bend = mappedBend;
 	mappedClass.program = mappedProgram;
@@ -286,6 +289,20 @@ static void testTransport(void)
 	om_midi_in_event(m, om_studio_frame(st), 0xFB, 0, 0);
 	run(1);
 	CHECK(clockCount(OM_CLOCK_CONTINUE) == 1 && om_midi_in_state(m).running, "Continue resumes");
+
+	// song position pointer: 14 bits, LSB first, at its frame, before what follows it; not for the raw sink
+	om_midi_in_event(m, om_studio_frame(st), 0xFC, 0, 0);
+	f = om_studio_frame(st) + 100;
+	rawCount = 0;
+	om_midi_in_event(m, f, 0xF2, 0x10, 0x02);   // 16th 272 (bar 18)
+	om_midi_in_event(m, f, 0xFB, 0, 0);
+	run(4);
+	const Logged *last = &logged[logCount - 2];
+	CHECK(countOf(L_POSITION) == 1 && last->type == L_POSITION && last->value == 272 && last->frame == f,
+	      "a pointer to 16th 272 at frame %llu: got %d of them, %d at %llu", (unsigned long long)f, countOf(L_POSITION), last->value,
+	      (unsigned long long)last->frame);
+	CHECK(logged[logCount - 1].type == L_CLOCK && logged[logCount - 1].note == OM_CLOCK_CONTINUE, "then Continue");
+	CHECK(rawCount == 0, "the raw sink got %d bytes of it", rawCount);
 	tearDown();
 }
 

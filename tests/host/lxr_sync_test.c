@@ -175,6 +175,32 @@ int main(void)
 			CHECK(abs(hits[0] - expected) <= 3, "Continue picks up mid-bar: the kick is at block %d, not at %d", hits[0], expected);
 			printf("from MIDI clock: kicks a beat apart; after Continue the next is at block %d (a restart would be %d)\n", hits[0], firstHit);
 		}
+
+		// song position pointer (in 16ths; kicks on 0, 4, 8, 12): where Continue
+		// starts, past the pattern's end too, and while running where the next tick goes
+		struct { uint16_t at; int ticks, kickTick; const char *what; } spp[] = {
+			{5, 24, 18, "stopped at 16th 5: the kick on 8 comes 3 steps in"},
+			{20, 12, 0, "stopped at 16th 20 (bar 2, 16th 4): a kick at once"},
+		};
+		for (int k = 0; k < 2; k++)
+		{
+			om_midi_in_event(midi, om_studio_frame(st), 0xFC, 0, 0);   // Stop
+			om_midi_in_advance(midi, OM_MAX_BLOCK);
+			run(400, -1);
+			om_midi_in_event(midi, om_studio_frame(st), 0xF2, spp[k].at & 0x7f, spp[k].at >> 7);
+			om_midi_in_event(midi, om_studio_frame(st), 0xFB, 0, 0);   // Continue
+			rendered = clockTicks(midi, spp[k].ticks, perTick);
+			ext = onsets(0, rendered, hits, 64);
+			const int expected = firstHit + (int)(spp[k].kickTick * perTick / OM_MAX_BLOCK);
+			CHECK(ext == 1 && abs(hits[0] - expected) <= 3, "%s: %d kicks, the first at block %d, not %d", spp[k].what, ext, ext ? hits[0] : -1, expected);
+		}
+		// running, now at 16th 6: a pointer to 7 puts the kick on 8 a step in, not two
+		om_midi_in_event(midi, om_studio_frame(st), 0xF2, 7, 0);
+		rendered = clockTicks(midi, 12, perTick);
+		ext = onsets(0, rendered, hits, 64);
+		CHECK(ext == 1 && abs(hits[0] - (firstHit + (int)(6 * perTick / OM_MAX_BLOCK))) <= 3,
+		      "running, a pointer to 16th 7: %d kicks, the first at block %d", ext, ext ? hits[0] : -1);
+
 		om_midi_in_event(midi, om_studio_frame(st), 0xFC, 0, 0);
 		om_midi_in_advance(midi, OM_MAX_BLOCK);
 		om_midi_in_destroy(midi);
@@ -200,7 +226,7 @@ int main(void)
 		for (int c = 0; c < 7; c++)
 			if (c != channelOf[part] && m[c] > 0.001f) { others++; printf("  voice %d: channel %d at %g\n", part + 1, c, m[c]); }
 		CHECK(m[channelOf[part]] > 0.01f && others == 0, "voice %d: its channel %g, %d other channels sound", part + 1, m[channelOf[part]], others);
-		run(800, -1);
+		run(2000, -1);   // the cymbal's tail lasts: 800 blocks once left -60 dB of it in the next voice's meters
 	}
 
 	if (failures)

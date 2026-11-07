@@ -17,7 +17,7 @@
 #include "filter.h"
 #include "shaper.h"
 
-enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK, EV_BEND, EV_PROGRAM };
+enum { EV_NOTE_ON, EV_NOTE_OFF, EV_PARAM, EV_CLOCK, EV_BEND, EV_PROGRAM, EV_POSITION };
 
 typedef struct
 {
@@ -71,7 +71,8 @@ typedef struct
 // the clock the gates follow: a running clock's (24 ticks a beat, a gate step
 // every 6), or the tempo when nothing plays
 #define CLOCK_QUEUE 256
-typedef struct { uint64_t frame; uint8_t event; } ClockEvent;
+#define CLOCK_POSITION 0x10   // a ClockEvent that is a song position pointer
+typedef struct { uint64_t frame; uint8_t event; uint16_t sixteenths; } ClockEvent;
 
 // ducking: the key's level that dips a channel by the whole DUCK amount
 #define DUCK_FULL   0.25f   // -12 dBFS
@@ -326,21 +327,34 @@ const OmEngineClass *om_studio_engine(const OmStudio *st, uint8_t engine)
 	return engine < st->engines ? st->engine[engine].cls : NULL;
 }
 
+// The gates' copy of the clock, sorted as the engines' queues are.
+static void gateClock(OmStudio *st, ClockEvent ev)
+{
+	if (st->clockCount >= CLOCK_QUEUE)
+		return;
+	uint32_t i = st->clockCount++;
+	while (i > 0 && st->clock[(st->clockHead + i - 1) % CLOCK_QUEUE].frame > ev.frame)
+	{
+		st->clock[(st->clockHead + i) % CLOCK_QUEUE] = st->clock[(st->clockHead + i - 1) % CLOCK_QUEUE];
+		i--;
+	}
+	st->clock[(st->clockHead + i) % CLOCK_QUEUE] = ev;
+}
+
 void om_studio_clock(OmStudio *st, uint64_t frame, uint8_t event)
 {
-	if (st->clockCount < CLOCK_QUEUE)   // the gates' copy, sorted as the engines' queues are
-	{
-		uint32_t i = st->clockCount++;
-		while (i > 0 && st->clock[(st->clockHead + i - 1) % CLOCK_QUEUE].frame > frame)
-		{
-			st->clock[(st->clockHead + i) % CLOCK_QUEUE] = st->clock[(st->clockHead + i - 1) % CLOCK_QUEUE];
-			i--;
-		}
-		st->clock[(st->clockHead + i) % CLOCK_QUEUE] = (ClockEvent){frame, event};
-	}
+	gateClock(st, (ClockEvent){frame, event, 0});
 	for (uint8_t e = 0; e < st->engines; e++)
 		if (st->engine[e].cls->clock)
 			push(st, e, (Event){.frame = frame, .type = EV_CLOCK, .note = event});
+}
+
+void om_studio_song_position(OmStudio *st, uint64_t frame, uint16_t sixteenths)
+{
+	gateClock(st, (ClockEvent){frame, CLOCK_POSITION, sixteenths});
+	for (uint8_t e = 0; e < st->engines; e++)
+		if (st->engine[e].cls->song_position)
+			push(st, e, (Event){.frame = frame, .type = EV_POSITION, .param = sixteenths});
 }
 
 // ---- the mixer ----
@@ -675,6 +689,7 @@ static void dispatch(Engine *en, uint64_t until)
 		case EV_CLOCK:    en->cls->clock(en->self, ev->note); break;
 		case EV_BEND:     en->cls->pitch_bend(en->self, ev->part, ev->amount); break;
 		case EV_PROGRAM:  en->cls->program(en->self, ev->part, ev->value); break;
+		case EV_POSITION: en->cls->song_position(en->self, ev->param); break;
 		}
 		en->head = (en->head + 1) % OM_MAX_EVENTS;
 		en->count--;
@@ -734,6 +749,7 @@ static void clockBlock(OmStudio *st)
 			st->clockHead = (st->clockHead + 1) % CLOCK_QUEUE;
 			st->clockCount--;
 			if (ev.event == OM_CLOCK_START) { st->tickCount = 0; st->ticks = 0.0; }
+			else if (ev.event == CLOCK_POSITION) { st->tickCount = 6u * ev.sixteenths; st->ticks = st->tickCount; }
 			else if (ev.event == OM_CLOCK_TICK) { st->ticks = st->tickCount++; ticked = 1; }
 		}
 		if (!ticked)

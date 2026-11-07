@@ -28,7 +28,7 @@ enum { CC_DATA = 6, CC_DATA_LSB = 38, CC_RPN_LSB = 100, CC_RPN_MSB = 101,
 #define MAX_BEND_RANGE 24
 #define NO_RPN 0x7F
 #define WHOLE_PART 0xFFFF      // a change: every parameter of the part (a program)
-enum { MIDI_TICK = 0xF8, MIDI_START = 0xFA, MIDI_CONTINUE = 0xFB, MIDI_STOP = 0xFC };
+enum { MIDI_SONG_POSITION = 0xF2, MIDI_TICK = 0xF8, MIDI_START = 0xFA, MIDI_CONTINUE = 0xFB, MIDI_STOP = 0xFC };
 
 typedef struct
 {
@@ -459,6 +459,8 @@ static void apply(OmMidiIn *m, const Message *q)
 	const uint8_t status = q->b[0];
 	if (status >= MIDI_TICK)
 		clockMessage(m, q->frame, status);
+	else if (status == MIDI_SONG_POSITION)
+		om_studio_song_position(m->st, q->frame, (uint16_t)(q->b[1] | q->b[2] << 7));
 	else if (status >= 0x80 && status < 0xA0)
 		note(m, q->frame, q->b);
 	else
